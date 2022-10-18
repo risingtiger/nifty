@@ -1,0 +1,3 @@
+[submodule "pwapp"]
+	path = pwapp
+	url = git@github.com:Pure-Water-Tech/pwapp.git
