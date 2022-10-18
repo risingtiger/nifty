@@ -1,0 +1,96 @@
+
+
+
+
+
+
+v-machines ion-label {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+  v-machines ion-item:nth-child(1) ion-label {
+    margin-top: 8;
+  }
+
+v-machines ion-avatar {
+  width: 27px;
+  height: 27px;
+}
+v-machines h3 + p {
+  padding-left: 10px;
+}
+
+v-machines .isoffline_text {
+  color: red;
+}
+
+@media only screen
+and (min-device-width: 768px) {
+  v-machines h3 {
+    padding-left: 10px;
+    display: flex;
+  }
+    v-machines h3 span {
+      /*font-size: 14px;*/
+    }
+    v-machines h3 span.firstcolumn {
+      width: 29%;
+    }
+    v-machines h3 span.secondcolumn, v-machines h2 span.thirdcolumn, v-machines h2 span.fourthcolumn {
+      color:gray;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    v-machines h3 span.secondcolumn {
+      width: 20%;
+    }
+    v-machines h3 span.thirdcolumn {
+      width: 20%;
+    }
+    v-machines h3 span.fourthcolumn {
+      width: 20%;
+    }
+
+  v-machines h3 + p {
+    display: flex;
+  }
+    v-machines h3 + p span {
+      /*font-size: 14px;*/
+    }
+    v-machines h3 + p span.firstcolumn {
+      width: 29%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    v-machines h3 + p span.secondcolumn, v-machines h2 + p span.thirdcolumn, v-machines h2 + p span.fourthcolumn {
+      color:gray;
+      /*padding-left: 21px;*/
+    }
+    v-machines h3 + p span.secondcolumn {
+      width: 20%;
+    }
+    v-machines h3 + p span.thirdcolumn {
+      width: 20%;
+    }
+    v-machines h3 + p span.fourthcolumn {
+      width: 20%;
+    }
+
+}
+
+@media only screen and (max-device-width: 767px) {
+  v-machines ion-avatar {
+    margin-right: 10px;
+  }
+  v-machines h3 + p {
+    padding-left: 0;
+  }
+  v-machines span.xtra {
+    display:none;
+  }
+}
+
+
+

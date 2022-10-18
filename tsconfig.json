@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "es2020",
+    "moduleResolution": "node",
+    "noImplicitAny": false,
+    "sourceMap": false,
+    "strict": true,   
+    "esModuleInterop": true, 
+    "skipLibCheck": true,                  
+    "forceConsistentCasingInFileNames": true
+  }
+}

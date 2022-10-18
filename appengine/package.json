@@ -1,0 +1,20 @@
+{
+  "name": "niftyapp appengine",
+  "description": "Nifty App AppEngine",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache Version 2.0",
+  "author": "Davis Hammon",
+  "engines": {
+    "node": "16.x.x"
+  },
+  "scripts": {
+    "start": "node app.js",
+    "dev": "PORT=3002 NODE_ENV=dev node app.js",
+    "dist": "PORT=3003 NODE_ENV=dist node app.js"
+  },
+  "dependencies": {
+    "express": "latest"
+  },
+  "devDependencies": {}
+}
