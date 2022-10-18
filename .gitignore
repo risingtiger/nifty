@@ -1,0 +1,7 @@
+**/node_modules
+**/.vscode/
+appengine/static_dev/
+appengine/static_dist/
+
+
+**/.DS_Store
