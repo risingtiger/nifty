@@ -1,5 +1,5 @@
-/*
-*/
+
+
 import { InitInterval as SwitchStation_InitInterval } from './switchstation.js';
 import  './thirdparty/lit-html.js';
 import  './libs/suckinjs.js';

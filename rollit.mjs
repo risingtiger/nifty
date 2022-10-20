@@ -11,115 +11,171 @@ import { exec as cpexec } from 'child_process';
 import * as brotli        from 'brotli';
 
 
+
+
+const _WHATAPPINSTANCE     = process.argv[2]
+const _WHATACTION          = process.argv[3]
+
+
+
+
 const exec = promisify(cpexec);
-const sourcePath           = "./static/";
-const outputPathDev        = "./appengine/static_dev/";
+const sourceMainPath           = "./static/";
+const sourceAppInstancePath    = `./${_WHATAPPINSTANCE}app/static/`;
+const outputPathDev            = "./appengine/static_dev/";
 const outputPathDist       = "./appengine/static_dist/";
 const cachableNonJSFiles   = "'index.html', 'main.css', 'pwt.webmanifest'"
 
 
 
 
+
+
+
+
 void async function() {
 
-  let what = process.argv[2];
-
-  const views = readdirSync(sourcePath + "views", { withFileTypes:true})
-    .filter(f=> f.isDirectory())
-    .map(f=> f.name)
+  const viewsMain        = readdirSync(sourceMainPath + "views", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'main', name:f.name};})
+  const viewsAppInstance = readdirSync(sourceAppInstancePath + "views", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name};})
+  const views = [ ...viewsMain, ...viewsAppInstance ]
 
 
-  if      (what === "alldev")     handleAllDev(views);
 
-  else if (what === "main")       handleMain();
+  if      (_WHATACTION === "alldev")     { handleAction_AllDev(views); }
 
-  else if (what === "thirdparty") handleThirdParty();
+  else if (_WHATACTION === "main")       { handleAction_Main(); }
 
-  else if (what === "images")     handleImages();
+  else if (_WHATACTION === "thirdparty") { handleAction_ThirdParty(); }
 
-  else if (views.includes(what))  handleView(what);
+  else if (_WHATACTION === "images")     { handleAction_Images(); }
 
-  else if (what === "dist")       handleDist();
-    
+  else if (_WHATACTION === "dist")       { handleAction_Dist(); }
+
+
+  else {
+    debugger
+    let v = views.find(v=> v.name === _WHATACTION)
+
+    if (v)
+      handleAction_View(v)
+    else
+      console.log("no action found")
+  }
+
 
 }();
 
 
 
 
-async function handleAllDev(views) {
+async function handleAction_AllDev(views) {
 
-  await handleMain()
+  await handleAction_Main()
 
-  await handleThirdParty()
+  await handleAction_ThirdParty()
 
-  await handleImages()
+  await handleAction_Images()
 
 
   views
-    .forEach(v=> handleView(v))
+    .forEach(v=> handleAction_View(v))
 
 }
 
 
 
 
-function handleMain() {   
+function handleAction_Main() {   
 
   return new Promise(async res=> {
 
-    let exstr   = `mkdir -p ${outputPathDev} && `;
-    exstr      += `cp ${sourcePath}index.html ${outputPathDev}.  && `;
-    exstr      += `cp ${sourcePath}pwt.webmanifest ${outputPathDev}.  && `;
-    exstr      += `cp ${sourcePath}sw.js ${outputPathDev}.`;
-    await exec(exstr);
-
-
-    const jsP = await processJs(`${sourcePath}main.ts`);
-    writeFileSync(`${outputPathDev}main.js`, jsP);
-
-
-    const cssP  = await processCSS(`${sourcePath}main.css`);
-    writeFileSync(`${outputPathDev}main.css`, cssP);
-
-
-    res(1)
-
-  })
-
-}
+    // just doing straight save of index and sw.js after creating output file 
+    
+    let exstr   = `rm -rf ${outputPathDev} && `;
+    exstr      += `mkdir -p ${outputPathDev} && `
+    exstr      += `cp ${sourceMainPath}index.html ${outputPathDev}.  && `;
+    exstr      += `cp ${sourceMainPath}sw.js ${outputPathDev}.`;
+    let execP   =  exec(exstr);
 
 
 
+    // web manifest file -- pulling values from app instance to populate into main and saving to output 
 
-async function handleThirdParty() {
+    let manifestMain = JSON.parse(readFileSync(`${sourceMainPath}app.webmanifest`))
+    let manifestApp  = JSON.parse(readFileSync(`${sourceAppInstancePath}app_xtend.webmanifest`))
 
-  return new Promise(async res=> {
+    manifestMain.name = manifestApp.name
+    manifestMain.short_name = manifestApp.short_name
+    manifestMain.description = `App Version: ___${manifestApp.version}___`
 
-    readdirSync(sourcePath + "thirdparty", { withFileTypes:true })
-
-      .filter(f=> f.name.includes(".ts"))
-
-      .map(async (f) => {
-        const x = await processJs(`${sourcePath}thirdparty/${f.name}`); 
-
-        const newx = x.replace(/import '(.+.css)'/, (_match, p1)=> {
-          let cssstr = "";
-
-          if (p1.charAt(0) === '.' || p1.charAt(0) === '/') 
-            cssstr = readFileSync(p1, "utf8");
-
-          else 
-            cssstr = readFileSync(`./node_modules/${p1}`, "utf8");
-          
-          cssstr = cssstr.replace(/\/\*# sourceMappingURL.+\*\//, "");
-
-          return `window['__MRP__CSSSTR_${f.name.substring(0, f.name.length-3)}'] = \`${cssstr}\`;`   });
+    writeFileSync(`${outputPathDev}app.webmanifest`, JSON.stringify(manifestMain))
 
 
-        writeFileSync(`${outputPathDev}${f.name.substring(0, f.name.length-3)}.js`, newx); 
+
+    // js and css. parsing both main and appinstance and then inserting app instance into main before saving to output 
+
+    const jsMainP         = processJs(`${sourceMainPath}main.ts`);
+    const jsAppInstanceP  = processJs(`${sourceAppInstancePath}main_xtend.ts`);
+    const cssMainP        = processCSS(`${sourceMainPath}main.css`);
+    const cssAppInstanceP = processCSS(`${sourceAppInstancePath}main_xtend.css`);
+
+    Promise.all([execP, jsMainP, jsAppInstanceP, cssMainP, cssAppInstanceP])
+
+      .then(data=> {
+        writeFileSync(`${outputPathDev}main.js`, data[1] + "\n\n\n" + data[2])
+        writeFileSync(`${outputPathDev}main.css`, data[3] + "\n\n\n" + data[4])
+
+        res(1)
+
       })
 
+  })
+
+}
+
+
+
+
+async function handleAction_ThirdParty() {
+
+  return new Promise(async res=> {
+
+    let a = readdirSync(sourceMainPath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "main", name: f.name}})
+    let b = readdirSync(sourceAppInstancePath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "appinstance", name: f.name}})
+
+    let files = [...a, ...b]
+
+
+
+    for(let i = 0; i < files.length; i++) {
+
+      const f = files[i]
+
+      const x = await processJs(`${f.what === "main" ? sourceMainPath : sourceAppInstancePath}thirdparty/${f.name}`); 
+
+
+
+      const newx = x.replace(/import '(.+.css)'/, (_match, p1)=> {
+        let cssstr = "";
+
+        if (p1.charAt(0) === '.' || p1.charAt(0) === '/') 
+          cssstr = readFileSync(p1, "utf8");
+
+        else 
+          cssstr = readFileSync(`./node_modules/${p1}`, "utf8");
+        
+        cssstr = cssstr.replace(/\/\*# sourceMappingURL.+\*\//, "");
+
+        return `window['__MRP__CSSSTR_${f.name.substring(0, f.name.length-3)}'] = \`${cssstr}\`;`   
+      });
+
+
+
+      writeFileSync(`${outputPathDev}${f.name.substring(0, f.name.length-3)}.js`, newx); 
+    }
+
+
+
     res(1)
 
   })
@@ -129,11 +185,11 @@ async function handleThirdParty() {
 
 
 
-async function handleImages() {
+async function handleAction_Images() {
 
   return new Promise(async res=> {
 
-    let exstr = `cp -r ${sourcePath}images ${outputPathDev}.`;
+    let exstr = `cp -r ${sourceMainPath}images ${outputPathDev}. && cp -r ${sourceAppInstancePath}images/* ${outputPathDev}images/.`;
 
     await exec(exstr);
 
@@ -147,13 +203,15 @@ async function handleImages() {
 
 
 
-async function handleView(view) {
+async function handleAction_View(view) {
 
   return new Promise(async res=> {
 
-    const jsP   = await processJs(`${sourcePath}views/${view}/${view}.ts`);
-    const htmlP = await processHTML(`${sourcePath}views/${view}/${view}.html`);
-    const cssP  = await processCSS(`${sourcePath}views/${view}/${view}.css`);
+    let path = view.is === "main" ? sourceMainPath : sourceAppInstancePath
+
+    const jsP   = await processJs(`${path}views/${view.name}/${view.name}.ts`);
+    const htmlP = await processHTML(`${path}views/${view.name}/${view.name}.html`);
+    const cssP  = await processCSS(`${path}views/${view.name}/${view.name}.css`);
 
 
     let [jsStr, htmlStr, cssStr] = await Promise.all([jsP, htmlP, cssP]);
@@ -162,7 +220,7 @@ async function handleView(view) {
     let jswithimports = jsStr.replace("{--htmlcss--}", `<style>${cssStr}</style>${htmlStr}`);
 
 
-    writeFileSync(`${outputPathDev}${view}.js`, jswithimports);
+    writeFileSync(`${outputPathDev}${view.name}.js`, jswithimports);
 
 
     res(1)
@@ -174,7 +232,7 @@ async function handleView(view) {
 
 
 
-async function handleDist() {
+async function handleAction_Dist() {
 
   return new Promise(async res=> {
 

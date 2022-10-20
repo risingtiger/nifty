@@ -1,7 +1,7 @@
 {
-  "name": "Pure Water Tech",
-  "short_name": "PWT",
-  "description": "PWT Version: ___605___",
+  "name": "to be filled in by build process according to app",
+  "short_name": "to be filled in by build process according to app",
+  "description": "to be filled in by build process according to app",
   "logos": [
     {
       "src": "/static/images/logo-192.svg",
