@@ -9,6 +9,7 @@ import { writeFileSync, readdirSync, readFileSync, promises as fspromises  } fro
 import { promisify } 		  from 'util';
 import { exec as cpexec } from 'child_process';
 import * as brotli        from 'brotli';
+import { generateFonts }  from 'fantasticon';
 
 
 
@@ -24,11 +25,7 @@ const sourceMainPath           = "./static/";
 const sourceAppInstancePath    = `./${_WHATAPPINSTANCE}app/static/`;
 const outputPathDev            = "./appengine/static_dev/";
 const outputPathDist       = "./appengine/static_dist/";
-const cachableNonJSFiles   = "'index.html', 'main.css', 'pwt.webmanifest'"
-
-
-
-
+const cachableNonJSFiles   = "'index.html', 'main.css', 'app.webmanifest'"
 
 
 
@@ -39,46 +36,67 @@ void async function() {
   const viewsAppInstance = readdirSync(sourceAppInstancePath + "views", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name};})
   const views = [ ...viewsMain, ...viewsAppInstance ]
 
+  const componentsMain        = readdirSync(sourceMainPath + "components", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'main', name:f.name};})
+  const componentsAppInstance = readdirSync(sourceAppInstancePath + "components", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name};})
+  const components = [ ...componentsMain, ...componentsAppInstance ]
 
 
-  if      (_WHATACTION === "alldev")     { handleAction_AllDev(views); }
 
-  else if (_WHATACTION === "main")       { handleAction_Main(); }
+  if      (_WHATACTION === "alldev")     { await handleAction_AllDev(views, components); }
 
-  else if (_WHATACTION === "thirdparty") { handleAction_ThirdParty(); }
+  else if (_WHATACTION === "main")       { await handleAction_Main(); }
 
-  else if (_WHATACTION === "images")     { handleAction_Images(); }
+  else if (_WHATACTION === "noncore")    { await handleAction_ThirdParty(); }
 
-  else if (_WHATACTION === "dist")       { handleAction_Dist(); }
+  else if (_WHATACTION === "images")     { await handleAction_Images(); }
+
+  else if (_WHATACTION === "icons")      { await handleAction_Icons(); }
+
+  else if (_WHATACTION === "dist")       { await handleAction_Dist(); }
 
 
   else {
-    debugger
     let v = views.find(v=> v.name === _WHATACTION)
+    let c = components.find(c=> c.name === _WHATACTION)
 
     if (v)
-      handleAction_View(v)
+      await handleAction_View_Or_Component("views", v)
+
+    else if (c)
+      await handleAction_View_Or_Component("components", c)
+
     else
       console.log("no action found")
   }
-
 
 }();
 
 
 
 
-async function handleAction_AllDev(views) {
+function handleAction_AllDev(views, components) {
 
-  await handleAction_Main()
+  return new Promise(async res=> {
 
-  await handleAction_ThirdParty()
+    await exec(`rm -rf ${outputPathDev} `);
 
-  await handleAction_Images()
+    await handleAction_Main()
 
+    await handleAction_ThirdParty()
 
-  views
-    .forEach(v=> handleAction_View(v))
+    await handleAction_Images()
+
+    await handleAction_Icons()
+
+    for(let i = 0; i < views.length; i++) 
+      await handleAction_View_Or_Component("views", views[i])
+
+    for(let i = 0; i < components.length; i++) 
+      await handleAction_View_Or_Component("components", components[i])
+
+    res(1)
+
+  })
 
 }
 
@@ -91,8 +109,7 @@ function handleAction_Main() {
 
     // just doing straight save of index and sw.js after creating output file 
     
-    let exstr   = `rm -rf ${outputPathDev} && `;
-    exstr      += `mkdir -p ${outputPathDev} && `
+    let exstr   = `mkdir -p ${outputPathDev} && `
     exstr      += `cp ${sourceMainPath}index.html ${outputPathDev}.  && `;
     exstr      += `cp ${sourceMainPath}sw.js ${outputPathDev}.`;
     let execP   =  exec(exstr);
@@ -108,8 +125,6 @@ function handleAction_Main() {
     manifestMain.short_name = manifestApp.short_name
     manifestMain.description = `App Version: ___${manifestApp.version}___`
 
-    writeFileSync(`${outputPathDev}app.webmanifest`, JSON.stringify(manifestMain))
-
 
 
     // js and css. parsing both main and appinstance and then inserting app instance into main before saving to output 
@@ -122,8 +137,14 @@ function handleAction_Main() {
     Promise.all([execP, jsMainP, jsAppInstanceP, cssMainP, cssAppInstanceP])
 
       .then(data=> {
+
+        let x = "\\\\" 
+        let y = "\\"
+        let replacedcss = data[3].replaceAll(`content: '${x}`, `content: '${y}`)
+
         writeFileSync(`${outputPathDev}main.js`, data[1] + "\n\n\n" + data[2])
-        writeFileSync(`${outputPathDev}main.css`, data[3] + "\n\n\n" + data[4])
+        writeFileSync(`${outputPathDev}main.css`, replacedcss + "\n\n\n" + data[4])
+        writeFileSync(`${outputPathDev}app.webmanifest`, JSON.stringify(manifestMain))
 
         res(1)
 
@@ -140,8 +161,8 @@ async function handleAction_ThirdParty() {
 
   return new Promise(async res=> {
 
-    let a = readdirSync(sourceMainPath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "main", name: f.name}})
-    let b = readdirSync(sourceAppInstancePath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "appinstance", name: f.name}})
+    let a = readdirSync(sourceMainPath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "main", name: f.name, type: 'thirdparty'}})
+    let b = readdirSync(sourceAppInstancePath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "appinstance", name: f.name, type:'thirdparty'}})
 
     let files = [...a, ...b]
 
@@ -151,11 +172,13 @@ async function handleAction_ThirdParty() {
 
       const f = files[i]
 
-      const x = await processJs(`${f.what === "main" ? sourceMainPath : sourceAppInstancePath}thirdparty/${f.name}`); 
+      const fpath = `${f.what === "main" ? sourceMainPath : sourceAppInstancePath}${f.type}/${f.name}`
 
+      const tsFileAsStr = readFileSync(fpath, {encoding: "utf8"})
 
-
-      const newx = x.replace(/import '(.+.css)'/, (_match, p1)=> {
+      // will only replace if string exists. otherwise newTsFileAsStr contains exactly what is tsFileAsStr
+      
+      const newTsFileAsStr = tsFileAsStr.replace(/\/\/{--(.+.css)--}/, (_match, p1)=> {
         let cssstr = "";
 
         if (p1.charAt(0) === '.' || p1.charAt(0) === '/') 
@@ -169,9 +192,13 @@ async function handleAction_ThirdParty() {
         return `window['__MRP__CSSSTR_${f.name.substring(0, f.name.length-3)}'] = \`${cssstr}\`;`   
       });
 
+      writeFileSync(fpath, newTsFileAsStr, {encoding: "utf8"})
 
 
-      writeFileSync(`${outputPathDev}${f.name.substring(0, f.name.length-3)}.js`, newx); 
+
+      const x = await processJs(fpath); 
+
+      writeFileSync(`${outputPathDev}${f.name.substring(0, f.name.length-3)}.js`, x); 
     }
 
 
@@ -203,15 +230,39 @@ async function handleAction_Images() {
 
 
 
-async function handleAction_View(view) {
+async function handleAction_Icons() {
 
   return new Promise(async res=> {
 
-    let path = view.is === "main" ? sourceMainPath : sourceAppInstancePath
+    const results = await generateFonts({
+      inputDir: `${sourceMainPath}images/icons`,
+      outputDir: `${outputPathDev}images/icons`,
+      fontTypes: ['woff2'],
+      fontsUrl: `${outputPathDev}/fonts`,
+      name: `icons`
+    })
+    
+    console.log(results)
 
-    const jsP   = await processJs(`${path}views/${view.name}/${view.name}.ts`);
-    const htmlP = await processHTML(`${path}views/${view.name}/${view.name}.html`);
-    const cssP  = await processCSS(`${path}views/${view.name}/${view.name}.css`);
+
+    res(1);
+
+  })
+
+}
+
+
+
+
+async function handleAction_View_Or_Component(what, module) {
+
+  return new Promise(async res=> {
+
+    let path = module.is === "main" ? sourceMainPath : sourceAppInstancePath
+
+    const jsP   = await processJs(`${path}${what}/${module.name}/${module.name}.ts`);
+    const htmlP = await processHTML(`${path}${what}/${module.name}/${module.name}.html`);
+    const cssP  = await processCSS(`${path}${what}/${module.name}/${module.name}.css`);
 
 
     let [jsStr, htmlStr, cssStr] = await Promise.all([jsP, htmlP, cssP]);
@@ -220,8 +271,7 @@ async function handleAction_View(view) {
     let jswithimports = jsStr.replace("{--htmlcss--}", `<style>${cssStr}</style>${htmlStr}`);
 
 
-    writeFileSync(`${outputPathDev}${view.name}.js`, jswithimports);
-
+    writeFileSync(`${outputPathDev}${module.name}.js`, jswithimports);
 
     res(1)
 
@@ -236,6 +286,7 @@ async function handleAction_Dist() {
 
   return new Promise(async res=> {
 
+    debugger
     await exec(`mkdir -p ${outputPathDist}`);
 
 
@@ -248,7 +299,6 @@ async function handleAction_Dist() {
           const res = await exec(`rollup -c --environment DIST --environment JS ${outputPathDev}${f.name}`); 
 
           const compressedBuf = brotli.compress( Buffer.from(res.stdout, "utf8") );
-          // const compressedBuf = res.stdout;
 
           writeFileSync(outputPathDist + f.name.substring(0, f.name.length-3) + ".min.js.br", compressedBuf);
 
@@ -257,7 +307,7 @@ async function handleAction_Dist() {
       })
 
 
-    await exec(`cp -r ${outputPathDev}index.html ${outputPathDev}main.css ${outputPathDev}images ${outputPathDev}pwt.webmanifest ${outputPathDev}sw.js ${outputPathDist} `)
+    await exec(`cp -r ${outputPathDev}index.html ${outputPathDev}main.css ${outputPathDev}images ${outputPathDev}app.webmanifest ${outputPathDev}sw.js ${outputPathDist} `)
 
 
     setCache();
@@ -324,16 +374,16 @@ function processCSS(path) {
 
 async function setCache () {
 
-  let webManifestStr = readFileSync(`${sourcePath}pwt.webmanifest`, "utf8");
-  let vers           = Number(webManifestStr.match(/___([0-9]+)___/)[1]) + 1;
+  let webManifestStr = readFileSync(`${sourceAppInstancePath}app_xtend.webmanifest`, "utf8");
+  let vers           = Number(webManifestStr.match(/version\"\: ([0-9]+)/)[1]) + 1;
 
 
   let files = cachableNonJSFiles + ", " + getAllCachableJsFiles()
 
 
   let exstr = `
-    sd '___[0-9]+___' '___${vers}___' ${sourcePath}pwt.webmanifest &&
-    sd '___[0-9]+___' '___${vers}___' ${outputPathDist}pwt.webmanifest &&
+    sd '___[0-9]+___' '___${vers}___' ${sourceAppInstancePath}app_xtend.webmanifest &&
+    sd '___[0-9]+___' '___${vers}___' ${outputPathDist}app.webmanifest &&
     sd 'V__[0-9]+__' 'V${vers}' ${outputPathDist}sw.js &&
     sd 'cache_onload_replacestr' "${files}" ${outputPathDist}sw.js && 
     sd 'APPVERSION=0' 'APPVERSION=${vers}' ${outputPathDist}index.html &&
@@ -358,6 +408,5 @@ async function setCache () {
   }
 
 }
-
 
 

@@ -25,7 +25,6 @@ class VUpgrade extends HTMLElement {
 
   constructor() {   
     super(); 
-    console.log("v-upgrade constructor");
 
     this.state = {propa:""};
   }
@@ -34,7 +33,6 @@ class VUpgrade extends HTMLElement {
 
 
   connectedCallback() {   
-    console.log("v-upgrade connected");   
   }
 
 
@@ -44,7 +42,6 @@ class VUpgrade extends HTMLElement {
 
     return new Promise((res, _rej)=> {
 
-      console.log("v-upgrade activated");   
 
       res(1);
 
@@ -57,7 +54,6 @@ class VUpgrade extends HTMLElement {
 
   stateChanged() {
 
-    console.log("v-upgrade stateChanged. ... Rendering now");
 
     Lit_Render(this.template(this.state), this);
 

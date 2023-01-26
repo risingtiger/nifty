@@ -1,34 +1,61 @@
 
 
-type str = string;   
-
-
-
-
 const suckedInJs:Array<str> = [];
 
 
 
 
-const SuckInJs = (filesstr:str) => { return new Promise((res, rej)=> {
+const SuckInJs = (filesArray:str[]) => { 
 
-  if (suckedInJs.includes(filesstr)) {
-    res(1);
+  return new Promise((res, rej)=> {
 
-  } else {
+    let incr = 0
+    const allToSuckIn = filesArray
 
-    import(`./${filesstr}.js`)
+    for(let i = 0; i < filesArray.length; i++) {
+      const di = (window as any).__APPINSTANCE_DEPENDENCIES.find((d:any)=> d.module === filesArray[i])
+      const dm = (window as any).__DEPENDENCIES.find((d:any)=> d.module === filesArray[i])
 
-      .then(_module => {
+      if (di)
+        allToSuckIn.push(...di.dependencies)
 
-        suckedInJs.push(filesstr);
-        document.head.insertAdjacentHTML("beforeend", `<style>${(window as any)['__MRP__CSSSTR_'+filesstr]}</style>`);
-        res(1);})
+      if (dm)
+        allToSuckIn.push(...dm.dependencies)
+    }
 
-      .catch(()=> rej());	
-  }
+    for(let i = 0; i < allToSuckIn.length; i++) {
+      const f = allToSuckIn[i]
 
-})}
+      if (suckedInJs.includes(f)) {
+        res(1);
+      } 
+
+      else {
+        import(`./${f}.js`)
+
+          .then(async _module => {
+
+            suckedInJs.push(f);
+            document.head.insertAdjacentHTML("beforeend", `<style>${(window as any)['__MRP__CSSSTR_'+f]}</style>`);
+
+            incr++
+
+            if (incr === allToSuckIn.length)
+              res(1)
+            
+          })
+
+          .catch(()=> {
+            rej(1)
+          })	
+
+      }
+    }
+
+  })
+
+}
+
 
 
 

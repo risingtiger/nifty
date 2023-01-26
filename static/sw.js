@@ -63,7 +63,6 @@ self.addEventListener('fetch', e => {
 
 // The activate handler takes care of cleaning up old caches.
 self.addEventListener('activate', async (event) => {
-    console.log("yarp.  activater")
   //const currentCaches = [cacheName];
   let x = await caches.keys();
 

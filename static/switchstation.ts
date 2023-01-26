@@ -1,8 +1,6 @@
 
 
-//type bool = boolean;   
-type str  = string;   
-//type int  = number;
+type str  = string;   //type int  = number; type bool = boolean;
 
 
 const _hstack:Array<str> = [];
@@ -27,94 +25,117 @@ class Route {
 
 
 
-  attempToload(urlMatch: str[]) { 
+  attempToload(urlm:Array<str>) { 
 
     return new Promise<any>( (res, rej) => {
 
-      import(`/${this.view}.js`)
+      let flg = false
+
+      SuckInJs([this.view])
         .then(_ => {
-          const x  = document.querySelector("#views") as any;
 
-          x.insertAdjacentHTML("beforeend", `<v-${this.view} class='view'></v-${this.view}>`);
-          const el = document.querySelector(`#views > v-${this.view}`) as any;
+          const parentEl = document.querySelector("#views")!;
 
+          let urstr = 'urlmatches = "' + urlm.join(",") + '"'
 
-          el.activated(urlMatch)
-            .then(()=> {
-              res(1);})
+          parentEl.insertAdjacentHTML("beforeend", `<v-${this.view} class='view' ${urstr}></v-${this.view}>`);
 
-            .catch(()=> rej())
+          const el = parentEl.querySelector(`v-${this.view}`)
+
+          el?.addEventListener("hydrate", ()=> {
+            if (!flg) {
+              flg = true
+              res(1)
+            }
+          })
 
         })
 
-        .catch(()=> rej());	
+        .catch(_ => {
+          if (!flg) {
+            flg = true
+            rej(1)
+          }
+        })
+
+
+
+      setTimeout(()=> {
+        if (!flg) {
+          flg = true
+          rej(1)
+        }
+      }, 4000)
 
     })
 
   }
-
-
-
-
-  emitTransitionedIn() {
-
-    const el = document.querySelector(`#views > v-${this.view}`) as any
-    if (el.transitioned)   el.transitioned();
-
-  }
-
-
-
 
 }
 
 
 
 
-const _routes = [
-  new Route("^index$", "index"),
-  new Route("^machines$", "machines"),
-  new Route("^machine\/([0-9A-Za-z_]+)$", "machine"),
-  new Route("^machine\/([0-9A-Za-z_]+)\/graphs$", "graphs"),
-  new Route("^upgrade$", "upgrade")
-];
+let _routes:Array<Route> = [];
 
 
 
 
+function _doRoute(url: str, isGoingBack:bool) {
 
-
-
-
-function _doRoute(url: str) {
-    if (_intransitionLock) {
+  if (_intransitionLock) 
     return false;
-  }
 
 
   _intransitionLock = true;
 
+  document.querySelector("#loadviewoverlay")!.classList.add("active")
 
   const viewsEl                = document.querySelector("#views") as HTMLElement;
-  const [ urlmatch, route ] = _setMatchAndGetMatchAndRoute(url);
+  const [ urlm, route ] = _setMatchAndGetMatchAndRoute(url);
 
 
-  route.attempToload(urlmatch)
-
+  route.attempToload(urlm)
     .then(()=> {
+      let ch = viewsEl.children;
 
-      setTimeout(()=> {
+      if (ch.length === 2) {
+        const anim = [
+          {
+            opacity: '0', transform: `translate3D(${isGoingBack ? '-' : ''}35px, 0, 0)`
+          },
+          {
+            opacity: '1', transform: "translate3D(0%, 0, 0)"
+          }
+        ]
 
-        // this timeout is only temporary until I can get my shit together and figure out the page transition
-        // set ALL views to inactive, then set the last view (which should be the one being loaded in) to active
+        const timing = {
+          duration: 300,
+          easing: "cubic-bezier(.42,0,.04,1)",
+          iterations: 1
+        }
+
+        setTimeout(()=> {
+          let animate = ch[1].animate(anim, timing)
+          animate.onfinish = _e=> {
+            (ch[1] as any).classList.add("active")
+            posthash((ch[1] as any))
+            viewsEl.removeChild(ch[0]);
+          }
+        }, 10)
 
 
-        let ch = viewsEl.children;
-        ch[ch.length - 1].classList.add('active');
+      }
 
-        for(let i = 0; i < ch.length - 1; i++)
-          viewsEl.removeChild(ch[i]);
+      else {
+        (ch[0] as any).classList.add("active")
+        posthash((ch[0] as any))
+      }
 
+
+
+      function posthash(el:HTMLElement) {
+        document.querySelector("#loadviewoverlay")!.classList.remove("active")
 
         if (window.location.hash.substring(1) === _hstack[_hstack.length-2]) {
           _hstack.pop();
@@ -125,63 +146,95 @@ function _doRoute(url: str) {
         }
 
 
-        route.emitTransitionedIn();
+        (window as any).DDomObserve(el)
 
 
         _intransitionLock = false;
+      }
 
-      }, 300);   })
+    })
+
 
     .catch(()=> {
-      window.location.hash = _hstack[_hstack.length-1] || "index";
-      _intransitionLock = false;
-      alert("unable to load view");   });
+      window.location.href = `/?errmsg=${encodeURIComponent('Unable to Load Page View')}`
+    })
 
 }
 
 
 
 
-function _setMatchAndGetMatchAndRoute(url: str) : [RegExpMatchArray, Route] {
+function _setMatchAndGetMatchAndRoute(url: str) : [Array<str>, Route] {
+
   for (let i = 0; i < _routes.length; i++) {
     let urlmatchstr = url.match(_routes[i].regex);
 
-    if (urlmatchstr)
-      return [ urlmatchstr, _routes[i] ];
+    if (urlmatchstr) 
+      return [ urlmatchstr.slice(1), _routes[i] ]
   }
 
 
   // catch all -- just route to index
 
-  return [ ("index".match(/index/g) as RegExpMatchArray), _routes.find(r=> r.view==="index") as Route ];
+  return [ ("index".match(/index/g) as RegExpMatchArray).slice(1), _routes.find(r=> r.view==="index")! ]
 }
 
 
 
 
 const InitInterval = ()=> {
-  setInterval(_=> {
-    if (_intransitionLock) {
-      return false;
 
-    } else if (!_hstack.length) {
+  window.addEventListener('hashchange', ()=>hashChanged())
+  hashChanged()
 
-      if (window.location.hash === "") {
-        window.location.hash = "index";
-        _doRoute("index");
-
-      } else {
-        _doRoute(window.location.hash.substring(1));
-      }
-
-    } else if (window.location.hash.substring(1) !== _hstack[_hstack.length-1]) {
-      _doRoute(window.location.hash.substring(1));
-    }
-
-  }, 200);
 }
 
 
 
-export { InitInterval };
+
+function hashChanged() {
+
+  if (_intransitionLock) {
+    return false;
+
+  } else if (!_hstack.length) {
+
+    if (window.location.hash === "") {
+      window.location.hash = "index";
+      _doRoute("index", false);
+
+    } else {
+      _doRoute(window.location.hash.substring(1), false);
+    }
+
+  } else if (window.location.hash.substring(1) !== _hstack[_hstack.length-1]) {
+
+    if (window.location.hash.substring(1) === _hstack[_hstack.length-2]) {
+
+      // is going back
+      
+      _doRoute(window.location.hash.substring(1), true);
+
+    } else {
+
+      // is going forward
+
+      _doRoute(window.location.hash.substring(1), false);
+    }
+
+  }
+
+}
+
+
+
+
+const AddRoute = (regexstr:str, view:str)=> {
+  _routes.push(new Route(regexstr, view))
+}
+
+
+
+export { InitInterval, AddRoute };
+
 

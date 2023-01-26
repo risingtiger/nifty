@@ -1,45 +1,152 @@
 
 
-import { FsQssOpts, FsQssProject } from "../definitions.js"
+// import { FsQssOpts } from "../definitions.js"
 
 
-type str = string;   
-//type int = number;   
-type bool = boolean;
+type str = string;   type int = number;   type bool = boolean;
+
+
+export type FsQssOptsT = {
+  limit: int,
+  orderBy: str|null,
+  mktype: bool,
+  forceGetAll: bool
+}
+export type FsGssOptsT = {
+  propa:bool,
+}
 
 
 
+function FSQss(queries:Array<str>, opts:FsQssOptsT = {forceGetAll: false, limit: 100, orderBy: null, mktype: false}) { 
 
-type Store = {
-  str:str,
-  itms: Array<any>
+  const preurl = `https://firestore.googleapis.com/v1/projects/${(window as any).__APPINSTANCE.firebase.project}/databases/(default)/documents/`
+
+  const results:any = []
+
+  return new Promise((res, _rej)=> {
+
+    const fetchparams = queries.map(q=> _FSQss_getFetchParams(preurl, q))
+
+    const orderByStr = opts.orderBy ? 'orderBy=' + opts.orderBy : ''  
+
+    const qf = fetchparams.map(fp=> fetch(fp.fetchurl + '?pageSize=' + (opts.forceGetAll ? 300 : opts.limit) + '&' + orderByStr, fp.fetchopts).then(response => response.json()))
+
+    Promise.all(qf)
+      .then(async (qr:any[])=> {
+        for(let i = 0; i < queries.length; i++) {
+
+          if (qr[i].nextPageToken && opts.forceGetAll) 
+            await _FSQss_getAllPaginatedData(fetchparams[i].fetchurl, 300, qr[i], qr[i].documents) as any
+
+          if (qr[i].documents)
+            results.push(qr[i].documents.map((d:any)=> _FSQss_parse(d, opts.mktype)))
+          else
+            results.push(_FSQss_parse(qr[i], opts.mktype))
+
+          if (results.length === queries.length)
+            res(results)
+
+        }
+      })
+      
+      .catch(_=> {
+        window.location.href = "/?errmsg=firestoreLoadFail";
+      })
+
+  })
+
 }
 
 
 
 
-const stores:Array<Store> = [];
+function FSGss(colletionName:str, docId:str, mask:any[], data:any, _opts:FsGssOptsT = {propa: false}) { 
+
+  return new Promise(async (res, _rej)=> {
+
+    const url = `https://firestore.googleapis.com/v1/projects/${(window as any).__APPINSTANCE.firebase.project}/databases/(default)/documents/${colletionName}/${docId}`
+
+    const maskstr  = "?" + mask.map(m=> `updateMask.fieldPaths=${m}`).join("&")
+
+    const dataBody = { fields: {}}
+
+    for(const prop in data) 
+      _FSGssCreateObj(prop, data[prop], dataBody.fields)
+
+    const fetchopts = {  
+      method: 'PATCH',
+      body: JSON.stringify(dataBody)
+      // headers: {
+      //   'Authorization': 'Bearer aizasycdbd4fdbczbl03_m4k2mlpaidkuo32gii',
+      //   'Content-Type': 'application/json',
+      //   //'Origin': '',
+      //   //'Host': 'api.producthunt.com'
+      // }
+    }
+    fetch(url + maskstr, fetchopts)
+      .then((_rq:any)=> {
+        res(1)
+      })
+      .catch((_e:any)=> {
+        //window.location.href = "/"
+      })
+
+  })
+
+}
 
 
 
 
-function FSQss(str:str, opts:FsQssOpts) { return new Promise<any[]>((res, rej)=> {
+function _FSGssCreateObj(propname:str|int, propval:any, dest:any) : any {
 
-  // Machine > all
-  // Machine > (where one | where) > (id | status == red)
-  
-  let store = stores.find(s=> s.str === str);
+  if (typeof propval == "string") {
+    dest[propname] = { stringValue: propval }
 
-  if (store && !opts.refresh) {
-    res(store.itms);
-    return;
+  } else if (typeof propval == "boolean") {
+    dest[propname] = { booleanValue: propval }
+
+  } else if (typeof propval == "number") {
+    dest[propname] = { integerValue: propval }
+
+  } else if (typeof propval == "object" && !Array.isArray(propval)) {
+    dest[propname] = { mapValue: { fields: {}}}
+    for(const prop in (propval as any)) {
+      _FSGssCreateObj(prop, propval[prop], dest[propname].mapValue.fields)
+    }
+
+  } else if (typeof propval == "object" && Array.isArray(propval)) {
+    dest[propname] = { arrayValue: { values: Array(propval.length)}}
+    for(let i = 0; i < propval.length; i++) {
+      _FSGssCreateObj(i, propval[i], dest[propname].arrayValue.values)
+    }
   }
 
+}
 
-  const s = str.split(">").map(v=> v.trim());
 
 
-  const fetchoptions = {  
+
+function _FSQss_getFetchParams(preurl:str, w:str|Array<str>) : {fetchurl:str, fetchopts:any} {
+
+  let collection:str, constriction:str|null, specifity:str|null = ""
+
+  if (Array.isArray(w)) {
+    collection = w[0]
+    constriction = w[1]
+    specifity = w[2]
+  }
+
+  else {
+    collection = w
+    constriction = null
+    specifity = null
+  }
+
+  let fetchurl = preurl + ((constriction && constriction === "doc") ? collection + "/" + specifity : collection)
+
+  const fetchopts = {  
     method: 'GET',
     // headers: {
     //   'Authorization': 'Bearer aizasycdbd4fdbczbl03_m4k2mlpaidkuo32gii',
@@ -48,49 +155,69 @@ function FSQss(str:str, opts:FsQssOpts) { return new Promise<any[]>((res, rej)=>
     //   //'Host': 'api.producthunt.com'
     // }
   }
-  fetch(`https://firestore.googleapis.com/v1/projects/${FsQssProject}/databases/(default)/documents/${s[0]}`, fetchoptions)
-    .then(response => response.json())
-    .then(data => {
-      console.log("create another data sync file. and use firebase types to construct the object (making sure to hit the proper Type. Then do all stiching together here in firebase.ts for referenced documents. ... but, think about the indexedDB, so maybe you DONT want to stitch it together, but keep it has just a reference so referenced document can exist soley in indexedDB instead of memory")
-      console.log("be careful! I made note in craft for NO centralized State whatsoever. It is painful and stupid usually. So, dont rush back to it with all this. firestore.ts should be able to handle any needs WITHOUT knowing of the particular database structure (aka: just as an agnostic plugin library)")
-      if (store) {
-        store.itms = data.documents.map((d:any)=> _fsqssParse(d, opts.mktype));
-        res(store.itms);
 
-      } else {
-        let l = stores.push({str, itms:[]})
+  return {fetchurl, fetchopts}
 
-        stores[l-1].itms = data.documents.map((d:any)=> _fsqssParse(d));
-
-        res(stores[l-1].itms);
-      }
-    }).catch(()=> rej());
-})}
-
-
-
-
-function _fsqssParse(item:any, maketype:bool = false) : any {
-
-  const namesplit = item.name.split("/")
-  const x = { id: namesplit[namesplit.length-1]};
-
-
-  for(const prop in item.fields) 
-    x[prop] = _fsqssParseCore(item.fields[prop]);
-
-
-  if (maketype)
-    console.log(_fsqssParseType(item));
-
-
-  return x;
 }
 
 
 
 
-function _fsqssParseCore(obj:any) : any {
+function _FSQss_getAllPaginatedData(fetchurl:str, pagesize:int, dataIn:any, fillin:any[]) {
+
+  return new Promise(async (res, _ref)=> {
+
+    fetch(fetchurl+'?pageSize='+pagesize+'&pageToken='+dataIn.nextPageToken, {method:'GET'})
+      .then(response => response.json())
+      .then(async response => {
+
+        if (response.nextPageToken) {
+          await _FSQss_getAllPaginatedData(fetchurl, pagesize, response, fillin)
+          fillin.push(...response.documents)
+          res(1)
+        }
+
+        else {
+          fillin.push(...response.documents)
+          res(1)
+        }
+      })
+
+  })
+
+}
+
+
+
+
+
+
+
+
+function _FSQss_parse(item:any, maketype:bool = false) : any {
+
+  const namesplit = item.name.split("/")
+  // const collection = namesplit[namesplit.length-2]
+  const d = { id: namesplit[namesplit.length-1]};
+
+
+  for(const prop in item.fields) 
+    d[prop] = _FSQssParseCore(item.fields[prop]);
+
+
+  if (maketype)
+    console.log(_FSQssParseType(item));
+
+
+  return d;
+
+}
+
+
+
+
+function _FSQssParseCore(obj:any) : any {
+
   if (obj.hasOwnProperty("integerValue")) {
     return Number(obj.integerValue);
 
@@ -105,41 +232,43 @@ function _fsqssParseCore(obj:any) : any {
 
   } else if (obj.hasOwnProperty("referenceValue")) {
     const m = obj.referenceValue.match(/^projects\/.+\/databases\/\(default\)\/documents\/(.+)\/(.+)$/)
-    return `${m[1]} > where one > ${m[2]}`;
+    return {collection: m[1], id: m[2]}
 
   } else if (obj.hasOwnProperty("arrayValue")) {
-    return obj.arrayValue.values.map((m:any)=> _fsqssParseCore(m))
+    return obj.arrayValue.values ? obj.arrayValue.values.map((m:any)=> _FSQssParseCore(m)) : []
 
   } else if (obj.hasOwnProperty("mapValue")) {
     const x = {};
 
-    for(const prop in obj.mapValue.fields) {
-      x[prop] = _fsqssParseCore(obj.mapValue.fields[prop]);
-    }
+    for(const prop in obj.mapValue.fields) 
+      x[prop] = _FSQssParseCore(obj.mapValue.fields[prop]);
 
     return x;
-
   }
+
 }
 
 
 
 
-function _fsqssParseType(items:any) : any {
+function _FSQssParseType(items:any) : any {
+
   let typestr = `export type Type = { \n`;
 
 
   for(const prop in items.fields) {
-    typestr += `${prop}: ${_fsqssParseTypeCore(items.fields[prop])}, `;
+    typestr += `${prop}: ${_FSQssParseTypeCore(items.fields[prop])}, `;
   }
 
   return typestr;
+
 }
 
 
 
 
-function _fsqssParseTypeCore(obj:any) {
+function _FSQssParseTypeCore(obj:any) {
+
   if (obj.hasOwnProperty("integerValue")) {
     return "number \n";
 
@@ -157,59 +286,28 @@ function _fsqssParseTypeCore(obj:any) {
     return `${m[1]}Type`;
 
   } else if (obj.hasOwnProperty("arrayValue")) {
-    return _fsqssParseTypeCore(obj.arrayValue.values[0]) + "[] \n";
+    return _FSQssParseTypeCore(obj.arrayValue.values[0]) + "[] \n";
 
   } else if (obj.hasOwnProperty("mapValue")) {
     let x = "{ ";
 
     for(const prop in obj.mapValue.fields) {
       x += prop + ": ";
-      x += _fsqssParseTypeCore(obj.mapValue.fields[prop]) + ",";
+      x += _FSQssParseTypeCore(obj.mapValue.fields[prop]) + ",";
     }
 
     x += "}";
 
     return x;
   }
+
 }
 
 
 
 
 (window as any).FSQss = FSQss;
+(window as any).FSGss = FSGss;
 
 
 
-//const specifity = s[1];
-
-
-// if (specifity === "all") {
-//   q = collection(db, collectionName);
-//
-//
-// } else if (specifity == "where" || specifity == "where one") {
-//   const w = s[2].split(" ").map(vstr=> vstr.trim());
-//   const field = w[0];
-//   const comparator:any = w[1];
-//   const valStr = w[2];
-//   let val:bool|str|int;
-//
-//   if (valStr === "true")
-//     val = true;
-//
-//   else if (valStr === "false")
-//     val = false;
-//
-//   else if (Number(valStr) != NaN)
-//     val = Number(valStr);
-//
-//   else
-//     val = valStr;
-
-
-  // if (specifity === "where") {
-  //   q = query(collection(db, collectionName), where(field, comparator, val));
-  //
-  // } else if (specifity === "where one") {
-  //   q = doc(db, collectionName, valStr);
-  // }
