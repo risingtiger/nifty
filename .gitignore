@@ -2,7 +2,7 @@
 **/.vscode/
 appengine/build/
 appengine/static_dist/
-appengine/static_dist/
+appengine/static_dev/
 
 
 **/.DS_Store
