@@ -1,0 +1,47 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link rel="shortcut icon" type="image/png" href="/images/logo-512.svg"/>
+  <link rel="apple-touch-icon" href="/images/logo-512.svg">
+  <link rel="apple-touch-icon" sizes="256x256" href="/images/logo-256.svg">
+
+  <link rel="manifest" href="/app.webmanifest">
+
+  <title>App</title>
+  <meta name="description" content="App">
+
+  
+  <script>APPVERSION=0;</script>
+
+
+  <script type="module" src="/main.js"></script>
+
+
+  <link media="all" rel="stylesheet" href="/main.css" />
+
+
+  <style>
+    #views > * {   display: none;   }
+    #views > *.active {   display: block;    }
+  </style>
+
+</head>
+
+<body>
+  <div id="views"></div>
+
+  <div id="loadviewoverlay"></div>
+</body>
+
+</html>

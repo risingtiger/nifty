@@ -1,0 +1,49 @@
+@font-face {
+    font-family: "icons";
+    src: url("./appengine/static_dev//fonts/icons.woff2?6e687eccd2d411ec93918695f5bbd678") format("woff2");
+}
+
+i[class^="icon-"]:before, i[class*=" icon-"]:before {
+    font-family: icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-_01_arrowright1:before {
+    content: "\f101";
+}
+.icon-_02_arrowright2:before {
+    content: "\f102";
+}
+.icon-_03_checkcircle:before {
+    content: "\f103";
+}
+.icon-_04_edit1:before {
+    content: "\f104";
+}
+.icon-_05_edit2:before {
+    content: "\f105";
+}
+.icon-_06_expand:before {
+    content: "\f106";
+}
+.icon-_07_search:before {
+    content: "\f107";
+}
+.icon-_08_stopwatch:before {
+    content: "\f108";
+}
+.icon-_09_refresh:before {
+    content: "\f109";
+}
+.icon-_10_location:before {
+    content: "\f10a";
+}
+.icon-_11_graph:before {
+    content: "\f10b";
+}
