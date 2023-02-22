@@ -156,7 +156,8 @@ function _doRoute(url: str, isGoingBack:bool) {
 
 
     .catch(()=> {
-      window.location.href = `/?errmsg=${encodeURIComponent('Unable to Load Page View')}`
+      console.log(`/?errmsg=${encodeURIComponent('Unable to Load Page View')}`)
+      // window.location.href = `/?errmsg=${encodeURIComponent('Unable to Load Page View')}`
     })
 
 }

@@ -1,6 +1,7 @@
 **/node_modules
 **/.vscode/
-appengine/static_dev/
+appengine/build/
+appengine/static_dist/
 appengine/static_dist/
 
 

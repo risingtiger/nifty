@@ -27,9 +27,6 @@ declare var __APPINSTANCE_ROUTES:Array<any>;
 
 
 
-
-
-
 window.addEventListener("load", async (_e) => {
 
   if (APPVERSION > 0)

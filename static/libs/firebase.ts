@@ -32,10 +32,11 @@ function FSQss(queries:Array<str>, opts:FsQssOptsT = {forceGetAll: false, limit:
 
     const qf = fetchparams.map(fp=> fetch(fp.fetchurl + '?pageSize=' + (opts.forceGetAll ? 300 : opts.limit) + '&' + orderByStr, fp.fetchopts).then(response => response.json()))
 
-    Promise.all(qf)
-      .then(async (qr:any[])=> {
-        for(let i = 0; i < queries.length; i++) {
+    Promise.all(qf).then(async (qr:any[])=> {
 
+      for(let i = 0; i < qr.length; i++) {
+
+        if (qr[i] && ( (qr[i].documents && qr[i].documents.length) || qr[i].fields)) {
           if (qr[i].nextPageToken && opts.forceGetAll) 
             await _FSQss_getAllPaginatedData(fetchparams[i].fetchurl, 300, qr[i], qr[i].documents) as any
 
@@ -46,13 +47,23 @@ function FSQss(queries:Array<str>, opts:FsQssOptsT = {forceGetAll: false, limit:
 
           if (results.length === queries.length)
             res(results)
-
         }
-      })
-      
-      .catch(_=> {
-        window.location.href = "/?errmsg=firestoreLoadFail";
-      })
+
+        else {
+          results.push([])
+
+          if (results.length === queries.length)
+            res(results)
+        }
+
+      }
+
+    })
+    .catch(err=> {
+      console.log(err)
+      console.log("errmsg=firestore FSQss Fail")
+      //window.location.href = "/?errmsg=firestore FSQss Fail";
+    })
 
   })
 
@@ -89,7 +100,8 @@ function FSGss(colletionName:str, docId:str, mask:any[], data:any, _opts:FsGssOp
         res(1)
       })
       .catch((_e:any)=> {
-        //window.location.href = "/"
+        console.log("errmsg=firestore FSGss Fail")
+        //window.location.href = "/?errmsg=firestore FSGss fail"
       })
 
   })

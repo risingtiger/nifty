@@ -6,28 +6,13 @@
 import express from "express";
 import { initializeApp, cert }  from "firebase-admin/app";
 import { getFirestore }  from "firebase-admin/firestore";
-import { LocateParticleChipByCellTower }  from "./locatechip.js";
-import { SecretManagerServiceClient }  from "@google-cloud/secret-manager";
+// @ts-ignore
+import { Init } from "./pwapp/appengine/src/index_extend.js"
 
 
-let   secretsClient:any;
-let   db:any
 const app = express()
 const APPVERSION = 879; 
 const env = process.env.NODE_ENV === "dev" ? "dev" : "dist";
-
-if (process.platform === 'darwin') {
-  secretsClient = new SecretManagerServiceClient({
-    projectId: 'purewatertech',
-    keyFilename: '/Users/dave/.ssh/purewatertech-57be6d28e11f.json'
-  });
-  initializeApp({   credential: cert('/Users/dave/.ssh/purewatertech-57be6d28e11f.json')   })
-} else { 
-  secretsClient = new SecretManagerServiceClient()
-  initializeApp()
-}
-
-db = getFirestore();
 
 
 
@@ -62,21 +47,6 @@ app.get('*.js', (req, res) => {
 
 
 
-app.get('/api/locatechip', (req, res) => {
-
-  LocateParticleChipByCellTower(db, req.query.particleaccount as any, req.query.particleid as any, secretsClient)
-    .then(data=> {
-      res.status(200).send(JSON.stringify(data))
-    })
-    .catch(er=> {
-      res.status(400).send(er)
-    })
-
-})
-
-
-
-
 app.get('/api/appfocusping', (req, res) => {
 
   let thisAppVersion = Number(req.query.appversion);
@@ -104,6 +74,12 @@ app.use(express.static(`static_${env}`));
 app.listen( Number(process.env.PORT), () => {
   console.log(`App listening on port ${(process.env.PORT)}`);
 });
+
+
+
+
+Init(initializeApp, getFirestore, cert, app)
+
 
 
 

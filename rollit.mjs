@@ -8,7 +8,7 @@
 import { writeFileSync, readdirSync, readFileSync, promises as fspromises  } from 'fs';
 import { promisify } 		  from 'util';
 import { exec as cpexec } from 'child_process';
-import * as brotli        from 'brotli';
+//import * as brotli        from 'brotli';
 import { generateFonts }  from 'fantasticon';
 
 
@@ -16,6 +16,7 @@ import { generateFonts }  from 'fantasticon';
 
 const _WHATAPPINSTANCE     = process.argv[2]
 const _WHATACTION          = process.argv[3]
+const _DEBUG               = process.argv[4]
 
 
 
@@ -32,6 +33,24 @@ const cachableNonJSFiles   = "'index.html', 'main.css', 'app.webmanifest'"
 
 void async function() {
 
+  if (_DEBUG) {
+    process.stdin.on('data', async function () {
+      debugger
+      handleAction_Init()
+    })
+  }
+
+  else {
+    handleAction_Init()
+  }
+
+}()
+
+
+
+
+async function handleAction_Init() {
+
   const viewsMain        = readdirSync(sourceMainPath + "views", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'main', name:f.name};})
   const viewsAppInstance = readdirSync(sourceAppInstancePath + "views", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name};})
   const views = [ ...viewsMain, ...viewsAppInstance ]
@@ -45,6 +64,8 @@ void async function() {
   if      (_WHATACTION === "alldev")     { await handleAction_AllDev(views, components); }
 
   else if (_WHATACTION === "main")       { await handleAction_Main(); }
+
+  else if (_WHATACTION === "appengine")  { await handleAction_AppEngine(); }
 
   else if (_WHATACTION === "noncore")    { await handleAction_ThirdParty(); }
 
@@ -69,7 +90,7 @@ void async function() {
       console.log("no action found")
   }
 
-}();
+}
 
 
 
@@ -82,6 +103,8 @@ function handleAction_AllDev(views, components) {
 
     await handleAction_Main()
 
+    await handleAction_AppEngine()
+
     await handleAction_ThirdParty()
 
     await handleAction_Images()
@@ -93,6 +116,11 @@ function handleAction_AllDev(views, components) {
 
     for(let i = 0; i < components.length; i++) 
       await handleAction_View_Or_Component("components", components[i])
+
+    //let exstr = `sd '../../([a-z]+)app/appengine/src/index_extend.js' '../../${_WHATAPPINSTANCE}app/appengine/src/index_extend.js' ${outputPathDev}../src/index.ts `;
+    let exstr = `sd '../([a-z]+)app/appengine/src' '../${_WHATAPPINSTANCE}app/appengine/src' ${outputPathDev}../package.json && sd './([a-z]+)app/appengine/src/index_extend.js' './${_WHATAPPINSTANCE}app/appengine/src/index_extend.js' ${outputPathDev}../src/index.ts`;
+
+    await exec(exstr); 
 
     res(1)
 
@@ -129,14 +157,16 @@ function handleAction_Main() {
 
     // js and css. parsing both main and appinstance and then inserting app instance into main before saving to output 
 
-    const jsMainP         = processJs(`${sourceMainPath}main.ts`);
-    const jsAppInstanceP  = processJs(`${sourceAppInstancePath}main_xtend.ts`);
-    const cssMainP        = processCSS(`${sourceMainPath}main.css`);
-    const cssAppInstanceP = processCSS(`${sourceAppInstancePath}main_xtend.css`);
+    const jsMainP         = processJs(`${sourceMainPath}main.ts`)
+    const jsAppInstanceP  = processJs(`${sourceAppInstancePath}main_xtend.ts`)
+    const cssMainP        = processCSS(`${sourceMainPath}main.css`)
+    const cssAppInstanceP = processCSS(`${sourceAppInstancePath}main_xtend.css`)
 
     Promise.all([execP, jsMainP, jsAppInstanceP, cssMainP, cssAppInstanceP])
 
       .then(data=> {
+
+        // hack to fix the shit fantastic css parser that doesn't handle escaped backslashes in content: properly
 
         let x = "\\\\" 
         let y = "\\"
@@ -149,6 +179,21 @@ function handleAction_Main() {
         res(1)
 
       })
+
+  })
+
+}
+
+
+
+
+function handleAction_AppEngine () {   
+
+  return new Promise(async res=> {
+
+    // placeholder -- will need to find a way to suck in specific app appengine into main nifty appengine runtime
+
+    res(1)
 
   })
 
@@ -242,9 +287,6 @@ async function handleAction_Icons() {
       name: `icons`
     })
     
-    console.log(results)
-
-
     res(1);
 
   })
@@ -286,7 +328,6 @@ async function handleAction_Dist() {
 
   return new Promise(async res=> {
 
-    debugger
     await exec(`mkdir -p ${outputPathDist}`);
 
 
@@ -337,12 +378,9 @@ function processJs(path) {
 
   return new Promise(async (resolve, _reject) => {      
 
-    exec(`rollup -c --environment DEV --environment TS ${path}`)
-
-      .then(result => {
-        resolve(result.stdout);   })
-
-      .catch(err => { throw new Error(err); })
+    exec(`./node_modules/.bin/esbuild ${path} --bundle --target=es2021,chrome110`).then(result => {
+      resolve(result.stdout);   
+    })
 
   })
 
@@ -355,15 +393,14 @@ function processCSS(path) {
 
   return new Promise(async (resolve, _reject) => {      
 
-    exec(`rollup -c --environment DEV --environment CSS ${path}`)
+    const exec_str = `./node_modules/.bin/postcss ${path} --use postcss-nesting`
 
-      .then(result => {
-        let match = result.stdout.match(/var css.+ = "((.|\n)*)";/);
-        let str = match[1].replaceAll("\\n", " ");
-        str = str.replaceAll("\\t", " ");
-        resolve(str);   })
-
-      .catch(err => {   throw new Error(err);   });
+    exec(exec_str).then(result => {
+      // let match = result.stdout.match(/var css.+ = "((.|\n)*)";/);
+      // let str = match[1].replaceAll("\\n", " ");
+      // str = str.replaceAll("\\t", " ");
+      resolve(result.stdout);   
+    })
 
   })
 
