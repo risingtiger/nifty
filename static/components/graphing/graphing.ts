@@ -6,6 +6,7 @@ type str = string
 
 
 declare var Chartist_LineChart: any;
+declare var Chartist_BarChart: any;
 declare var Chartist_FixedScaleAxis: any;
 declare var Lit_Render: any;
 declare var Lit_Html: any;
@@ -22,6 +23,7 @@ type State = {
   msr: str, // what influxdb  measurement. ex. PSI
   fields: Field[], // what influxdb fields in specified measurement to show. ex. City psi and/or After Filter Psi
   tags: Tag[], // what influxdb fields in specified measurement to show. ex. City psi and/or After Filter Psi
+  type: str, // line or bar  
   intrv: number, // interval -- how many seconds per point. ex. For 5 minute interval set to 300 (300 seconds in 5 minutes) 
   nifl: number, // nthIntervalForLabel -- nth points to show label on x axis. ex. For showing every hour at the top of the hour for 5 minute increments, set to 12
   ppf: number, // points Per Frame. ex. For One Day with 5 minute increments it will be 288 points
@@ -58,6 +60,11 @@ class CGraphing extends HTMLElement {
 
 
 
+  static get observedAttributes() { return ['fields']; }
+
+
+
+
   constructor() {   
     super(); 
 
@@ -66,6 +73,7 @@ class CGraphing extends HTMLElement {
       msr: "",
       fields: [],
       tags: [],
+      type: "line",
       intrv:300, 
       nifl: 12, 
       ppf: 288, 
@@ -78,30 +86,43 @@ class CGraphing extends HTMLElement {
 
 
 
-  async connectedCallback() {
+  async attributeChangedCallback(name:str, oldValue:str|bool|int, newValue:str|bool|int) {
 
-    const fieldsstr = this.getAttribute("fields")
-    const tagsstr = this.getAttribute("tags") || ""
+    if (name === "fields" && newValue !== oldValue) {
 
-    this.s.bucket = this.getAttribute("bucket") as str
-    this.s.msr = this.getAttribute("measurement") as str
-    this.s.fields = (fieldsstr?.split(",") as str[]).map((f:str)=> { return {name:f}; } )
+      setTimeout(async ()=>{
+        const fieldsstr = this.getAttribute("fields")
+        const tagsstr = this.getAttribute("tags") || ""
 
-    if (tagsstr)
-      this.s.tags = (tagsstr?.split(",") as str[]).map((f:str)=> { const sp = f.split(":"); return {name:sp[0], val:sp[1]}; } )
-    else
-      this.s.tags = []
+        this.s.bucket = this.getAttribute("bucket") as str
+        this.s.msr = this.getAttribute("measurement") as str
+        this.s.fields = (fieldsstr?.split(",") as str[]).map((f:str)=> { return {name:f}; } )
 
-    this.s.tmzncy = this.getAttribute("tmzncy")!
+        this.s.type = this.getAttribute("type")
+        this.s.intrv = Number(this.getAttribute("intrv"))
+        this.s.nifl = Number(this.getAttribute("nifl"))
+        this.s.ppf = Number(this.getAttribute("ppf"))
+        this.s.ismdn = this.getAttribute("ismdn") === "true" 
 
-    this.s.begin = this.getLocalizedMidnight(this.s.tmzncy)
-    const datestr = new Date().toLocaleDateString("en-US", { timeZone: "America/" + this.s.tmzncy })
+        if (tagsstr)
+          this.s.tags = (tagsstr?.split(",") as str[]).map((f:str)=> { const sp = f.split(":"); return {name:sp[0], val:sp[1]}; } )
+        else
+          this.s.tags = []
 
-    await this.set(this.s.begin, this.s.bucket, this.s.msr, this.s.fields, this.s.tags, this.s.intrv, this.s.nifl, this.s.ppf, this.s.tmzncy, this.s.ismdn)
+        this.s.tmzncy = this.getAttribute("tmzncy")!
 
-    this.dispatchEvent(new Event('hydrate'))
+        this.s.begin = get_localized_midnight(this.s.tmzncy)
 
-    this.dispatchEvent(new CustomEvent('frameset', { detail: {datestr}}))
+        const datestr = new Date().toLocaleDateString("en-US", { timeZone: "America/" + this.s.tmzncy })
+
+        await this.set(this.s.begin, this.s.bucket, this.s.msr, this.s.fields, this.s.tags, this.s.type, this.s.intrv, this.s.nifl, this.s.ppf, this.s.tmzncy, this.s.ismdn)
+
+        this.dispatchEvent(new Event('hydrate'))
+
+        this.dispatchEvent(new CustomEvent('frameset', { detail: {datestr}}))
+      }, 10)
+
+    }
 
   }
 
@@ -117,10 +138,11 @@ class CGraphing extends HTMLElement {
 
 
 
-  async goBackOneDay() {
+  async GoBackOneDay() {
+
     this.s.begin = this.s.begin - 86400
     const datestr = new Date(this.s.begin*1000).toLocaleDateString("en-US", { timeZone: "America/" + this.s.tmzncy })
-    await this.set(this.s.begin, this.s.bucket, this.s.msr, this.s.fields, this.s.tags, this.s.intrv, this.s.nifl, this.s.ppf, this.s.tmzncy, true)
+    await this.set(this.s.begin, this.s.bucket, this.s.msr, this.s.fields, this.s.tags, this.s.type, this.s.intrv, this.s.nifl, this.s.ppf, this.s.tmzncy, true)
     this.dispatchEvent(new CustomEvent('frameset', { detail: {datestr}}))
 
   }
@@ -128,11 +150,11 @@ class CGraphing extends HTMLElement {
 
 
 
-  async goNextOneDay() {
+  async GoNextOneDay() {
 
     this.s.begin = this.s.begin + 86400
     const datestr = new Date(this.s.begin*1000).toLocaleDateString("en-US", { timeZone: "America/" + this.s.tmzncy })
-    await this.set(this.s.begin, this.s.bucket, this.s.msr, this.s.fields, this.s.tags, this.s.intrv, this.s.nifl, this.s.ppf, this.s.tmzncy, true)
+    await this.set(this.s.begin, this.s.bucket, this.s.msr, this.s.fields, this.s.tags, this.s.type, this.s.intrv, this.s.nifl, this.s.ppf, this.s.tmzncy, true)
     this.dispatchEvent(new CustomEvent('frameset', { detail: {datestr}}))
 
   }
@@ -140,35 +162,31 @@ class CGraphing extends HTMLElement {
 
 
 
-  private async set(begin:int, bucket:str, msr:str, fields:Field[], tags:Tag[], intrv:int, nifl:int, ppf:int, tmzncy:str, ismdn:bool) {
+  async GoToSelectedDay(e:Event) {
+
+    let datestr = (e.currentTarget as HTMLInputElement).value as str
+
+    this.s.begin = set_begin_from_selected_day(datestr, this.s.tmzncy)
+
+    await this.set(this.s.begin, this.s.bucket, this.s.msr, this.s.fields, this.s.tags, this.s.type, this.s.intrv, this.s.nifl, this.s.ppf, this.s.tmzncy, true)
+
+    this.dispatchEvent(new CustomEvent('frameset', { detail: {datestr}}))
+
+  }
+
+
+
+  private async set(begin:int, bucket:str, msr:str, fields:Field[], tags:Tag[], type:str, intrv:int, nifl:int, ppf:int, tmzncy:str, ismdn:bool) {
 
     return new Promise(async (res, _rej)=> {
       const { fps, divisor } = await this.getData(begin, bucket, msr, fields, tags, intrv, nifl, ppf, ismdn )
 
       this.stateChanged();
 
-      this.renderGraphFrame(fps, divisor, (intrv*nifl), tmzncy )
+      this.renderGraphFrame(type, fps, divisor, (intrv*nifl), tmzncy )
 
       res(1)
     })
-
-  }
-
-
-
-
-  private getLocalizedMidnight(city:str) {
-
-    const timeLocalized = new Date().toLocaleTimeString("en-US", { hour12: false, timeZone: "America/" + city })
-    const nowUTC = Date.now() / 1000
-
-    const s = timeLocalized.split(":")
-    const hourseconds = Number(s[0]) * 3600
-    const minuteseconds = Number(s[1]) * 60
-    const seconds = Number(s[2])
-    const secondsPastMidnight = hourseconds + minuteseconds + seconds
-
-    return Math.floor(nowUTC - secondsPastMidnight)
 
   }
 
@@ -179,7 +197,7 @@ class CGraphing extends HTMLElement {
 
     return new Promise<any>(async (res, _rej)=> {
       let end = ismdn ? ( begin + 86400 ) : begin + (intrv * ppf)
-      let divisor = this.s.ppf / nifl
+      let divisor = ppf / nifl
 
       const fps:FPS[] = await this.grabGraphData(bucket, msr, fields, tags, begin, end, intrv)
 
@@ -243,7 +261,8 @@ class CGraphing extends HTMLElement {
         })
 
         .catch(_=> {
-          window.location.href = "/?errmsg=graphingInfluxDBFail";
+          if (!window.location.href.includes("localhost"))
+            window.location.href = "/?errmsg=graphingInfluxDBFail";
         })
 
     })
@@ -312,7 +331,7 @@ class CGraphing extends HTMLElement {
 
 
 
-  private renderGraphFrame(fps:FPS[], divisor:number, labelint:int, tmzncy:str) : any {
+  private renderGraphFrame(type:str, fps:FPS[], divisor:number, labelint:int, tmzncy:str) : any {
 
     let thisframebegin = Math.floor( (fps[0].points[0].x as Date).getTime() / 1000)
 
@@ -323,34 +342,76 @@ class CGraphing extends HTMLElement {
       }
     })
 
-    let graph = new Chartist_LineChart(this.querySelector(`.ct-chart`), 
-      { series },
-      {
-        showPoint: false,
-        axisX: {
-          onlyInteger: true,
-          type: Chartist_FixedScaleAxis,
-          divisor:  divisor,
-          showGrid: true,
+    let el = this.querySelector(`.ct-chart`)
 
-          labelInterpolationFnc: (_unixstamp:number, index:number) => {
-            const x = thisframebegin + ( labelint * index )
-            const d = new Date(x * 1000)
-            const s = d.toLocaleTimeString("en-US", { hour12: false, timeZone: "America/" + tmzncy }) 
+    el.innerHTML = ""
 
-            const sp = s.split(":")
 
-            return sp[0]
+    let thegraph = (type === "line") ? renderit_line(this.querySelector(`.ct-chart`)) : renderit_bar(this.querySelector(`.ct-chart`))
+
+    return thegraph
+
+
+    function renderit_line(elwrapper:HTMLElement) {
+      let graph = new Chartist_LineChart(elwrapper, 
+        { series },
+        {
+          showPoint: false,
+          axisX: {
+            onlyInteger: true,
+            type: Chartist_FixedScaleAxis,
+            divisor:  divisor,
+            showGrid: true,
+
+            labelInterpolationFnc: (_unixstamp:number, index:number) => {
+              const x = thisframebegin + ( labelint * index )
+              const d = new Date(x * 1000)
+              const s = d.toLocaleTimeString("en-US", { hour12: false, timeZone: "America/" + tmzncy }) 
+
+              const sp = s.split(":")
+
+              return sp[0]
+            }
+
           }
-
         }
-      }
-    )
+      )
 
-    graph.update()
+      graph.update()
+
+      return graph
+    }
 
 
-    return graph
+    function renderit_bar(elwrapper:HTMLElement) {
+      let graph = new Chartist_BarChart(elwrapper, 
+        { series },
+        {
+          showPoint: false,
+          axisX: {
+            onlyInteger: true,
+            type: Chartist_FixedScaleAxis,
+            divisor:  divisor,
+            showGrid: true,
+
+            labelInterpolationFnc: (_unixstamp:number, index:number) => {
+              const x = thisframebegin + ( labelint * index )
+              const d = new Date(x * 1000)
+              const s = d.toLocaleTimeString("en-US", { hour12: false, timeZone: "America/" + tmzncy }) 
+
+              const sp = s.split(":")
+
+              return sp[0]
+            }
+
+          }
+        }
+      )
+
+      graph.update()
+
+      return graph
+    }
 
   }
 
@@ -358,6 +419,57 @@ class CGraphing extends HTMLElement {
 
 
   template = (_s:State) => { return Lit_Html`{--htmlcss--}`; }; 
+
+}
+
+
+
+
+function set_begin_from_selected_day(datestr:str, tmzncy:str) : int {
+
+  const begin = get_localized_midnight_from_datestr(tmzncy, datestr)
+
+  return begin
+
+}
+
+
+
+
+function get_localized_midnight(city:str) : int {
+
+  const timeLocalized = new Date().toLocaleTimeString("en-US", { hour12: false, timeZone: "America/" + city })
+
+  return Math.floor( (Date.now() - get_milliseconds_past_midnight(timeLocalized)) / 1000 )
+
+}
+
+
+
+
+function get_localized_midnight_from_datestr(city:str, datestr:str) : int {
+
+  const d = new Date(datestr)
+
+  const timeLocalized = d.toLocaleTimeString("en-US", { hour12: false, timeZone: "America/" + city })
+  const utcstamp = d.getTime() 
+
+  return Math.floor( (utcstamp + get_milliseconds_past_midnight(timeLocalized)) / 1000 )
+
+}
+
+
+
+
+function get_milliseconds_past_midnight(timeLocalized:str) : int {
+
+  const s = timeLocalized.split(":")
+  const hourseconds = Number(s[0]) * 3600
+  const minuteseconds = Number(s[1]) * 60
+  const seconds = Number(s[2])
+  const seconds_past_midnight = hourseconds + minuteseconds + seconds
+
+  return seconds_past_midnight * 1000
 
 }
 

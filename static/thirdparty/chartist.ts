@@ -6,13 +6,14 @@ window['__MRP__CSSSTR_chartist'] = `.ct-label{fill:rgba(0,0,0,.4);color:rgba(0,0
 
 
 
-import { LineChart, FixedScaleAxis } from "chartist"
+import { LineChart, BarChart, FixedScaleAxis } from "chartist"
 
 
 
 
 
 (window as any).Chartist_LineChart      = LineChart;
+(window as any).Chartist_BarChart       = BarChart;
 (window as any).Chartist_FixedScaleAxis = FixedScaleAxis;
 
 

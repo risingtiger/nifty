@@ -7,7 +7,7 @@ const suckedInJs:Array<str> = [];
 
 const SuckInJs = (filesArray:str[]) => { 
 
-  return new Promise((res, rej)=> {
+  return new Promise(async (res, rej)=> {
 
     let incr = 0
     const allToSuckIn = filesArray
@@ -27,27 +27,23 @@ const SuckInJs = (filesArray:str[]) => {
       const f = allToSuckIn[i]
 
       if (suckedInJs.includes(f)) {
-        res(1);
+        incr++
+        if (incr === allToSuckIn.length)
+          res(1)
       } 
 
       else {
-        import(`./${f}.js`)
+        import(`./${f}.js`).then(async _module => {
+          suckedInJs.push(f);
+          document.head.insertAdjacentHTML("beforeend", `<style>${(window as any)['__MRP__CSSSTR_'+f]}</style>`);
 
-          .then(async _module => {
-
-            suckedInJs.push(f);
-            document.head.insertAdjacentHTML("beforeend", `<style>${(window as any)['__MRP__CSSSTR_'+f]}</style>`);
-
-            incr++
-
-            if (incr === allToSuckIn.length)
-              res(1)
-            
-          })
-
-          .catch(()=> {
-            rej(1)
-          })	
+          incr++
+          if (incr === allToSuckIn.length)
+            res(1)
+        })
+        .catch(()=> {
+          rej(1)
+        })	
 
       }
     }

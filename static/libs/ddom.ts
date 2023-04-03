@@ -86,7 +86,11 @@ async function activate(el:HTMLElement) {
   document.getElementById("loadviewoverlay")!.classList.add("active")
 
   let isLoaded = false
-  setTimeout(_=> {   if (!isLoaded) {   window.location.href = `/?errmsg=${encodeURIComponent('Unable to Load DDom')}`; }   }, 5000)
+  setTimeout(_=> {   
+    if (!isLoaded && !window.location.href.includes("localhost")) {   
+      window.location.href = `/?errmsg=${encodeURIComponent('Unable to Load DDom')}`; 
+    }   
+  }, 5000)
 
   const sy = el.tagName.toLowerCase().substring(0,2)
   if (sy === "v-" || sy === "c-") {

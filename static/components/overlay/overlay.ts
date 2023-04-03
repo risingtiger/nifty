@@ -12,7 +12,8 @@ declare var Lit_Html: any;
 
 
 type State = {
-  size: str,
+  width: str,
+  height: str,
   closebtn: bool,
   showheader: bool,
   firstRunRan:bool
@@ -45,7 +46,8 @@ class COverlay extends HTMLElement {
     this.shadow = this.attachShadow({ mode: "open" });
 
     this.s = {
-      size: "",
+      width: "",
+      height: "",
       closebtn: false,
       showheader: false,
       firstRunRan: false
@@ -85,7 +87,8 @@ class COverlay extends HTMLElement {
 
       // first run through, so set things up
 
-      this.s.size = this.getAttribute("size") || "small"
+      this.s.width = this.getAttribute("width") ? "w_" + this.getAttribute("width") : "w_md"
+      this.s.height = this.getAttribute("height") ? "h_" + this.getAttribute("height") : ""
       this.s.closebtn = this.getAttribute("closebtn") === "true" ? true : false
       this.s.showheader = this.getAttribute("showheader") === "true" ? true : false
 

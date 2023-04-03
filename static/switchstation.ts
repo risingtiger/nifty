@@ -138,18 +138,17 @@ function _doRoute(url: str, isGoingBack:bool) {
         document.querySelector("#loadviewoverlay")!.classList.remove("active")
 
         if (window.location.hash.substring(1) === _hstack[_hstack.length-2]) {
-          _hstack.pop();
+          _hstack.pop()
           
         } else {
-          _hstack.push(url);
-
+          _hstack.push(url)
         }
-
 
         (window as any).DDomObserve(el)
 
-
         _intransitionLock = false;
+
+        localStorage.setItem("hstack", JSON.stringify(_hstack))
       }
 
     })

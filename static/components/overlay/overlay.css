@@ -12,6 +12,7 @@
 
 .wrapper {
   position: absolute;
+  top: 84px;
   left: 50%;
   border-radius: 8px;
   box-shadow: 0 0 14px 4px rgb(0 0 0 / 4%);
@@ -20,30 +21,51 @@
   background: white;
   z-index: 2;
 }
-.wrapper.large {
+.wrapper.fullscreen {
   top: 10px;
   left: 10px;
   width: calc(100% - 20px);
   height: calc(100% - 20px);
   margin: 0px 0 0 0px;
 }
-.wrapper.large2 {
-  top: 84px;
-  width: 720px;
-  height: 480px;
-  margin: 0px 0 0 -360px;
+.wrapper.w_xxl {
+  width: 860px;
+  margin: 0px 0 0 -430px;
 }
-.wrapper.medium {
-  top: 84px;
+.wrapper.w_xl {
+  width: 700px;
+  margin: 0px 0 0 -350px;
+}
+.wrapper.w_lg {
   width: 600px;
-  height: 600px;
   margin: 0px 0 0 -300px;
 }
-.wrapper.small {
-  top: 12%;
-  width: 340px;
-  height: 600px;
-  margin: 0px 0 0 -170px;
+.wrapper.w_md {
+  width: 480px;
+  margin: 0px 0 0 -240px;
+}
+.wrapper.w_sm {
+  width: 380px;
+  margin: 0px 0 0 -190px;
+}
+.wrapper.w_xs {
+  width: 280px;
+  margin: 0px 0 0 -140px;
+}
+.wrapper.h_xl {
+  height: calc(100% - 140px);
+}
+.wrapper.h_lg {
+  height: calc(100% - 200px);
+}
+.wrapper.h_md {
+  height: calc(100% - 300px);
+}
+.wrapper.h_sm {
+  height: calc(100% - 450px);
+}
+.wrapper.h_xs {
+  height: calc(100% - 550px);
 }
 
 .wrapper > header {

@@ -3,7 +3,7 @@
   "main": "./build/index.js",
   "type": "module",
   "description": "Nifty App AppEngine",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "Apache Version 2.0",
   "author": "Davis Hammon",
@@ -13,7 +13,8 @@
   "scripts": {
     "build": "npx swc src -d build && npx swc ../pwapp/appengine/src -d build",
     "dev": "PORT=3002 NODE_ENV=dev node ./build/index.js",
-    "dist": "PORT=3003 NODE_ENV=dist node ./build/index.js"
+    "dist": "PORT=3003 NODE_ENV=dist node ./build/index.js",
+    "start": "node ./build/index.js" 
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^4.1.4",

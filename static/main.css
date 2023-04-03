@@ -242,6 +242,33 @@ ul.items {
 }
 
 
+
+
+dl.define {
+  & dt {
+    font-weight: bold;
+    float: left;
+    display: block;
+    width: 100px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  & dd {
+    margin: 0;
+    padding: 0 0 20px 0;
+    display: block;
+    width: 200px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}
+
+
+
+
 form {
 
   & label.text {
@@ -336,6 +363,7 @@ i[class^='icon-']:before, i[class*=' icon-']:before {
 .icon-refresh:before     {   content: '\f109';   }
 .icon-location:before    {   content: '\f10a';   }
 .icon-graph:before       {   content: '\f10b';   }
+.icon-info:before        {   content: '\f105';   }
 
 
 

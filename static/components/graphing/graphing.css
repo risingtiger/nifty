@@ -9,6 +9,10 @@ c-graphing {
       stroke-width: 2px;
       stroke: #0091e8;
     }
+
+    & .ct-series-a .ct-bar {
+      stroke: #0091e8;
+    }
   }
 }
 

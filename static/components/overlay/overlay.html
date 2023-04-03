@@ -1,7 +1,7 @@
 
 
 
-<div class="wrapper ${_s.size}">
+<div class="wrapper ${_s.width} ${_s.height}">
   ${_s.showheader ? Lit_Html`
     <header>
       <div class="left">${_s.closebtn ? Lit_Html`<a @click="${()=>this.dispatchEvent(new Event('requested_close'))}">close</a>` : ''} <slot name="headerleft"></slot></div>

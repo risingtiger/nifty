@@ -4,6 +4,8 @@
 
 
 <div class="ctrlbtns">
-  <button class="btn" @click="${()=>this.goBackOneDay()}">PREVIOUS DAY</button>
-  <button class="btn" @click="${()=>this.goNextOneDay()}">NEXT DAY</button>
+  <button class="btn" @click="${()=>this.GoBackOneDay()}">PREVIOUS DAY</button>
+  <button class="btn" @click="${()=>this.GoNextOneDay()}">NEXT DAY</button>
+  
+  <input type="date" id="day" name="day" @change="${(e)=>this.GoToSelectedDay(e)}">
 </div>

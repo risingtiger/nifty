@@ -8,7 +8,7 @@
 import { writeFileSync, readdirSync, readFileSync, promises as fspromises  } from 'fs';
 import { promisify } 		  from 'util';
 import { exec as cpexec } from 'child_process';
-//import * as brotli        from 'brotli';
+import * as brotli        from 'brotli';
 import { generateFonts }  from 'fantasticon';
 
 
@@ -337,9 +337,11 @@ async function handleAction_Dist() {
 
         if (f.name.substring(f.name.length-3) === ".js" && f.name !== "sw.js") {
 
-          const res = await exec(`rollup -c --environment DIST --environment JS ${outputPathDev}${f.name}`); 
+          //const res = await exec(`rollup -c --environment DIST --environment JS ${outputPathDev}${f.name}`); 
+          const res = readFileSync(`${outputPathDev}${f.name}`, "utf8"); 
 
-          const compressedBuf = brotli.compress( Buffer.from(res.stdout, "utf8") );
+          //const compressedBuf = brotli.compress( Buffer.from(res.stdout, "utf8") );
+          const compressedBuf = brotli.compress( Buffer.from(res, "utf8") );
 
           writeFileSync(outputPathDist + f.name.substring(0, f.name.length-3) + ".min.js.br", compressedBuf);
 
