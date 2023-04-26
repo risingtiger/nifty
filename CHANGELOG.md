@@ -6,7 +6,7 @@
 - ...
 
 ### ENHANCEMENTS
-- ...
+- Added pwapp as submodule
 
 ### BUGFIXES
 - Stability throughout
