@@ -1,12 +1,27 @@
 
 
-## 1.0.4 -- UNRELEASED
+## 1.0.5 -- UNRELEASED
 
 ### FEATURES
 - ...
 
 ### ENHANCEMENTS
 - ...
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.0.4 -- RELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- icons 
+- appengine
 
 ### BUGFIXES
 - ...

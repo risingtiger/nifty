@@ -51,6 +51,10 @@ body, h1, h2, h3, h4, h5, h6, p, button {
   color: var(--textcolor);
 }
 
+a:hover {
+  cursor: pointer;
+}
+
 
 #views {
   width: 100%;
@@ -363,7 +367,8 @@ i[class^='icon-']:before, i[class*=' icon-']:before {
 .icon-refresh:before     {   content: '\f109';   }
 .icon-location:before    {   content: '\f10a';   }
 .icon-graph:before       {   content: '\f10b';   }
-.icon-info:before        {   content: '\f105';   }
+.icon-info:before        {   content: '\f10c';   }
+.icon-details:before     {   content: '\f10d';   }
 
 
 

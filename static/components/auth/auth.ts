@@ -82,6 +82,7 @@ class CAuth extends HTMLElement {
       alert("Logged In Successfully")
 
       localStorage.setItem('cat', '-');
+      localStorage.setItem('acc', els.username.value);
 
       this.dispatchEvent(new Event('requested_close'))
 
