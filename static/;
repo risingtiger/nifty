@@ -2,30 +2,23 @@
 
 import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_AddRoute } from './includes/switchstation.js';
 import  './includes/lit-html.js';
-import  './includes/lazyload.js';
+import  './includes/suckinjs.js';
 import  './includes/firebase.js';
 import  './includes/ddom.js';
-
-declare var browser: any;
-
-
-
-(window as any).APPVERSION=0;
 
 
 
 
 (window as any).__VIEWS = [
-    { path: "^upgrade_1$", name: "upgrade", dependencies:[] },
-    { path: "^upgrade_2$", name: "upgrade", dependencies:[] },
+    { path: "^upgrade$", name: "upgrade", dependencies:[] },
 ];
 
 
 
 
 (window as any).__COMPONENTS = [
-    { name: "graphing", dependencies: [{ what: "thirdparty", name: "chartist" }]},
-    { name: "auth", dependencies: [{ what: "thirdparty", name: "overlay" }]},
+    { name: "graphing", dependencies: [{ type: "thirdparty", name: "chartist" }]},
+    { name: "auth", dependencies: [{ type: "thirdparty", name: "overlay" }]},
     { name: "overlay", dependencies: []}
 ];
 
@@ -74,18 +67,17 @@ window.addEventListener("load", async (_e) => {
 
 window.addEventListener("focus", () => {
 
-    if ((window as any).APPVERSION > 0) {
-        console.log("focus-")
+    console.log("checking for app update");
 
-        fetch('/api/appfocusping?appversion=' + (window as any).APPVERSION)
-
-        .then(async response => { 
-            let x = await response.text()
-            if (Number(x) != (window as any).APPVERSION) {
-                window.location.hash = "upgrade_1";
-            }   
-        })
-    }
+  if ((window as any).APPVERSION > 0) {
+    console.log("checking for app update")
+    fetch('/api/appfocusping?appversion=' + (window as any).APPVERSION) // will be set in index.html, but from rollup script
+      .then(response => response.text())
+      .then(data => { 
+        if (data === "no") {
+          window.location.hash = "upgrade";
+        }   });
+  }
 
 })
 

@@ -1,12 +1,26 @@
 
 
-## 1.0.5 -- UNRELEASED
+## 1.0.6 -- UNRELEASED
 
 ### FEATURES
 - ...
 
 ### ENHANCEMENTS
 - ...
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.0.5 -- UNRELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- DID ALOT on making it PWA. Upgrade process should work better now
 
 ### BUGFIXES
 - ...

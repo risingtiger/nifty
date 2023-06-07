@@ -1,9 +1,12 @@
+
+
 let cacheName = 'cacheV__0__';
 
+const CACHE_FILES = [ 'main.js', 'index.html', 'main.css', 'app.webmanifest' ]
 
 
 
-self.addEventListener('install', (e) => 
+self.addEventListener('install', (_e) => 
 {
     // e.waitUntil(async () => 
     // {
@@ -17,52 +20,47 @@ self.addEventListener('install', (e) =>
 
 self.addEventListener('fetch', e => {
 
-  console.log(e);
+    e.respondWith((async () => {
 
+        const r = await caches.match(e.request);
 
-  e.respondWith((async () => {
-    const r = await caches.match(e.request);
-    
-    if (r) { 
+        if (r) { 
 
-      return r; 
+            return r; 
 
-    } else {
+        } else {
 
-	    console.log("put in a catchall for local images");
+            const cache = await caches.open(cacheName)
 
+            let substr = e.request.url.substring(e.request.referrer.length)
 
-	    const cache = await caches.open(cacheName);
-	    let substr = e.request.url.substring(e.request.referrer.length);
+            if (should_url_be_cached(substr)) {
 
+                const response = await fetch(e.request)
 
-	    if ([cache_onload_replacestr].includes(substr)) {
+                if (!response.ok)
+                    throw new TypeError("Bad response status")
 
-        const response = await fetch(e.request);
+                cache.put(e.request, response.clone())
 
-        if (!response.ok)
-          throw new TypeError("Bad response status");
+                return response
 
-        cache.put(e.request, response.clone());
+            } else {
 
-        return response;
+                return fetch(e.request)
 
-	    } else {
-
-        return fetch(e.request);
+            }
 
 	    }
 
-	  }
-
-  })());
+    })());
 
 });
 
 
 
 // The activate handler takes care of cleaning up old caches.
-self.addEventListener('activate', async (event) => {
+self.addEventListener('activate', async (_event) => {
   //const currentCaches = [cacheName];
   let x = await caches.keys();
 
@@ -72,3 +70,30 @@ self.addEventListener('activate', async (event) => {
     }
   })
 });
+
+
+
+
+function should_url_be_cached(urlstr) {
+
+    if (urlstr.includes("lazy")) {
+        return true;
+    }
+
+    else if (urlstr.includes("images")) {
+        return true;
+    }
+
+    else if (CACHE_FILES.includes(urlstr)) {
+        return true;
+    }
+
+    else {
+        return false;
+    }
+
+}
+
+
+
+

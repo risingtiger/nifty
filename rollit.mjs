@@ -5,44 +5,49 @@
 
 
 
-import { writeFileSync, readdirSync, readFileSync, promises as fspromises  } from 'fs';
+import { writeFile, writeFileSync, readdirSync, readFileSync, existsSync, mkdirSync, promises as fspromises  } from 'fs';
+import { extname } from 'path';
 import { promisify } 		  from 'util';
 import { exec as cpexec } from 'child_process';
 import * as brotli        from 'brotli';
 import { generateFonts }  from 'fantasticon';
-
-
-
-
-const _WHATAPPINSTANCE     = process.argv[2]
-const _WHATACTION          = process.argv[3]
-const _DEBUG               = process.argv[4]
+import * as uglify        from 'uglify-js';
 
 
 
 
 const exec = promisify(cpexec);
-const sourceMainPath           = "./static/";
-const sourceAppInstancePath    = `./${_WHATAPPINSTANCE}app/static/`;
-const outputPathDev            = "./appengine/static_dev/";
-const outputPathDist       = "./appengine/static_dist/";
-const cachableNonJSFiles   = "'index.html', 'main.css', 'app.webmanifest'"
+
+
+
+
+const _WHATAPPINSTANCE           = process.argv[2]
+const _WHATACTION                = (process.argv[3].split("-")[0] || process.argv[3]).toLowerCase()
+const _WHATACTION_DETAIL         = (process.argv[3].split("-")[1] || "").toLowerCase()
+const _DEBUG                     = process.argv[4]
+
+const SOURCE_MAIN_PATH           = "./static/";
+const SOURCE_APP_INSTANCE_PATH   = `./${_WHATAPPINSTANCE}app/static/`;
+const APP_ENGINE_PATH            = "./appengine/";
+const OUTPUT_PATH_DEV            = `${APP_ENGINE_PATH}static_dev/`;
+const OUTPUT_PATH_DIST           = `${APP_ENGINE_PATH}static_dist/`;
+// const KNOWN_CACHABLE_FILES       = "'main.js', 'index.html', 'main.css', 'app.webmanifest'"
 
 
 
 
 void async function() {
 
-  if (_DEBUG) {
-    process.stdin.on('data', async function () {
-      debugger
-      handleAction_Init()
-    })
-  }
+    if (_DEBUG) {
+        process.stdin.on('data', async function () {
+            debugger
+            handleAction_Init()
+        })
+    }
 
-  else {
-    handleAction_Init()
-  }
+    else {
+        handleAction_Init()
+    }
 
 }()
 
@@ -51,80 +56,48 @@ void async function() {
 
 async function handleAction_Init() {
 
-  const viewsMain        = readdirSync(sourceMainPath + "views", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'main', name:f.name};})
-  const viewsAppInstance = readdirSync(sourceAppInstancePath + "views", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name};})
-  const views = [ ...viewsMain, ...viewsAppInstance ]
+    if      (_WHATACTION === "alldev")     { await handleAction_AllDev(); }
 
-  const componentsMain        = readdirSync(sourceMainPath + "components", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'main', name:f.name};})
-  const componentsAppInstance = readdirSync(sourceAppInstancePath + "components", { withFileTypes:true}).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name};})
-  const components = [ ...componentsMain, ...componentsAppInstance ]
+    else if (_WHATACTION === "main")       { await handleAction_Main(); }
 
+    else if (_WHATACTION === "lazy")       { await handleAction_Lazy(_WHATACTION_DETAIL); }
 
+    else if (_WHATACTION === "images")     { await handleAction_Images(); }
 
-  if      (_WHATACTION === "alldev")     { await handleAction_AllDev(views, components); }
+    else if (_WHATACTION === "icons")      { await handleAction_Icons(); }
 
-  else if (_WHATACTION === "main")       { await handleAction_Main(); }
+    else if (_WHATACTION === "appengine")  { await handleAction_AppEngine(); }
 
-  else if (_WHATACTION === "appengine")  { await handleAction_AppEngine(); }
-
-  else if (_WHATACTION === "noncore")    { await handleAction_ThirdParty(); }
-
-  else if (_WHATACTION === "images")     { await handleAction_Images(); }
-
-  else if (_WHATACTION === "icons")      { await handleAction_Icons(); }
-
-  else if (_WHATACTION === "dist")       { await handleAction_Dist(); }
-
-
-  else {
-    let v = views.find(v=> v.name === _WHATACTION)
-    let c = components.find(c=> c.name === _WHATACTION)
-
-    if (v)
-      await handleAction_View_Or_Component("views", v)
-
-    else if (c)
-      await handleAction_View_Or_Component("components", c)
-
-    else
-      console.log("no action found")
-  }
+    else if (_WHATACTION === "dist")       { await handleAction_AppEngine(); await handleAction_Dist(); }
 
 }
 
 
 
 
-function handleAction_AllDev(views, components) {
+function handleAction_AllDev() {
 
-  return new Promise(async res=> {
+    return new Promise(async res=> {
 
-    await exec(`rm -rf ${outputPathDev} `);
+        await exec(`rm -rf ${OUTPUT_PATH_DEV} `);
 
-    await handleAction_Main()
+        await handleAction_Main()
 
-    await handleAction_AppEngine()
+        await handleAction_AppEngine()
 
-    await handleAction_ThirdParty()
+        await handleAction_Lazy()
 
-    await handleAction_Images()
+        await handleAction_Images()
 
-    await handleAction_Icons()
+        await handleAction_Icons()
 
-    for(let i = 0; i < views.length; i++) 
-      await handleAction_View_Or_Component("views", views[i])
+        let exstr = `sd '../([a-z]+)app/appengine/src' '../${_WHATAPPINSTANCE}app/appengine/src' ${OUTPUT_PATH_DEV}../package.json && sd './([a-z]+)app/appengine/src/index_extend.js' './${_WHATAPPINSTANCE}app/appengine/src/index_extend.js' ${OUTPUT_PATH_DEV}../src/index.ts`;
 
-    for(let i = 0; i < components.length; i++) 
-      await handleAction_View_Or_Component("components", components[i])
+        await exec(exstr); 
 
-    //let exstr = `sd '../../([a-z]+)app/appengine/src/index_extend.js' '../../${_WHATAPPINSTANCE}app/appengine/src/index_extend.js' ${outputPathDev}../src/index.ts `;
-    let exstr = `sd '../([a-z]+)app/appengine/src' '../${_WHATAPPINSTANCE}app/appengine/src' ${outputPathDev}../package.json && sd './([a-z]+)app/appengine/src/index_extend.js' './${_WHATAPPINSTANCE}app/appengine/src/index_extend.js' ${outputPathDev}../src/index.ts`;
+        res(1)
 
-    await exec(exstr); 
-
-    res(1)
-
-  })
+    })
 
 }
 
@@ -133,319 +106,386 @@ function handleAction_AllDev(views, components) {
 
 function handleAction_Main() {   
 
-  return new Promise(async res=> {
+    return new Promise(async res=> {
 
-    // just doing straight save of index and sw.js after creating output file 
-    
-    let exstr   = `mkdir -p ${outputPathDev} && `
-    exstr      += `cp ${sourceMainPath}index.html ${outputPathDev}.  && `;
-    exstr      += `cp ${sourceMainPath}sw.js ${outputPathDev}.`;
-    let execP   =  exec(exstr);
+        // just doing straight save of index and sw.js after creating output file 
+
+        let exstr   = `mkdir -p ${OUTPUT_PATH_DEV} && `
+        exstr      += `cp ${SOURCE_MAIN_PATH}index.html ${OUTPUT_PATH_DEV}.  && `;
+        exstr      += `cp ${SOURCE_MAIN_PATH}sw.js ${OUTPUT_PATH_DEV}.`;
+        let execP   =  exec(exstr);
+
+        // web manifest file -- pulling values from app instance to populate into main and saving to output 
+
+        let manifestMain = JSON.parse(readFileSync(`${SOURCE_MAIN_PATH}app.webmanifest`))
+        let manifestApp  = JSON.parse(readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`))
+
+        manifestMain.name = manifestApp.name
+        manifestMain.short_name = manifestApp.short_name
+        manifestMain.description = `App Version: ${manifestApp.version}`
+        manifestMain.version = manifestApp.version
+
+        // js and css. parsing both main and appinstance and then inserting app instance into main before saving to output 
+
+        const jsMainP         = process_js(`${SOURCE_MAIN_PATH}main.ts`)
+        const jsAppInstanceP  = process_js(`${SOURCE_APP_INSTANCE_PATH}main_xtend.ts`)
+        const cssMainP        = process_css(`${SOURCE_MAIN_PATH}main.css`)
+        const cssAppInstanceP = process_css(`${SOURCE_APP_INSTANCE_PATH}main_xtend.css`)
+
+        Promise.all([execP, jsMainP, jsAppInstanceP, cssMainP, cssAppInstanceP])
+
+            .then(data=> {
+
+                // hack to fix the shit fantastic css parser that doesn't handle escaped backslashes in content: properly
+
+                let x = "\\\\" 
+                let y = "\\"
+                let replacedcss = data[3].replaceAll(`content: '${x}`, `content: '${y}`)
+
+                writeFileSync(`${OUTPUT_PATH_DEV}main.js`, data[1] + "\n\n\n" + data[2])
+                writeFileSync(`${OUTPUT_PATH_DEV}main.css`, replacedcss + "\n\n\n" + data[4])
+                writeFileSync(`${OUTPUT_PATH_DEV}app.webmanifest`, JSON.stringify(manifestMain))
+
+                res(1)
+
+        })
+
+    })
+
+}
 
 
 
-    // web manifest file -- pulling values from app instance to populate into main and saving to output 
 
-    let manifestMain = JSON.parse(readFileSync(`${sourceMainPath}app.webmanifest`))
-    let manifestApp  = JSON.parse(readFileSync(`${sourceAppInstancePath}app_xtend.webmanifest`))
+function handleAction_Lazy(specific_file = "") {
 
-    manifestMain.name = manifestApp.name
-    manifestMain.short_name = manifestApp.short_name
-    manifestMain.description = `App Version: ___${manifestApp.version}___`
+    const viewsMain        = readdirSync(SOURCE_MAIN_PATH + "lazy/views", { withFileTypes:true }).filter(f=> f.isDirectory()).map(f=> { return {is: 'main', name:f.name, subfolder: "views"};})
+    const viewsAppInstance = readdirSync(SOURCE_APP_INSTANCE_PATH + "lazy/views", { withFileTypes:true }).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name, subfolder: "views"};})
+    const views = [ ...viewsMain, ...viewsAppInstance ]
 
+    const componentsMain        = readdirSync(SOURCE_MAIN_PATH + "lazy/components", { withFileTypes:true }).filter(f=> f.isDirectory()).map(f=> { return {is: 'main', name:f.name, subfolder: "components"};})
+    const componentsAppInstance = readdirSync(SOURCE_APP_INSTANCE_PATH + "lazy/components", { withFileTypes:true }).filter(f=> f.isDirectory()).map(f=> { return {is: 'appinstance', name:f.name, subfolder: "components"};})
+    const components = [ ...componentsMain, ...componentsAppInstance ]
 
+    const thirdpartyMain        = readdirSync(SOURCE_MAIN_PATH + "lazy/thirdparty", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.ts').map(f=> { return {is: 'main', name:f.name.substring(0, f.name.length-3), subfolder: "thirdparty"};})
+    const thirdpartyAppInstance = readdirSync(SOURCE_APP_INSTANCE_PATH + "lazy/thirdparty", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.ts').map(f=> { return {is: 'appinstance', name:f.name.substring(0, f.name.length-3), subfolder: "thirdparty"};})
+    const thirdparty = [ ...thirdpartyMain, ...thirdpartyAppInstance ]
 
-    // js and css. parsing both main and appinstance and then inserting app instance into main before saving to output 
+    const libsMain        = readdirSync(SOURCE_MAIN_PATH + "lazy/libs", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.ts').map(f=> { return {is: 'main', name:f.name.substring(0, f.name.length-3), subfolder: "libs"};})
+    const libsAppInstance = readdirSync(SOURCE_APP_INSTANCE_PATH + "lazy/libs", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.ts').map(f=> { return {is: 'appinstance', name:f.name.substring(0, f.name.length-3), subfolder: "libs"};})
+    const libs = [ ...libsMain, ...libsAppInstance ]
 
-    const jsMainP         = processJs(`${sourceMainPath}main.ts`)
-    const jsAppInstanceP  = processJs(`${sourceAppInstancePath}main_xtend.ts`)
-    const cssMainP        = processCSS(`${sourceMainPath}main.css`)
-    const cssAppInstanceP = processCSS(`${sourceAppInstancePath}main_xtend.css`)
+    if (!existsSync(OUTPUT_PATH_DEV+"lazy")) 
+        mkdirSync(OUTPUT_PATH_DEV+"lazy")
 
-    Promise.all([execP, jsMainP, jsAppInstanceP, cssMainP, cssAppInstanceP])
+    if (!existsSync(OUTPUT_PATH_DEV+"lazy/views")) 
+        mkdirSync(OUTPUT_PATH_DEV+"lazy/views")
 
-      .then(data=> {
+    if (!existsSync(OUTPUT_PATH_DEV+"lazy/components")) 
+        mkdirSync(OUTPUT_PATH_DEV+"lazy/components")
 
-        // hack to fix the shit fantastic css parser that doesn't handle escaped backslashes in content: properly
+    if (!existsSync(OUTPUT_PATH_DEV+"lazy/libs")) 
+        mkdirSync(OUTPUT_PATH_DEV+"lazy/libs")
 
-        let x = "\\\\" 
-        let y = "\\"
-        let replacedcss = data[3].replaceAll(`content: '${x}`, `content: '${y}`)
+    if (!existsSync(OUTPUT_PATH_DEV+"lazy/thirdparty")) 
+        mkdirSync(OUTPUT_PATH_DEV+"lazy/thirdparty")
 
-        writeFileSync(`${outputPathDev}main.js`, data[1] + "\n\n\n" + data[2])
-        writeFileSync(`${outputPathDev}main.css`, replacedcss + "\n\n\n" + data[4])
-        writeFileSync(`${outputPathDev}app.webmanifest`, JSON.stringify(manifestMain))
+    return new Promise(async res=> {
+
+        if (specific_file) {
+
+            let v = views.find(v=> v.name === specific_file)
+            let c = components.find(c=> c.name === specific_file)
+            let t = thirdparty.find(c=> c.name === specific_file)
+            let l = libs.find(c=> c.name === specific_file)
+
+            if (v)
+                await process_lazy_view_or_component(v)
+
+            else if (c)
+                await process_lazy_view_or_component(c)
+
+            else if (t)
+                await process_lazy_thirdparty_or_lib(t) 
+
+            else if (l)
+                await process_lazy_thirdparty_or_lib(l) 
+
+            else
+                console.log("no action found")
+
+        }
+
+        else {
+
+            let all_lazy_files = [...views, ...components, ...thirdparty, ...libs]
+
+            for(let i = 0; i < all_lazy_files.length; i++) {
+
+                if (all_lazy_files[i].subfolder === "views" || all_lazy_files[i].subfolder === "components")
+                    await process_lazy_view_or_component(all_lazy_files[i])
+
+                else if (all_lazy_files[i].subfolder === "thirdparty" || all_lazy_files[i].subfolder === "libs")
+                    await process_lazy_thirdparty_or_lib(all_lazy_files[i]) 
+
+            }
+
+        }
 
         res(1)
 
-      })
-
-  })
+    })
 
 }
 
 
 
 
-function handleAction_AppEngine () {   
+function handleAction_Images() {
 
-  return new Promise(async res=> {
+    return new Promise(async res=> {
 
-    // placeholder -- will need to find a way to suck in specific app appengine into main nifty appengine runtime
+        let exstr = `cp -r ${SOURCE_MAIN_PATH}images ${OUTPUT_PATH_DEV}. && cp -r ${SOURCE_APP_INSTANCE_PATH}images/* ${OUTPUT_PATH_DEV}images/.`;
 
-    res(1)
+        await exec(exstr);
 
-  })
+        res(1);
+
+    })
 
 }
 
 
 
 
-async function handleAction_ThirdParty() {
+function handleAction_Icons() {
 
-  return new Promise(async res=> {
+    return new Promise(async res=> {
 
-    let a = readdirSync(sourceMainPath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "main", name: f.name, type: 'thirdparty'}})
-    let b = readdirSync(sourceAppInstancePath + "thirdparty", { withFileTypes:true }).filter(f=> f.name.includes(".ts")).map(f=> { return {what: "appinstance", name: f.name, type:'thirdparty'}})
+        await generateFonts({
+            inputDir: `${SOURCE_MAIN_PATH}images/icons`,
+            outputDir: `${OUTPUT_PATH_DEV}images/icons`,
+            fontTypes: ['woff2'],
+            fontsUrl: `${OUTPUT_PATH_DEV}/fonts`,
+            name: `icons`
+        })
 
-    let files = [...a, ...b]
+        res(1);
 
+    })
 
-
-    for(let i = 0; i < files.length; i++) {
-
-      const f = files[i]
-
-      const fpath = `${f.what === "main" ? sourceMainPath : sourceAppInstancePath}${f.type}/${f.name}`
-
-      const tsFileAsStr = readFileSync(fpath, {encoding: "utf8"})
-
-      // will only replace if string exists. otherwise newTsFileAsStr contains exactly what is tsFileAsStr
-      
-      const newTsFileAsStr = tsFileAsStr.replace(/\/\/{--(.+.css)--}/, (_match, p1)=> {
-        let cssstr = "";
-
-        if (p1.charAt(0) === '.' || p1.charAt(0) === '/') 
-          cssstr = readFileSync(p1, "utf8");
-
-        else 
-          cssstr = readFileSync(`./node_modules/${p1}`, "utf8");
-        
-        cssstr = cssstr.replace(/\/\*# sourceMappingURL.+\*\//, "");
-
-        return `window['__MRP__CSSSTR_${f.name.substring(0, f.name.length-3)}'] = \`${cssstr}\`;`   
-      });
-
-      writeFileSync(fpath, newTsFileAsStr, {encoding: "utf8"})
+}
 
 
 
-      const x = await processJs(fpath); 
 
-      writeFileSync(`${outputPathDev}${f.name.substring(0, f.name.length-3)}.js`, x); 
+function handleAction_AppEngine() {
+
+    return new Promise(async res=> {
+
+        await exec(`npx swc ${APP_ENGINE_PATH}src -d ${APP_ENGINE_PATH}build && npx swc ./${_WHATAPPINSTANCE}app/appengine/src -d ${APP_ENGINE_PATH}build`);
+
+        let exstr = `
+            sd '__APPINSTANCE/appengine/src/index_extend' '${_WHATAPPINSTANCE}.js' ${APP_ENGINE_PATH}/build/index.js`
+
+        await exec(exstr); 
+
+        res(1)
+
+    })
+
+}
+
+
+
+
+function handleAction_Dist() {
+
+    return new Promise(async res=> {
+
+        debugger
+        let app_version = await get_app_version()
+
+        await exec(`if [ -e "${OUTPUT_PATH_DIST}" ];then rm -rf "${OUTPUT_PATH_DIST}" ; fi && mkdir -p ${OUTPUT_PATH_DIST}`);
+
+        mkdirSync(OUTPUT_PATH_DIST+"lazy")
+        mkdirSync(OUTPUT_PATH_DIST+"lazy/views")
+        mkdirSync(OUTPUT_PATH_DIST+"lazy/components")
+        mkdirSync(OUTPUT_PATH_DIST+"lazy/libs")
+        mkdirSync(OUTPUT_PATH_DIST+"lazy/thirdparty")
+
+        let lp = OUTPUT_PATH_DEV+"lazy/"
+        let sp = OUTPUT_PATH_DIST+"lazy/"
+
+        const lazy_views        = readdirSync(lp + "views", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=>      { return {opath:`${lp}views/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}views/${f.name.substring(0, f.name.length-3)}`};})
+        const lazy_components   = readdirSync(lp + "components", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=> { return {opath:`${lp}components/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}components/${f.name.substring(0, f.name.length-3)}`};})
+        const lazy_libs         = readdirSync(lp + "libs", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=>       { return {opath:`${lp}libs/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}libs/${f.name.substring(0, f.name.length-3)}`};})
+        const lazy_thirdparty   = readdirSync(lp + "thirdparty", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=> { return {opath:`${lp}thirdparty/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}thirdparty/${f.name.substring(0, f.name.length-3)}`};})
+
+        const files = [ ...lazy_views, ...lazy_components, ...lazy_libs, ...lazy_thirdparty ]
+
+        uglify_and_brotli_file({opath:`${OUTPUT_PATH_DEV}main`, spath: `${OUTPUT_PATH_DIST}/main`}, (str)=> { 
+            let replace_str = `APPVERSION=${app_version}`
+            let re = new RegExp(/APPVERSION.*=.*0/,"g");
+            let replaced = str.replace(re, replace_str)
+            return replaced
+        })
+
+
+        files.forEach(f => {   
+
+            uglify_and_brotli_file(f)
+
+        })
+
+        await exec(`cp -r ${OUTPUT_PATH_DEV}index.html ${OUTPUT_PATH_DEV}main.css ${OUTPUT_PATH_DEV}images ${OUTPUT_PATH_DEV}app.webmanifest ${OUTPUT_PATH_DEV}sw.js ${OUTPUT_PATH_DIST} `)
+
+        let exstr = `
+            sd 'version": [0-9]+' 'version": ${app_version}' ${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest &&
+            sd 'App Version: [0-9]+' 'App Version: ${app_version}' ${OUTPUT_PATH_DIST}app.webmanifest &&
+            sd 'V__[0-9]+__' 'V${app_version}' ${OUTPUT_PATH_DIST}sw.js &&
+            sd 'APPVERSION \= [0-9]+' 'APPVERSION = ${app_version}' ${APP_ENGINE_PATH}build/src/index.js `;
+
+        await exec(exstr); 
+
+        res(1)
+
+    })
+
+
+    function get_app_version() {
+
+        return new Promise(res=> {
+
+            let web_manifest_str = readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`, "utf8");
+            let vers             = Number(web_manifest_str.match(/version\"\: ([0-9]+)/)[1]) + 1;
+
+            res(vers);
+
+        })
     }
 
 
+    function uglify_and_brotli_file(f, manipulate_file_content_func = (str)=>str) {
 
-    res(1)
+        let js_str = readFileSync(`${f.opath}.js`, "utf8"); 
 
-  })
+        js_str = manipulate_file_content_func(js_str)
 
+        let js_uglified = uglify.minify(js_str)
+
+        if (js_uglified.error) {
+            console.log('js_uglified.error: ')
+            console.log(js_uglified.error)
+        }
+        
+        else if (js_uglified.code.length > 900) {
+            let js_compressed = brotli.compress( Buffer.from(js_uglified.code, "utf8") )
+            writeFile(f.spath + ".min.js.br", js_compressed, {}, ()=>{})
+        }
+
+        else {
+            writeFile(f.spath + ".min.js", js_uglified.code, {}, ()=>{})
+        }
+
+    }
 }
 
 
 
 
-async function handleAction_Images() {
+function process_lazy_view_or_component(file) {
 
-  return new Promise(async res=> {
+    return new Promise(async res=> {
 
-    let exstr = `cp -r ${sourceMainPath}images ${outputPathDev}. && cp -r ${sourceAppInstancePath}images/* ${outputPathDev}images/.`;
+        let path = `${file.is === "main" ? SOURCE_MAIN_PATH : SOURCE_APP_INSTANCE_PATH}lazy/${file.subfolder}/${file.name}/${file.name}`
 
-    await exec(exstr);
+        const js_p   = await process_js(path+".ts");
+        const html_p = await process_html(path+".html");
+        const css_p  = await process_css(path+".css");
 
+        let [js_str, html_str, css_str] = await Promise.all([js_p, html_p, css_p]);
 
-    res(1);
 
-  })
+        let jswithimports = js_str.replace("{--htmlcss--}", `<style>${css_str}</style>${html_str}`);
 
-}
 
+        writeFileSync(`${OUTPUT_PATH_DEV}lazy/${file.subfolder}/${file.name}.js`, jswithimports);
 
+        res(1)
 
-
-async function handleAction_Icons() {
-
-  return new Promise(async res=> {
-
-    const results = await generateFonts({
-      inputDir: `${sourceMainPath}images/icons`,
-      outputDir: `${outputPathDev}images/icons`,
-      fontTypes: ['woff2'],
-      fontsUrl: `${outputPathDev}/fonts`,
-      name: `icons`
-    })
-    
-    res(1);
-
-  })
-
-}
-
-
-
-
-async function handleAction_View_Or_Component(what, module) {
-
-  return new Promise(async res=> {
-
-    let path = module.is === "main" ? sourceMainPath : sourceAppInstancePath
-
-    const jsP   = await processJs(`${path}${what}/${module.name}/${module.name}.ts`);
-    const htmlP = await processHTML(`${path}${what}/${module.name}/${module.name}.html`);
-    const cssP  = await processCSS(`${path}${what}/${module.name}/${module.name}.css`);
-
-
-    let [jsStr, htmlStr, cssStr] = await Promise.all([jsP, htmlP, cssP]);
-
-
-    let jswithimports = jsStr.replace("{--htmlcss--}", `<style>${cssStr}</style>${htmlStr}`);
-
-
-    writeFileSync(`${outputPathDev}${module.name}.js`, jswithimports);
-
-    res(1)
-
-  })
-
-}
-
-
-
-
-async function handleAction_Dist() {
-
-  return new Promise(async res=> {
-
-    await exec(`mkdir -p ${outputPathDist}`);
-
-
-    readdirSync(outputPathDev, { withFileTypes:true })
-
-      .forEach(async (f) => {   
-
-        if (f.name.substring(f.name.length-3) === ".js" && f.name !== "sw.js") {
-
-          //const res = await exec(`rollup -c --environment DIST --environment JS ${outputPathDev}${f.name}`); 
-          const res = readFileSync(`${outputPathDev}${f.name}`, "utf8"); 
-
-          //const compressedBuf = brotli.compress( Buffer.from(res.stdout, "utf8") );
-          const compressedBuf = brotli.compress( Buffer.from(res, "utf8") );
-
-          writeFileSync(outputPathDist + f.name.substring(0, f.name.length-3) + ".min.js.br", compressedBuf);
-
-        } 
-
-      })
-
-
-    await exec(`cp -r ${outputPathDev}index.html ${outputPathDev}main.css ${outputPathDev}images ${outputPathDev}app.webmanifest ${outputPathDev}sw.js ${outputPathDist} `)
-
-
-    setCache();
-
-
-    res(1)
-
-  })
-
-}
-
-
-
-
-function processHTML(path) {   
-
-  return new Promise(async (resolve, _reject) => {      
-    resolve(fspromises.readFile(path, "utf8"));
-  })
-
-}
-
-
-
-
-function processJs(path) {   
-
-  return new Promise(async (resolve, _reject) => {      
-
-    exec(`./node_modules/.bin/esbuild ${path} --bundle --target=es2021,chrome110`).then(result => {
-      resolve(result.stdout);   
     })
 
-  })
-
 }
 
 
 
 
-function processCSS(path) {   
+function process_lazy_thirdparty_or_lib(file) {
 
-  return new Promise(async (resolve, _reject) => {      
+    return new Promise(async res=> {
 
-    const exec_str = `./node_modules/.bin/postcss ${path} --use postcss-nesting`
+        let pathfs = `${file.is === "main" ? SOURCE_MAIN_PATH : SOURCE_APP_INSTANCE_PATH}lazy/${file.subfolder}/${file.name}.ts`
 
-    exec(exec_str).then(result => {
-      // let match = result.stdout.match(/var css.+ = "((.|\n)*)";/);
-      // let str = match[1].replaceAll("\\n", " ");
-      // str = str.replaceAll("\\t", " ");
-      resolve(result.stdout);   
+        const processed_js = await process_js(pathfs)
+
+        writeFileSync(`${OUTPUT_PATH_DEV}lazy/${file.subfolder}/${file.name}.js`, processed_js); 
+
+        res(1)
+
     })
 
-  })
+}
+
+
+
+
+function process_html(path) {   
+
+    return new Promise(async (resolve, _reject) => {      
+
+        resolve(fspromises.readFile(path, "utf8"));
+
+    })
 
 }
 
 
 
 
-async function setCache () {
+function process_js(path) {   
 
-  let webManifestStr = readFileSync(`${sourceAppInstancePath}app_xtend.webmanifest`, "utf8");
-  let vers           = Number(webManifestStr.match(/version\"\: ([0-9]+)/)[1]) + 1;
+    return new Promise(async (resolve, _reject) => {      
 
+        exec(`./node_modules/.bin/esbuild ${path} --bundle --target=es2021,chrome110`).then(result => {
+            resolve(result.stdout);   
+        })
 
-  let files = cachableNonJSFiles + ", " + getAllCachableJsFiles()
-
-
-  let exstr = `
-    sd '___[0-9]+___' '___${vers}___' ${sourceAppInstancePath}app_xtend.webmanifest &&
-    sd '___[0-9]+___' '___${vers}___' ${outputPathDist}app.webmanifest &&
-    sd 'V__[0-9]+__' 'V${vers}' ${outputPathDist}sw.js &&
-    sd 'cache_onload_replacestr' "${files}" ${outputPathDist}sw.js && 
-    sd 'APPVERSION=0' 'APPVERSION=${vers}' ${outputPathDist}index.html &&
-    sd 'APPVERSION \= [0-9]+' 'APPVERSION = ${vers}' ${outputPathDist}../app.js `;
-
-  await exec(exstr); 
-
-
-
-
-  function getAllCachableJsFiles() {
-    
-    const f = readdirSync(outputPathDev, { withFileTypes:true })
-      
-      .filter(f=> f.name.substring(f.name.length-3) === ".js" && f.name !== "sw.js")
-      
-      .map(f =>   `'${f.name}'`);
-
-
-    return f.join(", ");
-
-  }
+    })
 
 }
+
+
+
+
+function process_css(path) {   
+
+    return new Promise(async (resolve, _reject) => {      
+
+        const exec_str = `./node_modules/.bin/postcss ${path} --no-map --use postcss-nesting`
+
+        exec(exec_str)
+
+            .then(result => {
+                // let match = result.stdout.match(/var css.+ = "((.|\n)*)";/);
+                // let str = match[1].replaceAll("\\n", " ");
+                // str = str.replaceAll("\\t", " ");
+                resolve(result.stdout);   
+            })
+
+    })
+
+}
+
 
 

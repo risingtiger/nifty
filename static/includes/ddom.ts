@@ -1,8 +1,5 @@
 
 
-type int = number
-type bool = boolean
-type str = string
 
 
 type ElAnimationT = {
@@ -86,7 +83,7 @@ async function activate(el:HTMLElement) {
   document.getElementById("loadviewoverlay")!.classList.add("active")
 
   let isLoaded = false
-  setTimeout(_=> {   
+  setTimeout(()=> {   
     if (!isLoaded && !window.location.href.includes("localhost")) {   
       window.location.href = `/?errmsg=${encodeURIComponent('Unable to Load DDom')}`; 
     }   
@@ -94,7 +91,7 @@ async function activate(el:HTMLElement) {
 
   const sy = el.tagName.toLowerCase().substring(0,2)
   if (sy === "v-" || sy === "c-") {
-    await SuckInJs([el.tagName.toLowerCase().substring(2).replace("-", "_")])
+    await LazyLoad([{what:"components", name:el.tagName.toLowerCase().substring(2).replace("-", "_")}])
     await (el as any).Activate()
   }
 
@@ -110,7 +107,7 @@ async function activate(el:HTMLElement) {
       el.style.display = "block"
       wrapper.addEventListener("requested_close", handleRequestedCloseEvent)
       wrapper.addEventListener("opened", handleWrapperOpenedEvent)
-      setTimeout(_=> wrapper!.setAttribute("show", "true"), 10)
+      setTimeout(()=> wrapper!.setAttribute("show", "true"), 10)
     }
     else  {
       animateIn(el, animation)

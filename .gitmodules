@@ -1,3 +1,6 @@
 [submodule "pwapp"]
 	path = pwapp
 	url = git@github.com:Pure-Water-Tech/pwapp.git
+[submodule "xenapp"]
+	path = xenapp
+	url = git@github.com:Xenition/xenapp.git
