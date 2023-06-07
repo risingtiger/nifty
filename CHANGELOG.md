@@ -14,7 +14,7 @@
 
 
 
-## 1.0.5 -- UNRELEASED
+## 1.0.5 -- RELEASED
 
 ### FEATURES
 - ...
