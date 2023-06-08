@@ -31,7 +31,6 @@ const SOURCE_APP_INSTANCE_PATH   = `./${_WHATAPPINSTANCE}app/static/`;
 const APP_ENGINE_PATH            = "./appengine/";
 const OUTPUT_PATH_DEV            = `${APP_ENGINE_PATH}static_dev/`;
 const OUTPUT_PATH_DIST           = `${APP_ENGINE_PATH}static_dist/`;
-// const KNOWN_CACHABLE_FILES       = "'main.js', 'index.html', 'main.css', 'app.webmanifest'"
 
 
 
@@ -108,14 +107,10 @@ function handleAction_Main() {
 
     return new Promise(async res=> {
 
-        // just doing straight save of index and sw.js after creating output file 
-
         let exstr   = `mkdir -p ${OUTPUT_PATH_DEV} && `
         exstr      += `cp ${SOURCE_MAIN_PATH}index.html ${OUTPUT_PATH_DEV}.  && `;
         exstr      += `cp ${SOURCE_MAIN_PATH}sw.js ${OUTPUT_PATH_DEV}.`;
         let execP   =  exec(exstr);
-
-        // web manifest file -- pulling values from app instance to populate into main and saving to output 
 
         let manifestMain = JSON.parse(readFileSync(`${SOURCE_MAIN_PATH}app.webmanifest`))
         let manifestApp  = JSON.parse(readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`))
@@ -124,8 +119,6 @@ function handleAction_Main() {
         manifestMain.short_name = manifestApp.short_name
         manifestMain.description = `App Version: ${manifestApp.version}`
         manifestMain.version = manifestApp.version
-
-        // js and css. parsing both main and appinstance and then inserting app instance into main before saving to output 
 
         const jsMainP         = process_js(`${SOURCE_MAIN_PATH}main.ts`)
         const jsAppInstanceP  = process_js(`${SOURCE_APP_INSTANCE_PATH}main_xtend.ts`)
@@ -477,9 +470,6 @@ function process_css(path) {
         exec(exec_str)
 
             .then(result => {
-                // let match = result.stdout.match(/var css.+ = "((.|\n)*)";/);
-                // let str = match[1].replaceAll("\\n", " ");
-                // str = str.replaceAll("\\t", " ");
                 resolve(result.stdout);   
             })
 

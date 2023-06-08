@@ -55,21 +55,22 @@ self.addEventListener('fetch', e => {
 
     })());
 
-});
+})
 
 
 
-// The activate handler takes care of cleaning up old caches.
 self.addEventListener('activate', async (_event) => {
-  //const currentCaches = [cacheName];
-  let x = await caches.keys();
 
-  x.forEach(async (c)=> {
-    if (c !== cacheName) {
-        await caches.delete(c);
-    }
-  })
-});
+    // The activate handler takes care of cleaning up old caches.
+    //const currentCaches = [cacheName];
+
+    let x = await caches.keys();
+
+    x.forEach(async (c)=> {
+        if (c !== cacheName) 
+            await caches.delete(c);
+    })
+})
 
 
 
