@@ -1,12 +1,26 @@
 
 
-## 1.0.6 -- UNRELEASED
+## 1.0.7 -- UNRELEASED
 
 ### FEATURES
 - ...
 
 ### ENHANCEMENTS
 - ...
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.0.6 -- RELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- Did even more alot on PWA and making it updatable automatically
 
 ### BUGFIXES
 - ...
