@@ -1,11 +1,11 @@
 
 
-// TODO Put images in service worker cache
+// TODO Put media in service worker cache
 
 
 
 
-import { writeFile, writeFileSync, readdirSync, readFileSync, existsSync, mkdirSync, promises as fspromises  } from 'fs';
+import { writeFile, writeFileSync, readdirSync, readFileSync, existsSync, mkdirSync, copyFileSync, cpSync, promises as fspromises  } from 'fs';
 import { extname } from 'path';
 import { promisify } 		  from 'util';
 import { exec as cpexec } from 'child_process';
@@ -61,7 +61,7 @@ async function handleAction_Init() {
 
     else if (_WHATACTION === "lazy")       { await handleAction_Lazy(_WHATACTION_DETAIL); }
 
-    else if (_WHATACTION === "images")     { await handleAction_Images(); }
+    else if (_WHATACTION === "media")     { await handleAction_Media(); }
 
     else if (_WHATACTION === "icons")      { await handleAction_Icons(); }
 
@@ -86,7 +86,7 @@ function handleAction_AllDev() {
 
         await handleAction_Lazy()
 
-        await handleAction_Images()
+        await handleAction_Media()
 
         await handleAction_Icons()
 
@@ -108,8 +108,7 @@ function handleAction_Main() {
     return new Promise(async res=> {
 
         let exstr   = `mkdir -p ${OUTPUT_PATH_DEV} && `
-        exstr      += `cp ${SOURCE_MAIN_PATH}index.html ${OUTPUT_PATH_DEV}.  && `;
-        exstr      += `cp ${SOURCE_MAIN_PATH}sw.js ${OUTPUT_PATH_DEV}.`;
+        exstr      += `cp ${SOURCE_MAIN_PATH}index.html ${OUTPUT_PATH_DEV}.`;
         let execP   =  exec(exstr);
 
         let manifestMain = JSON.parse(readFileSync(`${SOURCE_MAIN_PATH}app.webmanifest`))
@@ -121,11 +120,12 @@ function handleAction_Main() {
         manifestMain.version = manifestApp.version
 
         const jsMainP         = process_js(`${SOURCE_MAIN_PATH}main.ts`)
+        const jsSwP           = process_js(`${SOURCE_MAIN_PATH}sw.ts`)
         const jsAppInstanceP  = process_js(`${SOURCE_APP_INSTANCE_PATH}main_xtend.ts`)
         const cssMainP        = process_css(`${SOURCE_MAIN_PATH}main.css`)
         const cssAppInstanceP = process_css(`${SOURCE_APP_INSTANCE_PATH}main_xtend.css`)
 
-        Promise.all([execP, jsMainP, jsAppInstanceP, cssMainP, cssAppInstanceP])
+        Promise.all([execP, jsMainP, jsSwP, jsAppInstanceP, cssMainP, cssAppInstanceP])
 
             .then(data=> {
 
@@ -133,10 +133,11 @@ function handleAction_Main() {
 
                 let x = "\\\\" 
                 let y = "\\"
-                let replacedcss = data[3].replaceAll(`content: '${x}`, `content: '${y}`)
+                let replacedcss = data[4].replaceAll(`content: '${x}`, `content: '${y}`)
 
-                writeFileSync(`${OUTPUT_PATH_DEV}main.js`, data[1] + "\n\n\n" + data[2])
-                writeFileSync(`${OUTPUT_PATH_DEV}main.css`, replacedcss + "\n\n\n" + data[4])
+                writeFileSync(`${OUTPUT_PATH_DEV}main.js`, data[1] + "\n\n\n" + data[3])
+                writeFileSync(`${OUTPUT_PATH_DEV}sw.js`, data[2])
+                writeFileSync(`${OUTPUT_PATH_DEV}main.css`, replacedcss + "\n\n\n" + data[5])
                 writeFileSync(`${OUTPUT_PATH_DEV}app.webmanifest`, JSON.stringify(manifestMain))
 
                 res(1)
@@ -234,11 +235,11 @@ function handleAction_Lazy(specific_file = "") {
 
 
 
-function handleAction_Images() {
+function handleAction_Media() {
 
     return new Promise(async res=> {
 
-        let exstr = `cp -r ${SOURCE_MAIN_PATH}images ${OUTPUT_PATH_DEV}. && cp -r ${SOURCE_APP_INSTANCE_PATH}images/* ${OUTPUT_PATH_DEV}images/.`;
+        let exstr = `cp -r ${SOURCE_MAIN_PATH}media ${OUTPUT_PATH_DEV}. && cp -r ${SOURCE_APP_INSTANCE_PATH}media/* ${OUTPUT_PATH_DEV}media/.`;
 
         await exec(exstr);
 
@@ -256,8 +257,8 @@ function handleAction_Icons() {
     return new Promise(async res=> {
 
         await generateFonts({
-            inputDir: `${SOURCE_MAIN_PATH}images/icons`,
-            outputDir: `${OUTPUT_PATH_DEV}images/icons`,
+            inputDir: `${SOURCE_MAIN_PATH}media/icons`,
+            outputDir: `${OUTPUT_PATH_DEV}media/icons`,
             fontTypes: ['woff2'],
             fontsUrl: `${OUTPUT_PATH_DEV}/fonts`,
             name: `icons`
@@ -296,7 +297,6 @@ function handleAction_Dist() {
 
     return new Promise(async res=> {
 
-        debugger
         let app_version = await get_app_version()
 
         await exec(`if [ -e "${OUTPUT_PATH_DIST}" ];then rm -rf "${OUTPUT_PATH_DIST}" ; fi && mkdir -p ${OUTPUT_PATH_DIST}`);
@@ -310,33 +310,41 @@ function handleAction_Dist() {
         let lp = OUTPUT_PATH_DEV+"lazy/"
         let sp = OUTPUT_PATH_DIST+"lazy/"
 
-        const lazy_views        = readdirSync(lp + "views", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=>      { return {opath:`${lp}views/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}views/${f.name.substring(0, f.name.length-3)}`};})
-        const lazy_components   = readdirSync(lp + "components", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=> { return {opath:`${lp}components/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}components/${f.name.substring(0, f.name.length-3)}`};})
-        const lazy_libs         = readdirSync(lp + "libs", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=>       { return {opath:`${lp}libs/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}libs/${f.name.substring(0, f.name.length-3)}`};})
-        const lazy_thirdparty   = readdirSync(lp + "thirdparty", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=> { return {opath:`${lp}thirdparty/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}thirdparty/${f.name.substring(0, f.name.length-3)}`};})
+        const js_lazy_views        = readdirSync(lp + "views", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=>      { return {opath:`${lp}views/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}views/${f.name.substring(0, f.name.length-3)}`};})
+        const js_lazy_components   = readdirSync(lp + "components", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=> { return {opath:`${lp}components/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}components/${f.name.substring(0, f.name.length-3)}` };})
+        const js_lazy_libs         = readdirSync(lp + "libs", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=>       { return {opath:`${lp}libs/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}libs/${f.name.substring(0, f.name.length-3)}`};})
+        const js_lazy_thirdparty   = readdirSync(lp + "thirdparty", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.js').map(f=> { return {opath:`${lp}thirdparty/${f.name.substring(0, f.name.length-3)}`, spath: `${sp}thirdparty/${f.name.substring(0, f.name.length-3)}`};})
 
-        const files = [ ...lazy_views, ...lazy_components, ...lazy_libs, ...lazy_thirdparty ]
+        const js_files = [ ...js_lazy_views, ...js_lazy_components, ...js_lazy_libs, ...js_lazy_thirdparty ]
 
-        uglify_and_brotli_file({opath:`${OUTPUT_PATH_DEV}main`, spath: `${OUTPUT_PATH_DIST}/main`}, (str)=> { 
-            let replace_str = `APPVERSION=${app_version}`
-            let re = new RegExp(/APPVERSION.*=.*0/,"g");
-            let replaced = str.replace(re, replace_str)
-            return replaced
+        js_files.push({
+            opath:`${OUTPUT_PATH_DEV}sw`, 
+            spath: `${OUTPUT_PATH_DIST}sw`,
+            hookfunc: (str)=> str.replace('cacheV__0__', `cacheV__${app_version}__`)
         })
 
+        js_files.push({
+            opath:`${OUTPUT_PATH_DEV}main`, 
+            spath: `${OUTPUT_PATH_DIST}main`,
+            hookfunc: (str)=> {
+                let appversion_replaced = str.replace(/APPVERSION.*=.*0/, `APPVERSION=${app_version}`)
 
-        files.forEach(f => {   
+                let appupdate_ts_replaced = appversion_replaced.replace(/APPUPDATE_TS.*=.*0/, `APPUPDATE_TS=${Date.now()}`)
 
-            uglify_and_brotli_file(f)
-
+                return appupdate_ts_replaced.replace('navigator.serviceWorker.register("/sw.js"', `navigator.serviceWorker.register("/sw-v${app_version}.js"`)
+            }
         })
 
-        await exec(`cp -r ${OUTPUT_PATH_DEV}index.html ${OUTPUT_PATH_DEV}main.css ${OUTPUT_PATH_DEV}images ${OUTPUT_PATH_DEV}app.webmanifest ${OUTPUT_PATH_DEV}sw.js ${OUTPUT_PATH_DIST} `)
+        js_files.forEach(jsfile => js_to_dist(jsfile, app_version))   
+
+        index_html_file_to_dist(app_version)
+        main_css_file_to_dist(app_version)
+        webmanifest_file_to_dist(app_version)
+        media_folder_to_dist(app_version)
 
         let exstr = `
             sd 'version": [0-9]+' 'version": ${app_version}' ${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest &&
-            sd 'App Version: [0-9]+' 'App Version: ${app_version}' ${OUTPUT_PATH_DIST}app.webmanifest &&
-            sd 'V__[0-9]+__' 'V${app_version}' ${OUTPUT_PATH_DIST}sw.js &&
+            sd 'App Version: [0-9]+' 'App Version: ${app_version}' ${OUTPUT_PATH_DIST}app_${app_version}.webmanifest &&
             sd 'APPVERSION \= [0-9]+' 'APPVERSION = ${app_version}' ${APP_ENGINE_PATH}build/src/index.js `;
 
         await exec(exstr); 
@@ -359,11 +367,14 @@ function handleAction_Dist() {
     }
 
 
-    function uglify_and_brotli_file(f, manipulate_file_content_func = (str)=>str) {
+    function js_to_dist(f, app_version) {
 
         let js_str = readFileSync(`${f.opath}.js`, "utf8"); 
 
-        js_str = manipulate_file_content_func(js_str)
+        js_str = replace_media_urls(js_str, app_version)
+
+        if (f.hookfunc)
+            js_str = f.hookfunc(js_str)
 
         let js_uglified = uglify.minify(js_str)
 
@@ -372,16 +383,72 @@ function handleAction_Dist() {
             console.log(js_uglified.error)
         }
         
-        else if (js_uglified.code.length > 900) {
+        else if (js_uglified.code.length > 9999999) {
             let js_compressed = brotli.compress( Buffer.from(js_uglified.code, "utf8") )
-            writeFile(f.spath + ".min.js.br", js_compressed, {}, ()=>{})
+            writeFile(f.spath + "-v"+app_version + ".min.js.br", js_compressed, {}, ()=>{})
         }
 
         else {
-            writeFile(f.spath + ".min.js", js_uglified.code, {}, ()=>{})
+            //writeFile(f.spath + "-v" + app_version + ".min.js", js_uglified.code, {}, ()=>{})
+            writeFile(f.spath + "-v"+app_version + ".min.js", js_str, {}, ()=>{})
         }
 
     }
+
+    function index_html_file_to_dist(app_version) {
+
+        let index_html_str = readFileSync(`${OUTPUT_PATH_DEV}index.html`, "utf8");
+
+        index_html_str = replace_media_urls(index_html_str, app_version)
+
+        index_html_str = index_html_str.replace('href="/app.webmanifest"', `href="/app-v${app_version}.webmanifest"`)
+
+        writeFileSync(`${OUTPUT_PATH_DIST}index-v${app_version}.html`, index_html_str, {})
+
+    }
+
+    function main_css_file_to_dist(app_version) {
+
+        let main_css_str = readFileSync(`${OUTPUT_PATH_DEV}main.css`, "utf8");
+
+        main_css_str = replace_media_urls(main_css_str, app_version)
+
+        writeFileSync(`${OUTPUT_PATH_DIST}main-v${app_version}.css`, main_css_str, {})
+
+    }
+
+    function webmanifest_file_to_dist(app_version) {
+
+        let webmanifest_str = readFileSync(`${OUTPUT_PATH_DEV}app.webmanifest`, "utf8");
+
+        webmanifest_str = replace_media_urls(webmanifest_str, app_version)
+
+        writeFileSync(`${OUTPUT_PATH_DIST}app-v${app_version}.webmanifest`, webmanifest_str, {})
+
+    }
+
+    async function media_folder_to_dist(app_version) {
+
+        cpSync(`${OUTPUT_PATH_DEV}media`, `${OUTPUT_PATH_DIST}/media`, { recursive: true })
+
+        let media_files_extensions = ["png", "jpg", "gif", "svg", "ico", "woff2"]
+        
+        for(let i=0;i<media_files_extensions.length;i++) {
+
+            let mfe = media_files_extensions[i]
+        
+            await exec(`fd . ${OUTPUT_PATH_DIST}media/ -e '${mfe}' -x rename 's/.${mfe}/-v${app_version}.${mfe}/' {}`)
+        
+        }
+
+    }
+
+    function replace_media_urls(str, app_version) {
+
+        return str.replace(/(\"|\'|\`)\/assets\/([^"'`]+)\.([a-z0-9]+)(\"|\'|\`)/g,`$1/assets/$2-v${app_version}.$3$4`)
+
+    }
+
 }
 
 

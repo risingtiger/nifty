@@ -6,7 +6,7 @@ type str  = string;   //type int  = number; type bool = boolean;
 const _hstack:Array<str> = [];
 let   _intransitionLock = false;
 
-
+const view_load_done_event = new Event("view_load_done");
 
 
 class Route {
@@ -187,6 +187,7 @@ function _doRoute(url: str, is_going_back:bool) {
 
         localStorage.setItem("hstack", JSON.stringify(_hstack))
 
+        document.querySelector("#views").dispatchEvent(view_load_done_event);
     }
 }
 

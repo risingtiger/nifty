@@ -58,25 +58,25 @@ function extract_filepaths_from_loads(loads:Load_Item[], filepaths:str[]) {
         switch (loads[i].what) {
             case "views": 
                 whatlist = [...(window as any).__VIEWS, ...(window as any).__APPINSTANCE_VIEWS]
-                path_prefix = "./lazy/views/"
+                path_prefix = "/assets/lazy/views/"
                 break;
             case "components":
                 whatlist = [...(window as any).__COMPONENTS, ...(window as any).__APPINSTANCE_COMPONENTS]
-                path_prefix = "./lazy/components/"
+                path_prefix = "/assets/lazy/components/"
                 break;
             case "thirdparty":
                 whatlist = [...(window as any).__THIRDPARTY, ...(window as any).__APPINSTANCE_THIRDPARTY]
-                path_prefix = "./lazy/thirdparty/"
+                path_prefix = "/assets/lazy/thirdparty/"
                 break;
             case "libs":
                 whatlist = [...(window as any).__LIBS, ...(window as any).__APPINSTANCE_LIBS]
-                path_prefix = "./lazy/libs/"
+                path_prefix = "/assets/lazy/libs/"
                 break;
         }
 
         let load_item = whatlist.find((d:any)=> d.name === loads[i].name)!
 
-        let fpath:str = path_prefix + load_item.name
+        let fpath:str = path_prefix + load_item.name + ((window as any).APPVERSION > 0 ? `-v${(window as any).APPVERSION}` : "")
 
         filepaths.push(fpath)
 
