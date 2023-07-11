@@ -88,7 +88,8 @@ document.querySelector("#views").addEventListener("view_load_done", () => {
         _is_in_initial_view_load = false
 
         setTimeout(()=> {
-            navigator.serviceWorker.controller!.postMessage({ command: "load_core" })
+            if (navigator.serviceWorker.controller)
+                navigator.serviceWorker.controller!.postMessage({ command: "load_core" })
         }, 3000)
 
         check_for_updates()

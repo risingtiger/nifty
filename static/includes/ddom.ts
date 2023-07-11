@@ -90,7 +90,7 @@ async function activate(el:HTMLElement) {
   }, 5000)
 
   const sy = el.tagName.toLowerCase().substring(0,2)
-  if (sy === "v-" || sy === "c-") {
+  if (sy === "c-") {
     await LazyLoad([{what:"components", name:el.tagName.toLowerCase().substring(2).replace("-", "_")}])
     await (el as any).Activate()
   }

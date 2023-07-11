@@ -45,7 +45,7 @@ app.get(['/','/index.html'], async (_req, res) => {
     res.sendFile(full_url)
 });
 
-app.get('/app-v*.webmanifest$', async (req, res) => {
+app.get('/app*.webmanifest$', async (req, res) => {
     process_file_request(req.url, res);
 });
 
@@ -59,6 +59,7 @@ app.get(['/assets/media/*\.ico', '/assets/media/*\.png', '/assets/media/*\.gif',
 
 app.get(['/assets/*\.js$', '/sw*.js$'], async (req, res) => {
 
+    debugger
     let url = req.url
 
     if (env !== "dev") {
@@ -174,6 +175,7 @@ function process_file_request(url:str, res:any)  {
     res.sendFile(path);
 
 }
+
 
 
 

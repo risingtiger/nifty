@@ -104,8 +104,9 @@ function suck_in_file(fpath:str) {
 
         })
 
-        .catch(()=> {
+        .catch((e)=> {
             if (!flag) {
+                    console.log(e)
                 throwup_and_leave(fpath)
             }
             flag = true
