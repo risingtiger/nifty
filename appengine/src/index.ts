@@ -59,7 +59,6 @@ app.get(['/assets/media/*\.ico', '/assets/media/*\.png', '/assets/media/*\.gif',
 
 app.get(['/assets/*\.js$', '/sw*.js$'], async (req, res) => {
 
-    debugger
     let url = req.url
 
     if (env !== "dev") {

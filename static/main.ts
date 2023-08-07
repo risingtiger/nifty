@@ -2,6 +2,7 @@
 
 import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_AddRoute } from './includes/switchstation.js';
 import  './includes/lit-html.js';
+import  './includes/fetchlassie.js';
 import  './includes/lazyload.js';
 import  './includes/firebase.js';
 import  './includes/ddom.js';
@@ -106,6 +107,7 @@ window.addEventListener("focus", () => {
     check_for_updates()
 
 })
+
 
 
 

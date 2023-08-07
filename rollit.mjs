@@ -39,7 +39,6 @@ void async function() {
 
     if (_DEBUG) {
         process.stdin.on('data', async function () {
-            debugger
             handleAction_Init()
         })
     }

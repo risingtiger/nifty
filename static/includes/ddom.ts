@@ -255,3 +255,4 @@ function handleAnimationFinish(ev:any) {
 
 
 (window as any).DDomObserve = DDomObserve;
+

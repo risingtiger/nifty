@@ -1,6 +1,20 @@
 
 
-## 1.0.7 -- UNRELEASED
+## 1.0.8 -- UNRELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- ...
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.0.7 -- RELEASED
 
 ### FEATURES
 - ...

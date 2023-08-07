@@ -1,0 +1,148 @@
+chip,mchId,storename,statuscount
+0000,2396,WinCo Happy Valley,896
+0101,0423,Sprouts W Melbourne,91
+0000,0397,Sprouts Dallas Trinity,362
+0000,0000,TBD LLC,763
+0052,0000,Was SP Fort Myers,36573
+0000,2409,WinCo Spokane Valley,616
+0078,0328,Sprouts Miramar FL,1096
+0075,0307,Sprouts Stuart,256
+0021,0408,Sprouts Manassas,4287
+0050,2411,WinCo Tacoma WA,428
+0000,0392,Sprouts Lathrope,2363
+0083,0000,ReadyToDeploy83,22
+0000,0379,Lees Harriman,1784
+0000,0400,Lins Santa Clara,401
+0000,2384,WinCo Bend,919
+0000,0391,Sprouts San Antonio,421
+0000,0368,Sprouts Menifee,846
+0104,0000,Fresh Thyme Foundry,56
+0082,0428,Sprouts Rialto,63
+0000,2386,WinCo Fresno,2857
+0046,0000,Ready Deploy46,6
+0000,0000,TBD LLC,368
+0000,0375,Sprouts Las Colinas ,1326
+0000,2269,Winco West Valley,1651
+0000,0389,Sprouts Tucson,505
+0055,0000,Ready Deploy55,3018
+0000,0000,TBD,7179
+0000,2380,WinCo Visalia,7428
+0097,0396,Sprouts West Boca Raton,27
+0000,0372,Sprouts OaklandPark,672
+0067,0166,Sprouts Seminole,263
+0061,0409,Pioneer Mkt Lehi,1567
+0064,0422,Lees Richmond UT,797
+0002,0000,Boron Robert,13568
+0080,0386,Sprouts Cape Corral,299
+0000,0352,Sprouts Reno,1141
+0000,0393,Sprouts Fountain Valley,482
+0000,2378,WinCo Phoenix,873
+0096,0372,Sprouts Oakland Park,187
+0000,0000,TBD LLC,771
+0000,4011,Atkinsons Hailey,1005
+0000,2400,WinCo Pocatello,1221
+0098,0366,Sprouts Dania Beach Fl,545
+0093,0239,Sprouts New Tampa,327
+0000,2391,WinCo Longview,18057
+0081,0429,Sprouts Indian Wells CA,40
+0000,2407,Winco Sparks,761
+0000,0370,Sprouts Tower Rd,991
+0000,0359,Sprouts Smyrna/Atlanta,1040
+0000,0355,Sprouts Glendale,930
+0000,2399,WinCo Chico,922
+0079,0418,SP Waterford  Lakes,139
+0000,0388,Sprouts Rancho Cordova,604
+0094,0000,ReadyToDeploy94,0
+0000,2388,WinCo Las Vegas,4757
+0057,0354,Luckys Painsville,4245
+0000,2394,WinCo Bakersfield NW,1725
+0007,0000,BSeries Davis,3712
+0008,0000,Boron Ron,96
+0000,0398,Sprouts San Jose,320
+0000,2402,WinCo Eugene,792
+0087,0000,ReadyToDeploy87,0
+0076,0000,ReadyToDeploy76,0
+0000,2392,Winco Meridian,1203
+0047,0405,Sprouts Delray Beach,578
+0091,0374,Sprouts West Palm Beach,195
+0000,0357,Sprouts Maricopa,2054
+0000,0383,Macey Eagle MT,702
+0051,0401,TBD LLC,4955
+0069,0000,ReadyToDeploy69,0
+0000,2356,Winco Salt Lake,1153
+0000,2203,Winco Pomona,1357
+0092,0405,SproutsDelray Beach,191
+0022,0358,Sprouts Brandon,205
+0026,0380,Apopka,178
+0000,2397,WinCo Kent,794
+0089,0000,ReadyToDeploy89,0
+0000,2389,Winco Bozeman,917
+0000,2382,WinCo Vacaville,2407
+0000,0403,Sprouts Norwalk CA,374
+0000,2408,Winco Silverdale,591
+0000,0395,Sprouts Nashville,460
+0005,0000,BSeries Ron,764
+0088,0000,ReadyToDeploy88,0
+0000,0399,Sprouts Merced,869
+0000,0387,Sprouts Palmdale,549
+0059,0412,Digbys,1859
+0085,0000,ReadyToDeploy85,0
+0060,0416,Sprouts Colo Springs,1148
+0000,2379,WinCo Indio,2720
+0062,0414,Lins Cedar,1096
+0000,0396,Sprouts Boca Raton,135
+0063,0000,Was Sprouts Cape Corral,13297
+0000,2410,WinCo Spokane Valley,1025
+0000,2398,WinCo Portland,13468
+0000,2381,WinCo Sacramento,7082
+0107,0000,ReadyToDeploy107,0
+0000,2393,Winco Logan,1020
+0000,2385,WinCo Missoula,936
+0090,0378,Sprouts Port St Lucie,191
+0000,0371,Lins Overton,3858
+0024,0367,Sprouts Tampa Hts,225
+0070,0000,ReadyToDeploy70,5
+0086,0000,ReadyToDeploy86,0
+0000,0360,Sprouts Boynton,0
+0102,0427,Sprouts Kenneth FL,27
+0003,0000,Boron Davis,1054
+0103,0000,ReadyToDeploy103,65
+0058,0000,Was Sprouts New Tampa,1706
+0084,0000,ReadyToDeploy84,25
+0000,0394,Sprouts Suprize,543
+0095,0000,ReadyToDeploy95,0
+0099,0363,Sprouts Kendall Fl,403
+0000,2390,WinCo Vancouver,1058
+0108,0000,ReadyToDeploy108,0
+0049,0351,Bees Colorado City,1339
+0056,0407,Sprouts Lancaster,2013
+0000,2387,WinCo Bakersfield SW,7326
+0000,2267,WinCo Fresno Peach,11616
+0000,0419,Lallatin Foodtown,708
+0073,0369,Sprouts ColonialPlaza,1138
+0074,0235,Sprouts Boynton Beach Fl,320
+0000,0384,Sprouts Moreno Valley,707
+0106,0432,Daves Cleveland Hts,30
+0000,0377,Sprouts Grand Prairie,948
+0000,0373,Sprouts GardenGrove,911
+0071,0347,Sprouts Orlando,275
+0054,0406,Sprouts N Las Vegas,4302
+0066,0411,Sprouts Bradenton FL,122
+0000,2383,WinCo Wenatchee,1107
+0000,0382,New Seasons Palisades,603
+0006,0000,BSeriesRobert,2645
+0023,0401,Sprouts Villages,210
+0004,0000,--,44
+0000,0353,Sprouts Buford,1285
+0000,0363,Sprouts Kendall,4092
+0105,0425,Tampa Uptown,14
+0000,0390,Sprouts Dallas Hillside,485
+0000,0404,Sprouts Stockton CA,379
+0072,0000,ReadyToDeploy72,0
+0068,0348,SP Tampa Westchase,266
+0001,0000,BoronX Davis,174
+0109,0000,ReadyToDeploy109,0
+0100,0376,Sprouts Homestead Fl,197
+0077,0209,Sprouts Estero,274
+0065,0000,Lins Hurricane,1237
+0000,2395,WinCo McMinville,804
