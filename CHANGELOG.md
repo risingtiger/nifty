@@ -1,6 +1,6 @@
 
 
-## 1.0.8 -- UNRELEASED
+## 1.0.9 -- UNRELEASED
 
 ### FEATURES
 - ...
@@ -14,13 +14,27 @@
 
 
 
-## 1.0.7 -- RELEASED
+## 1.0.8 -- RELEASED
 
 ### FEATURES
 - ...
 
 ### ENHANCEMENTS
 - more dynamic in ddom load process
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.0.7 -- RELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- ...
 
 ### BUGFIXES
 - ...
