@@ -116,7 +116,7 @@ function handleAction_Main() {
         manifestMain.name = manifestApp.name
         manifestMain.short_name = manifestApp.short_name
         manifestMain.description = `App Version: ${manifestApp.version}`
-        manifestMain.version = manifestApp.version
+        manifestMain.version = manifestApp.version.toString()
 
         const jsMainP         = process_js(`${SOURCE_MAIN_PATH}main.ts`)
         const jsSwP           = process_js(`${SOURCE_MAIN_PATH}sw.ts`)
@@ -357,11 +357,11 @@ function handleAction_Dist() {
 
         return new Promise(res=> {
 
-            let web_manifest_str = readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`, "utf8");
-            let vers             = Number(web_manifest_str.match(/version\"\: ([0-9]+)/)[1]) + 1;
+            //let web_manifest_str = readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`, "utf8");
+            //let vers             = Number(web_manifest_str.match(/version\"\: "([0-9]+)"/)[1]) + 1;
 
-            res(vers);
-
+            //res(vers);
+            res(1140)
         })
     }
 

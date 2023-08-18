@@ -4,8 +4,13 @@ import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_A
 import  './includes/lit-html.js';
 import  './includes/fetchlassie.js';
 import  './includes/lazyload.js';
-import  './includes/firebase.js';
+import  './includes/firestore.js';
 import  './includes/ddom.js';
+
+
+
+
+(window as any).tempywumpy = "";
 
 
 
@@ -22,7 +27,7 @@ let _is_in_initial_view_load = true;
 
 
 (window as any).__VIEWS = [
-    { path: "^auth$", name: "auth", dependencies:[] },
+    { path: "^auth$", name: "auth", dependencies:[], auth: [] },
 ];
 
 
@@ -77,7 +82,6 @@ window.addEventListener("load", async (_e) => {
     else {
         SwitchStation_InitInterval(); 
     }
-
 })
 
 
@@ -95,7 +99,6 @@ document.querySelector("#views").addEventListener("view_load_done", () => {
 
         check_for_updates()
     }
-
 })
 
 
@@ -105,7 +108,6 @@ document.querySelector("#views").addEventListener("view_load_done", () => {
 window.addEventListener("focus", () => {
 
     check_for_updates()
-
 })
 
 
@@ -124,7 +126,6 @@ function check_for_updates() {
             }   
         })
     }
-
 }
 
 

@@ -22,7 +22,7 @@ type State = {
   bucket: str, // what influxdb  measurement. ex. PSI
   msr: str, // what influxdb  measurement. ex. PSI
   fields: Field[], // what influxdb fields in specified measurement to show. ex. City psi and/or After Filter Psi
-  tags: Tag[], // what influxdb fields in specified measurement to show. ex. City psi and/or After Filter Psi
+  tags: Tag[], // what influxdb tags , Chip Id , etc
   type: str, // line or bar  
   intrv: number, // interval -- how many seconds per point. ex. For 5 minute interval set to 300 (300 seconds in 5 minutes) 
   nifl: number, // nthIntervalForLabel -- nth points to show label on x axis. ex. For showing every hour at the top of the hour for 5 minute increments, set to 12
@@ -331,7 +331,7 @@ class CGraphing extends HTMLElement {
 
 
 
-  private renderGraphFrame(type:str, fps:FPS[], divisor:number, labelint:int, tmzncy:str) : any {
+private renderGraphFrame(type:str, fps:FPS[], divisor:number, labelint:int, tmzncy:str) : any {
 
     let thisframebegin = Math.floor( (fps[0].points[0].x as Date).getTime() / 1000)
 
@@ -413,7 +413,7 @@ class CGraphing extends HTMLElement {
       return graph
     }
 
-  }
+}
 
 
 

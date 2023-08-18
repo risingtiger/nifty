@@ -14,14 +14,16 @@ class Route {
     path_regex: RegExp
     name: str
     dependencies: Array<{type:str, name:str}>
+    auth: Array<str> = []
 
 
 
 
-    constructor(route: { path: str, name: str, dependencies: Array<{type:str, name:str}> }) {
+    constructor(route: { path: str, name: str, dependencies: Array<{type:str, name:str}>, auth:Array<str> }) {
         this.path_regex     = new RegExp(route.path)
         this.name      = route.name
         this.dependencies = route.dependencies
+        this.auth = route.auth
     }
 
 
@@ -32,6 +34,12 @@ class Route {
         return new Promise<any>( async (res, rej) => {
 
             let flg = false;
+
+            if ( this.auth.length > 0 && !this.auth.includes(localStorage.getItem('auth_group')!)) {
+                const errmsg = "not_authorized_to_view_page"
+                rej(errmsg)
+                return;
+            }
 
             await (window as any).LazyLoad([{what:"views", name:this.name}])
 
@@ -53,7 +61,7 @@ class Route {
             setTimeout(()=> {
                 if (!flg) {
                     flg = true
-                    rej(1)
+                    rej("timeout")
                 }
             }, 5000)
 
@@ -80,7 +88,7 @@ const InitInterval = ()=> {
 
 
 
-const AddRoute = (route:{path:str, name:str, dependencies:Array<{type:str, name:str}>})=> {
+const AddRoute = (route:{path:str, name:str, dependencies:Array<{type:str, name:str}>, auth:Array<str>})=> {
     _routes.push(new Route(route))
 }
 
@@ -137,9 +145,9 @@ function _doRoute(url: str, is_going_back:bool) {
 
     })
 
-    .catch(()=> {
+    .catch((err:str)=> {
 
-        const errmsg = encodeURIComponent(`Unable to Lazy Load View Data: ${url}`)
+        const errmsg = encodeURIComponent(`Unable to Lazy Load View Data: ${url} -- ${err}`)
 
         console.log(`/?errmsg=${errmsg}`)
 

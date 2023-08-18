@@ -1,12 +1,26 @@
 
 
-## 1.0.9 -- UNRELEASED
+## 1.0.10 -- UNRELEASED
 
 ### FEATURES
 - ...
 
 ### ENHANCEMENTS
 - ...
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.0.9 -- RELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- auth works now, ... authentically
 
 ### BUGFIXES
 - ...

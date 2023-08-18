@@ -1,19 +1,32 @@
 
 
 c-graphing {
-  display: block;
+    display: block;
 
-  & .ct-chart {
+    & .ct-chart {
 
-    & .ct-series-a .ct-line {
-      stroke-width: 2px;
-      stroke: #0091e8;
+        & .ct-series-a { 
+            & .ct-line {
+                stroke-width: 1.5px;
+                stroke: #0091e8;
+            }
+
+            & .ct-bar {
+                stroke: #0091e8;
+            }
+        }
+
+        & .ct-series-b { 
+            & .ct-line {
+                stroke-width: 1.5px;
+                stroke: #1eeba7;
+            }
+
+            & .ct-bar {
+                stroke: #1eeba7;
+            }
+        }
     }
-
-    & .ct-series-a .ct-bar {
-      stroke: #0091e8;
-    }
-  }
 }
 
 
