@@ -6,7 +6,8 @@
 - ...
 
 ### ENHANCEMENTS
-- ...
+- big step forward on firestore data sync and realtime with SSE. Not done yet, code is there but not called
+- big step up on graphing and telemetry. UI upgrades and more accessiblity to data
 
 ### BUGFIXES
 - ...

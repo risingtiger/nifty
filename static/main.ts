@@ -69,9 +69,11 @@ window.addEventListener("load", async (_e) => {
     if (window.location.href.includes("errmsg")) {
         const errmsg = (window.location.href.match(/errmsg=(.+)/))![1]
 
-        confirm(decodeURIComponent(errmsg))
+        const decoded = decodeURIComponent(errmsg)
 
-        window.location.href = "/"
+        confirm(decoded)
+
+        window.location.href = (decoded.includes("Firestore Auth Error")) ? "/#auth" : "/"
     }
 
     else if (window.location.hash.includes("update")) {
@@ -90,18 +92,55 @@ window.addEventListener("load", async (_e) => {
 document.querySelector("#views").addEventListener("view_load_done", () => {
 
     if (_is_in_initial_view_load) {
-        _is_in_initial_view_load = false
+
+        _is_in_initial_view_load = false;
 
         setTimeout(()=> {
             if (navigator.serviceWorker.controller)
                 navigator.serviceWorker.controller!.postMessage({ command: "load_core" })
         }, 3000)
 
-        check_for_updates()
+        check_for_updates();
     }
 })
 
 
+
+/*
+ * Part of listening for changes. Not done yet. will come back to this .... maybe
+ *
+document.addEventListener("data_change", () => {
+
+    console.log("main data change event receieved in main")
+
+
+    const alertel = document.querySelector("#data_has_changed_alert")
+
+    if (!alertel) {
+
+        const htmlstr = `<div id="data_has_changed_alert">
+                            <i class="icon-refresh"></i> View New Data
+                        </div>`
+
+        document.body.insertAdjacentHTML("beforeend", htmlstr)
+
+        const el = document.querySelector("#data_has_changed_alert")! as any
+
+        setTimeout(()=> {
+            el.classList.add("active")
+        }, 100)
+
+        document.querySelector("#data_has_changed_alert")!.addEventListener("click", ()=> {
+            document.body.removeChild(document.querySelector("#data_has_changed_alert")!)
+
+            const activeview = document.querySelector("#views")!.querySelector(".view.active") as any
+
+            if (activeview.Refresh) activeview.Refresh()
+        })
+    }
+
+})
+*/
 
 
 
@@ -133,11 +172,8 @@ function check_for_updates() {
 
 async function update(round:int) {
 
-    console.log("update with round " + round + "")
-
     if (round===1) {
 
-        console.log("update 1")   
         const cache = await caches.open(`cacheV__${(window as any).APPVERSION}__`)
 
         await cache.delete("/")
@@ -153,7 +189,6 @@ async function update(round:int) {
     }
 
     else if (round===2) {
-        console.log("update 2")
 
         setTimeout(()=> {
             window.location.href = "http://www.yavada.com/bouncebacktopurewater?round=2"
@@ -161,7 +196,6 @@ async function update(round:int) {
     }
 
     else if (round===3) {
-        console.log("update 3-")
 
         setTimeout(()=> {
             window.location.href = "/"

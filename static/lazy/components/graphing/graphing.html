@@ -3,15 +3,14 @@
 <div class="ct-chart ct-minor-sixth"></div>
 
 
-<div class="ctrlbtns">
-    <button class="btn" @click="${()=>this.GoBackOneDay()}">PREVIOUS DAY</button>
-    <button class="btn" @click="${()=>this.GoNextOneDay()}">NEXT DAY</button>
-
-    <select>
-        <option>Store Meter</option>
-        <option>PSI</option>
-    </select>
-
-
-    <input type="date" id="day" name="day" @change="${(e)=>this.GoToSelectedDay(e)}">
+<div id="legend">
+    <div class="fields">
+        ${_s.fields.map((f,i)=>Lit_Html`
+            <div class="field">
+                <div class="color"></div>
+            <div class="name">${f.name} ${_s.unitterms.split(",")[0]}</div>
+            </div>
+        `)}
+    </div>
 </div>
+

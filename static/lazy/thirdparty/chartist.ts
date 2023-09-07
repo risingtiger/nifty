@@ -7,7 +7,7 @@ const css_str = `.ct-label{fill:rgba(0,0,0,.4);color:rgba(0,0,0,.4);font-size:.7
 
 
 //import { LineChart, BarChart, FixedScaleAxis } from "chartist"
-import { LineChart, FixedScaleAxis } from "chartist"
+import { LineChart, BarChart, FixedScaleAxis } from "chartist"
 
 
 
@@ -18,7 +18,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>${css_str}</style>`);
 
 
 (window as any).Chartist_LineChart      = LineChart;
-//(window as any).Chartist_BarChart       = BarChart;
+(window as any).Chartist_BarChart       = BarChart;
 (window as any).Chartist_FixedScaleAxis = FixedScaleAxis;
 
 

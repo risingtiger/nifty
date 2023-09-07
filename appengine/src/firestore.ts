@@ -1,5 +1,8 @@
 
 
+type str = string; type int = number; type bool = boolean;
+
+
 'use strict';
 
 import fetch from 'node-fetch';
@@ -7,19 +10,23 @@ import fetch from 'node-fetch';
 
 
 
-function Firestore_Server_Get(whats:str[], opts:any, token:str) { return new Promise((res, rej) => {
+function Retrieve(paths:str[], opts:any, token:str) { return new Promise((res, rej) => {
 
-    let query_params = ""
 
     let preurl = `https://firestore.googleapis.com/v1/projects/purewatertech/databases/(default)/documents`
 
-    if (opts.pageSize) query_params += `pageSize=${opts.pageSize}&`
-    if (opts.orderBy) query_params += `orderBy=${opts.orderBy}&`
 
-    const results = whats.map(()=> { return { items:[], flg: false } })
+    const results = paths.map(()=> { return { items:[], flg: false } })
 
-    whats.forEach((what:any, i:int)=> { 
-        let { urlstr, structuredQuery } = parse_request(what)
+    paths.forEach((path:any, i:int)=> { 
+        let query_params = ""
+
+        if (opts.pageSizes[i] === -1) opts.pageSizes[i] = 1000
+
+        if (opts.pageSizes[i]) query_params += `pageSize=${opts.pageSizes[i]}&`
+        if (opts.orderBys[i]) query_params += `orderBy=${opts.orderBys[i]}&`
+
+        let { urlstr, structuredQuery } = parse_request(path)
 
         if (structuredQuery) {
 
@@ -91,9 +98,9 @@ function Firestore_Server_Get(whats:str[], opts:any, token:str) { return new Pro
 
 
 
-function Firestore_Server_Patch(what:str, mask:any[], data:any, token:str) {   return new Promise(async (res, rej)=> {
+function Patch(path:str, mask:any[], data:any, id_token:str) {   return new Promise(async (res, rej)=> {
 
-    const url = `https://firestore.googleapis.com/v1/projects/purewatertech/databases/(default)/documents/${what}`
+    const url = `https://firestore.googleapis.com/v1/projects/purewatertech/databases/(default)/documents/${path}`
 
     const maskstr  = "?" + mask.map(m=> `updateMask.fieldPaths=${m}`).join("&")
 
@@ -107,7 +114,7 @@ function Firestore_Server_Patch(what:str, mask:any[], data:any, token:str) {   r
         body: JSON.stringify(data_body),
         headers: { 
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}` 
+            "Authorization": `Bearer ${id_token}` 
         },
     }
 
@@ -121,57 +128,55 @@ function Firestore_Server_Patch(what:str, mask:any[], data:any, token:str) {   r
     .catch((err:any)=> {
         rej(err)
     })
+
+
+    function create_obj(propname:str|int, propval:any, dest:any) : any {
+
+      if (typeof propval == "string") {
+        dest[propname] = { stringValue: propval }
+
+      } else if (typeof propval == "boolean") {
+        dest[propname] = { booleanValue: propval }
+
+      } else if (typeof propval == "number") {
+        dest[propname] = { integerValue: propval }
+
+      } else if (typeof propval == "object" && !Array.isArray(propval)) {
+        dest[propname] = { mapValue: { fields: {}}}
+        for(const prop in (propval as any)) {
+          create_obj(prop, propval[prop], dest[propname].mapValue.fields)
+        }
+
+      } else if (typeof propval == "object" && Array.isArray(propval)) {
+        dest[propname] = { arrayValue: { values: Array(propval.length)}}
+        for(let i = 0; i < propval.length; i++) {
+          create_obj(i, propval[i], dest[propname].arrayValue.values)
+        }
+      }
+
+    }
 })}
 
 
 
 
-function create_obj(propname:str|int, propval:any, dest:any) : any {
-
-  if (typeof propval == "string") {
-    dest[propname] = { stringValue: propval }
-
-  } else if (typeof propval == "boolean") {
-    dest[propname] = { booleanValue: propval }
-
-  } else if (typeof propval == "number") {
-    dest[propname] = { integerValue: propval }
-
-  } else if (typeof propval == "object" && !Array.isArray(propval)) {
-    dest[propname] = { mapValue: { fields: {}}}
-    for(const prop in (propval as any)) {
-      create_obj(prop, propval[prop], dest[propname].mapValue.fields)
-    }
-
-  } else if (typeof propval == "object" && Array.isArray(propval)) {
-    dest[propname] = { arrayValue: { values: Array(propval.length)}}
-    for(let i = 0; i < propval.length; i++) {
-      create_obj(i, propval[i], dest[propname].arrayValue.values)
-    }
-  }
-
-}
-
-
-
-
-function parse_request(whatstr:str) : {urlstr:str, structuredQuery:any|null} {
+function parse_request(pathstr:str) : {urlstr:str, structuredQuery:any|null} {
 
     let urlstr = ""
     let structuredQuery:any|null = null
-    const whatsplit = whatstr.split("/")
+    const pathsplit = pathstr.split("/")
 
-    if (whatsplit.length % 2 === 0) { // doc
-        urlstr += "/" + whatstr
+    if (pathsplit.length % 2 === 0) { // doc
+        urlstr += "/" + pathstr
     }
 
-    else if (whatsplit.length % 2 === 1) { // collection
+    else if (pathsplit.length % 2 === 1) { // collection
 
-        if (whatstr.includes(":")) {
+        if (pathstr.includes(":")) {
 
             //urlstr += "/" + whatstr.substring(0, whatstr.indexOf(":"))
 
-            const querystr = whatstr.substring(whatstr.indexOf(":") + 1, whatstr.length)
+            const querystr = pathstr.substring(pathstr.indexOf(":") + 1, pathstr.length)
 
             let op = ""
             let valuestr = ""
@@ -214,7 +219,7 @@ function parse_request(whatstr:str) : {urlstr:str, structuredQuery:any|null} {
         }
 
         else {
-            urlstr += "/" + whatstr
+            urlstr += "/" + pathstr
         }
     }
 
@@ -246,34 +251,34 @@ function parse_response(item:any, maketype:bool) : any {
 
 function parse_response_core(obj:any) : any {
 
-  if (obj.hasOwnProperty("integerValue")) {
-    return Number(obj.integerValue);
+    if (obj.hasOwnProperty("integerValue")) {
+        return Number(obj.integerValue);
 
-  } else if (obj.hasOwnProperty("doubleValue")) {
-    return Number(obj.doubleValue);
+    } else if (obj.hasOwnProperty("doubleValue")) {
+        return Number(obj.doubleValue);
 
-  } else if (obj.hasOwnProperty("stringValue")) {
-    return obj.stringValue;
+    } else if (obj.hasOwnProperty("stringValue")) {
+        return obj.stringValue;
 
-  } else if (obj.hasOwnProperty("booleanValue")) {
-    return obj.booleanValue;
+    } else if (obj.hasOwnProperty("booleanValue")) {
+        return obj.booleanValue;
 
-  } else if (obj.hasOwnProperty("referenceValue")) {
-    const m = obj.referenceValue.match(/^projects\/.+\/databases\/\(default\)\/documents\/(.+)\/(.+)$/)
-    return {collection: m[1], id: m[2]}
+    } else if (obj.hasOwnProperty("referenceValue")) {
+        const m = obj.referenceValue.match(/^projects\/.+\/databases\/\(default\)\/documents\/(.+)\/(.+)$/)
+        return {collection: m[1], id: m[2]}
 
-  } else if (obj.hasOwnProperty("arrayValue")) {
-    return obj.arrayValue.values ? obj.arrayValue.values.map((m:any)=> parse_response_core(m)) : []
+    } else if (obj.hasOwnProperty("arrayValue")) {
+        return obj.arrayValue.values ? obj.arrayValue.values.map((m:any)=> parse_response_core(m)) : []
 
-  } else if (obj.hasOwnProperty("mapValue")) {
-    const x = {};
+    } else if (obj.hasOwnProperty("mapValue")) {
+        const x = {};
 
-    for(const prop in obj.mapValue.fields) 
-      x[prop] = parse_response_core(obj.mapValue.fields[prop]);
+        for(const prop in obj.mapValue.fields) {
+            x[prop] = parse_response_core(obj.mapValue.fields[prop]);
+        }
 
-    return x;
-  }
-
+        return x;
+    }
 }
 
 
@@ -281,57 +286,56 @@ function parse_response_core(obj:any) : any {
 
 function parse_response_type(items:any) : any {
 
-  let typestr = `export type Type = { \n`;
+    let typestr = `export type Type = { \n`;
 
-
-  for(const prop in items.fields) {
-    typestr += `${prop}: ${parse_response_type_core(items.fields[prop])}, `;
-  }
-
-  return typestr;
-
-}
-
-
-
-
-function parse_response_type_core(obj:any) {
-
-  if (obj.hasOwnProperty("integerValue")) {
-    return "number \n";
-
-  } else if (obj.hasOwnProperty("doubleValue")) {
-    return "number \n";
-
-  } else if (obj.hasOwnProperty("stringValue")) {
-    return "string \n";
-
-  } else if (obj.hasOwnProperty("booleanValue")) {
-    return "bool \n";
-
-  } else if (obj.hasOwnProperty("referenceValue")) {
-    const m = obj.referenceValue.match(/^projects\/.+\/databases\/\(default\)\/documents\/(.+)\/(.+)$/)
-    return `${m[1]}Type`;
-
-  } else if (obj.hasOwnProperty("arrayValue")) {
-    return parse_response_type_core(obj.arrayValue.values[0]) + "[] \n";
-
-  } else if (obj.hasOwnProperty("mapValue")) {
-    let x = "{ ";
-
-    for(const prop in obj.mapValue.fields) {
-      x += prop + ": ";
-      x += parse_response_type_core(obj.mapValue.fields[prop]) + ",";
+    for(const prop in items.fields) {
+        typestr += `${prop}: ${run_core(items.fields[prop])}, `;
     }
 
-    x += "}";
+    return typestr;
 
-    return x;
-  }
 
+    function run_core(obj:any) {
+
+        if (obj.hasOwnProperty("integerValue")) {
+            return "number \n";
+
+        } else if (obj.hasOwnProperty("doubleValue")) {
+            return "number \n";
+
+        } else if (obj.hasOwnProperty("stringValue")) {
+            return "string \n";
+
+        } else if (obj.hasOwnProperty("booleanValue")) {
+            return "bool \n";
+
+        } else if (obj.hasOwnProperty("referenceValue")) {
+            const m = obj.referenceValue.match(/^projects\/.+\/databases\/\(default\)\/documents\/(.+)\/(.+)$/)
+            return `${m[1]}Type`;
+
+        } else if (obj.hasOwnProperty("arrayValue")) {
+            return run_core(obj.arrayValue.values[0]) + "[] \n";
+
+        } else if (obj.hasOwnProperty("mapValue")) {
+            let x = "{ ";
+
+            for(const prop in obj.mapValue.fields) {
+                x += prop + ": ";
+                x += run_core(obj.mapValue.fields[prop]) + ",";
+            }
+
+            x += "}";
+
+            return x;
+        }
+    }
 }
 
 
-export { Firestore_Server_Get, Firestore_Server_Patch }
+
+
+
+const Firestore = { Retrieve, Patch }
+export { Firestore }
 
 

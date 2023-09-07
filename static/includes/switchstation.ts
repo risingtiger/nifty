@@ -149,8 +149,7 @@ function _doRoute(url: str, is_going_back:bool) {
 
         const errmsg = encodeURIComponent(`Unable to Lazy Load View Data: ${url} -- ${err}`)
 
-        console.log(`/?errmsg=${errmsg}`)
-
+        console.info(`/?errmsg=${errmsg}`)
         if (!window.location.href.includes("localhost")) {
             window.location.href = `/?errmsg=${errmsg}`
         }

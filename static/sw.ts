@@ -12,7 +12,7 @@ let core_cache_files = [
 
 
 self.addEventListener('controllerchange', (_e:any) => {
-    console.log("controllerchange")
+    //
 })
 
 
@@ -23,8 +23,6 @@ self.addEventListener('install', (e: any) => {
 
         // @ts-ignore
         self.skipWaiting()
-
-        console.log("installing")
 
         res(1)
 
@@ -41,7 +39,6 @@ self.addEventListener('activate', (e:any) => {
 
     let promise = new Promise(async (res, _rej) => {
 
-        console.log("activating done")
         let x = await caches.keys();
         
         // just in case there is residue left -- should be cleared out by update method in main.ts
@@ -75,8 +72,6 @@ self.addEventListener('fetch', (e:any) => {
         const match_r = await cache.match(e.request);
 
         if (match_r) { 
-            console.log("cache hit on " + e.request.url)
-
             res(match_r) 
 
         } else {
@@ -112,8 +107,6 @@ self.addEventListener('fetch', (e:any) => {
 self.addEventListener('message', async (e:any) => {
 
     if (e.data.command === "load_core") {
-        console.log("load_core")
-
         const app_version = cache_name.split("__")[1]
 
         const list = core_cache_files.map(u => 

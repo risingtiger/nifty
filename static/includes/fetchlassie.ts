@@ -40,11 +40,13 @@ function FetchLassie(url:str, options:any = {}) { return new Promise(async res=>
 
 function execute(resource:str, options:any) { return new Promise(async (res,er)=> { 
 
+    let accept_type = (options.headers["Accept"] && options.headers["Accept"] !== "application/json") ? "text" : "json"
+
     fetch(resource, options)
 
         .then(async (req:any)=> {
             if (req.ok) {
-                const request_result = await req.json()
+                const request_result = await (accept_type === "text" ? req.text() : req.json())
                 res(request_result)
             }
 

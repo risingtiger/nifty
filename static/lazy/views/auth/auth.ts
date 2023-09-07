@@ -90,7 +90,6 @@ async Login() {
     const data = await fetchauth.json()
 
     if (data.error) {
-        console.log(data.error.message)
         this.s.error_msg = data.error.message
 
     } else {

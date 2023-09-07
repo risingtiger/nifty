@@ -58,6 +58,9 @@ a:hover {
 
 
 #views {
+
+    
+
   width: 100%;
   height: 100%;
   overflow-y: hidden;
@@ -177,12 +180,37 @@ button {
     padding: 8px 13px;
     border: none;
     border-radius: 4px;
-    color: white;
-    background-color: var(--actioncolor);
+    color: #565656;
+    background-image: linear-gradient(0deg, #f4f3f3, #e2dfdf);
     box-shadow: 1px 1px 3px 0px #00000054;
     cursor: pointer;
 }
 
+.btn-group {
+    display: flex;
+
+    & > button {
+        font-weight: 400; 
+        color:#9a9a9a;
+        font-weight: 400; 
+    }
+    & button.active {
+        background-image: linear-gradient(0deg, #007ac2, #19a2f4);
+        color: white;
+        font-weight: 900; 
+    }
+    & > button:not(:first-child, :last-child) {
+        border-radius: 0;
+    }
+    & > button:first-child {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    & > button:last-child {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+}
 
 
 
@@ -378,14 +406,14 @@ i[class^='icon-']:before, i[class*=' icon-']:before {
 .icon-checkcircle:before {   content: '\f103';   }
 .icon-edit1:before       {   content: '\f104';   }
 .icon-edit2:before       {   content: '\f105';   }
-.icon-expand:before      {   content: '\f106';   }
-.icon-search:before      {   content: '\f107';   }
-.icon-stopwatch:before   {   content: '\f108';   }
-.icon-refresh:before     {   content: '\f109';   }
-.icon-location:before    {   content: '\f10a';   }
-.icon-graph:before       {   content: '\f10b';   }
-.icon-info:before        {   content: '\f10c';   }
-.icon-details:before     {   content: '\f10d';   }
+.icon-search:before      {   content: '\f106';   }
+.icon-stopwatch:before   {   content: '\f107';   }
+.icon-refresh:before     {   content: '\f108';   }
+.icon-location:before    {   content: '\f109';   }
+.icon-graph:before       {   content: '\f10a';   }
+.icon-info:before        {   content: '\f10b';   }
+.icon-meter:before       {   content: '\f10c';   }
+.icon-pressure:before    {   content: '\f10d';   }
 
 
 
@@ -395,6 +423,28 @@ i[class^='icon-']:before, i[class*=' icon-']:before {
   display: none;
 }
 
-
+/* currently not being used. need to finish the listen for updates feature. not finished yet
+#data_has_changed_alert {
+    z-index:99999;
+    position:fixed; 
+    top:83px; 
+    left:50%; 
+    width:150px; 
+    height:19px;
+    transform:translate(-50%, 25px); 
+    background-color: #0079b9;
+    color: white;
+    font-weight: bold;
+    padding: 9px 10px;
+    border-radius: 4px;
+    text-align: center;
+    opacity: 0;
+    transition: all 0.6s ease-in-out;
+}
+#data_has_changed_alert.active {
+    opacity: 1;
+    transform:translate(-50%, 0px); 
+}
+*/
 
 

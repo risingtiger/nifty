@@ -11,7 +11,8 @@ import { promisify } 		  from 'util';
 import { exec as cpexec } from 'child_process';
 import * as brotli        from 'brotli';
 import { generateFonts }  from 'fantasticon';
-import * as uglify        from 'uglify-js';
+import * as uglifyjs      from 'uglify-js';
+import * as uglifycss     from 'uglifycss';
 
 
 
@@ -66,6 +67,8 @@ async function handleAction_Init() {
 
     else if (_WHATACTION === "appengine")  { await handleAction_AppEngine(); }
 
+    else if (_WHATACTION === "runlisten")  { await handleAction_RunListen(); }
+
     else if (_WHATACTION === "dist")       { await handleAction_AppEngine(); await handleAction_Dist(); }
 
 }
@@ -82,6 +85,8 @@ function handleAction_AllDev() {
         await handleAction_Main()
 
         await handleAction_AppEngine()
+
+        await handleAction_RunListen()
 
         await handleAction_Lazy()
 
@@ -102,50 +107,45 @@ function handleAction_AllDev() {
 
 
 
-function handleAction_Main() {   
+function handleAction_Main() {   return new Promise(async res=> {
 
-    return new Promise(async res=> {
+    let exstr   = `mkdir -p ${OUTPUT_PATH_DEV} && `
+    exstr      += `cp ${SOURCE_MAIN_PATH}index.html ${OUTPUT_PATH_DEV}.`;
+    let execP   =  exec(exstr);
 
-        let exstr   = `mkdir -p ${OUTPUT_PATH_DEV} && `
-        exstr      += `cp ${SOURCE_MAIN_PATH}index.html ${OUTPUT_PATH_DEV}.`;
-        let execP   =  exec(exstr);
+    let manifestMain = JSON.parse(readFileSync(`${SOURCE_MAIN_PATH}app.webmanifest`))
+    let manifestApp  = JSON.parse(readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`))
 
-        let manifestMain = JSON.parse(readFileSync(`${SOURCE_MAIN_PATH}app.webmanifest`))
-        let manifestApp  = JSON.parse(readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`))
+    manifestMain.name = manifestApp.name
+    manifestMain.short_name = manifestApp.short_name
+    manifestMain.description = `App Version: ${manifestApp.version}`
+    manifestMain.version = manifestApp.version.toString()
 
-        manifestMain.name = manifestApp.name
-        manifestMain.short_name = manifestApp.short_name
-        manifestMain.description = `App Version: ${manifestApp.version}`
-        manifestMain.version = manifestApp.version.toString()
+    const jsMainP         = process_js(`${SOURCE_MAIN_PATH}main.ts`)
+    const jsSwP           = process_js(`${SOURCE_MAIN_PATH}sw.ts`)
+    const jsAppInstanceP  = process_js(`${SOURCE_APP_INSTANCE_PATH}main_xtend.ts`)
+    const cssMainP        = process_css(`${SOURCE_MAIN_PATH}main.css`)
+    const cssAppInstanceP = process_css(`${SOURCE_APP_INSTANCE_PATH}main_xtend.css`)
 
-        const jsMainP         = process_js(`${SOURCE_MAIN_PATH}main.ts`)
-        const jsSwP           = process_js(`${SOURCE_MAIN_PATH}sw.ts`)
-        const jsAppInstanceP  = process_js(`${SOURCE_APP_INSTANCE_PATH}main_xtend.ts`)
-        const cssMainP        = process_css(`${SOURCE_MAIN_PATH}main.css`)
-        const cssAppInstanceP = process_css(`${SOURCE_APP_INSTANCE_PATH}main_xtend.css`)
+    Promise.all([execP, jsMainP, jsSwP, jsAppInstanceP, cssMainP, cssAppInstanceP])
 
-        Promise.all([execP, jsMainP, jsSwP, jsAppInstanceP, cssMainP, cssAppInstanceP])
+        .then(data=> {
 
-            .then(data=> {
+            // hack to fix the shit fantastic css parser that doesn't handle escaped backslashes in content: properly
 
-                // hack to fix the shit fantastic css parser that doesn't handle escaped backslashes in content: properly
+            let x = "\\\\" 
+            let y = "\\"
+            let replacedcss = data[4].replaceAll(`content: '${x}`, `content: '${y}`)
 
-                let x = "\\\\" 
-                let y = "\\"
-                let replacedcss = data[4].replaceAll(`content: '${x}`, `content: '${y}`)
+            writeFileSync(`${OUTPUT_PATH_DEV}main.js`, data[1] + "\n\n\n" + data[3])
+            writeFileSync(`${OUTPUT_PATH_DEV}sw.js`, data[2])
+            writeFileSync(`${OUTPUT_PATH_DEV}main.css`, replacedcss + "\n\n\n" + data[5])
+            writeFileSync(`${OUTPUT_PATH_DEV}app.webmanifest`, JSON.stringify(manifestMain))
 
-                writeFileSync(`${OUTPUT_PATH_DEV}main.js`, data[1] + "\n\n\n" + data[3])
-                writeFileSync(`${OUTPUT_PATH_DEV}sw.js`, data[2])
-                writeFileSync(`${OUTPUT_PATH_DEV}main.css`, replacedcss + "\n\n\n" + data[5])
-                writeFileSync(`${OUTPUT_PATH_DEV}app.webmanifest`, JSON.stringify(manifestMain))
-
-                res(1)
-
-        })
+            res(1)
 
     })
-
-}
+})}
 
 
 
@@ -205,7 +205,7 @@ function handleAction_Lazy(specific_file = "") {
                 await process_lazy_thirdparty_or_lib(l) 
 
             else
-                console.log("no action found")
+                console.info("no action found")
 
         }
 
@@ -282,6 +282,21 @@ function handleAction_AppEngine() {
             sd '__APPINSTANCE/appengine/src/index_extend' '${_WHATAPPINSTANCE}.js' ${APP_ENGINE_PATH}/build/index.js`
 
         await exec(exstr); 
+
+        res(1)
+
+    })
+
+}
+
+
+
+
+function handleAction_RunListen() {
+
+    return new Promise(async res=> {
+
+        await exec(`npx swc runlisten/src -d runlisten/build`);
 
         res(1)
 
@@ -375,20 +390,21 @@ function handleAction_Dist() {
         if (f.hookfunc)
             js_str = f.hookfunc(js_str)
 
-        let js_uglified = uglify.minify(js_str)
+        let js_uglified = uglifyjs.minify(js_str)
 
         if (js_uglified.error) {
-            console.log('js_uglified.error: ')
-            console.log(js_uglified.error)
+            console.info('js_uglified.error: ')
+            console.info(js_uglified.error)
         }
+
+        const js_compressed = brotli.compress( Buffer.from(js_uglified.code, "utf8") )
         
-        else if (js_uglified.code.length > 9999999) {
-            let js_compressed = brotli.compress( Buffer.from(js_uglified.code, "utf8") )
+        if (js_compressed) {
             writeFile(f.spath + "-v"+app_version + ".min.js.br", js_compressed, {}, ()=>{})
         }
 
         else {
-            //writeFile(f.spath + "-v" + app_version + ".min.js", js_uglified.code, {}, ()=>{})
+            writeFile(f.spath + "-v" + app_version + ".min.js", js_uglified.code, {}, ()=>{})
             writeFile(f.spath + "-v"+app_version + ".min.js", js_str, {}, ()=>{})
         }
 
@@ -412,8 +428,16 @@ function handleAction_Dist() {
 
         main_css_str = replace_media_urls(main_css_str, app_version)
 
-        writeFileSync(`${OUTPUT_PATH_DIST}main-v${app_version}.css`, main_css_str, {})
+        let css_uglified = uglifycss.processString(main_css_str)
 
+        if (css_uglified.error) {
+            console.info('css_uglified.error: ')
+            console.info(css_uglified.error)
+        }
+
+        let main_css_str_compressed = brotli.compress( Buffer.from(css_uglified, "utf8") )
+
+        writeFileSync(`${OUTPUT_PATH_DIST}main-v${app_version}.min.css.br`, main_css_str_compressed, {})
     }
 
     function webmanifest_file_to_dist(app_version) {

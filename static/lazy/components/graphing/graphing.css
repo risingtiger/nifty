@@ -27,6 +27,47 @@ c-graphing {
             }
         }
     }
+
+    & #legend {
+        margin: 0 18px 0 49px;
+        padding: 10px 0 0 0;
+        border-top: 1px solid #e2e2e2;
+
+        & .fields {
+            display: flex;
+
+            & .field {
+                padding-right: 14px;
+                display: flex;
+
+                & .color {
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    position: relative;
+                    top: 3px;
+                    margin-right: 3px;
+                }
+
+                & .name {
+                    color: #a3a3a3;
+                    text-transform: lowercase;
+                }
+            }
+            & .field:first-child {
+                & .color {
+                    background-color: #0091e8;
+                }
+            }
+            & .field:nth-child(2) {
+                & .color {
+                    background-color: #1eeba7;
+                }
+            }
+
+        }
+
+    }
 }
 
 

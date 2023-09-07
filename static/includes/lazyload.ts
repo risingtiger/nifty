@@ -104,9 +104,8 @@ function suck_in_file(fpath:str) {
 
         })
 
-        .catch((e)=> {
+        .catch((_e)=> {
             if (!flag) {
-                    console.log(e)
                 throwup_and_leave(fpath)
             }
             flag = true
@@ -129,7 +128,7 @@ function suck_in_file(fpath:str) {
 
         const errmsg = encodeURIComponent(`Unable to Lazy Load Js: ${fpath}`)
 
-        console.log(`/?errmsg=${errmsg}`)
+        console.info(`/?errmsg=${errmsg}`)
 
         if (!window.location.href.includes("localhost")) {
             window.location.href = `/?errmsg=${errmsg}`
