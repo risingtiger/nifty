@@ -75,7 +75,7 @@ async Login() {
 
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyCdBd4FDBCZbL03_M4k2mLPaIdkUo32giI`
 
-    const fetchauth = await fetch(url, {
+    const opts = {
         method: 'POST',
         body: JSON.stringify({
             email: els.username.value,
@@ -85,9 +85,9 @@ async Login() {
         headers: {
             'Content-Type': 'application/json'
         }
-    })
+    }
 
-    const data = await fetchauth.json()
+    const data = await FetchLassie(url, opts) as any
 
     if (data.error) {
         this.s.error_msg = data.error.message

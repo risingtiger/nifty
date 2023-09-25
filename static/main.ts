@@ -5,6 +5,7 @@ import  './includes/lit-html.js';
 import  './includes/fetchlassie.js';
 import  './includes/lazyload.js';
 import  './includes/firestore.js';
+import  './includes/influxdb.js';
 import  './includes/ddom.js';
 
 

@@ -10,7 +10,8 @@ type str = string; type int = number; type bool = boolean;
 
 import fetch from 'node-fetch';
 import { promises as fs } from "fs";
-import { existsSync } from "fs";
+import path from 'path'
+import { existsSync, readFileSync } from "fs";
 import * as url_util from "url";
 import * as path_util from "path";
 import express from "express";
@@ -18,6 +19,9 @@ import { initializeApp, cert }  from "firebase-admin/app";
 import { getFirestore }  from "firebase-admin/firestore";
 import { SecretManagerServiceClient }  from "@google-cloud/secret-manager";
 import { Firestore } from "./firestore.js"
+import { InfluxDB } from "./influxdb.js"
+import { authenticate as googleauthenticate } from '@google-cloud/local-auth'
+import { google as googleapis} from 'googleapis'
 // @ts-ignore
 import { Init, projectId, keyFilename, identity_platform_api } from "../appengine/src/index_extend.js"
 import bodyParser from 'body-parser'
@@ -32,6 +36,10 @@ const APPVERSION = 0;
 const env = process.env.NODE_ENV === "dev" ? "dev" : "dist";
 
 let secrets_client:any;
+let sheets:any;
+const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
+const SHEETS_TOKEN_PATH = path.join(process.cwd(), 'token.json');
+const SHEETS_CREDENTIALS_PATH = path.join(process.cwd(), 'sheets_credentials.json');
 let db:any;
 
 app.use(bodyParser.json())
@@ -43,6 +51,15 @@ if (process.platform === 'darwin') {
         projectId,
         keyFilename
     });
+
+    const serviceAccount = JSON.parse(readFileSync(keyFilename, 'utf8')) as any
+    console.log(serviceAccount.client_email)
+    sheets = googleapis.sheets({version: 'v4', auth: new googleapis.auth.JWT(
+        serviceAccount.client_email,
+        null,
+        serviceAccount.private_key,
+        ['https://www.googleapis.com/auth/spreadsheets.readonly']
+    )});
 
     initializeApp({   credential: cert(keyFilename)   })
 } 
@@ -191,6 +208,53 @@ app.post('/api/firestore_patch', async (req, res) => {
 
 
 
+app.post('/api/influxdb_retrieve', async (req, res) => {
+
+    const rb = req.body
+
+    InfluxDB.Retrieve(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags, rb.intrv, rb.priors).then((results:any)=> {
+        res.status(200).send(JSON.stringify(results))
+    }).catch((err:str)=> {
+        res.status(401).send(err)
+    })
+
+    req.headers['x-compression'] = "true"
+})
+
+
+
+
+app.post('/api/influxdb_retrieve_points', async (req, res) => {
+
+    const rb = req.body
+
+    InfluxDB.Retrieve_Points(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags).then((results:any)=> {
+        res.status(200).send(JSON.stringify(results))
+    }).catch((err:str)=> {
+        res.status(401).send(err)
+    })
+
+    req.headers['x-compression'] = "true"
+})
+
+
+
+
+app.post('/api/influxdb_retrieve_medians', async (req, res) => {
+
+    const rb = req.body
+
+    InfluxDB.Retrieve_Medians(rb.bucket, rb.begins, rb.ends, rb.dur_amounts, rb.dur_units, rb.msrs, rb.fields, rb.tags, rb.aggregate_fn).then((results:any)=> {
+        res.status(200).send(JSON.stringify(results))
+    }).catch((err:str)=> {
+        res.status(401).send(err)
+    })
+
+    req.headers['x-compression'] = "true"
+})
+
+
+
 if (env === "dist") {
     app.listen( Number(process.env.PORT), () => {
       console.info(`App listening on port ${(process.env.PORT)}`);
@@ -220,7 +284,7 @@ else {
 
 
 
-Init(app, db, secrets_client)
+Init(app, db, secrets_client, sheets)
 
 
 
@@ -330,6 +394,18 @@ function should_compress(req:any, _res:any) {
     return false
 }
 
+
+
+
+async function loadSavedCredentialsIfExist() {
+    try {
+        const content = await fs.readFile(TOKEN_PATH);
+        const credentials = JSON.parse(content);
+        return google.auth.fromJSON(credentials);
+    } catch (err) {
+        return null;
+    }
+}
 
 
 

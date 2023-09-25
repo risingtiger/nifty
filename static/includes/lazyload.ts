@@ -8,9 +8,14 @@
 
 
 type Load_Item = {what:str, name:str}
+type Load_Que = {
+    i: int,
+    url,
+    ts: int
+}
 
-
-
+const load_ques:Load_Que[] = []
+let load_que_i = 0
 const _filepaths:str[] = [];
 
 
@@ -26,23 +31,21 @@ function LazyLoad(loads:Array<Load_Item>) {
 
         const all_loads_unique_paths = filepaths.filter((f, i, self) => self.indexOf(f) === i)
 
+        const promises = []
+
         for (let i = 0; i < all_loads_unique_paths.length; i++) {
 
             const f = all_loads_unique_paths[i]
 
             if (!_filepaths.includes(f)) {
 
-                await suck_in_file(f+'.js')
+                promises.push(suck_in_file(f+'.js'))
                 _filepaths.push(f)
-
             }
-
         }
-
+        await Promise.all(promises)
         res(1)
-
     })
-
 }
 
 
@@ -83,58 +86,77 @@ function extract_filepaths_from_loads(loads:Load_Item[], filepaths:str[]) {
         if (load_item.dependencies.length > 0) {
             extract_filepaths_from_loads(load_item.dependencies, filepaths)
         }
-
     }
-
 }
 
 
+
+/*
+type Load_Que = {
+    i: int,
+    url,
+    ts: int
+}
+const load_ques:Load_Que[] = []
+let load_que_i = 0
+const _filepaths:str[] = [];
+*/
 
 
 function suck_in_file(fpath:str) {
 
     return new Promise(async (res, _rej)=> {
 
-        let flag = false
+        const i = load_que_i++
+        load_ques.push({ i, url: fpath, ts: Date.now() })
+        load_ticktock()
 
         import(fpath).then(async _module => {
 
-            flag = true
+            const que_index = load_ques.findIndex(x=> x.i === i)
+            load_ques.splice(que_index)
             res(1)
-
         })
 
         .catch((_e)=> {
-            if (!flag) {
-                throwup_and_leave(fpath)
-            }
-            flag = true
-
+            throwup_and_leave(fpath)
         })	
-
-        setTimeout(()=> {
-            if (!flag) {
-                throwup_and_leave(fpath)
-            }
-            flag = true
-        }, 5000)
-
     })
+}
 
 
-    //bad_ux_but_untill_i_can_get_back_to_this_it_is_what_it_is__fucked
 
-    function throwup_and_leave(fpath:str) {
 
-        const errmsg = encodeURIComponent(`Unable to Lazy Load Js: ${fpath}`)
+function throwup_and_leave(fpath:str) {
 
-        console.info(`/?errmsg=${errmsg}`)
+    const errmsg = encodeURIComponent(`Unable to Lazy Load Js: ${fpath}`)
 
-        if (!window.location.href.includes("localhost")) {
-            window.location.href = `/?errmsg=${errmsg}`
-        }
+    console.info(`/?errmsg=${errmsg}`)
+
+    if (!window.location.href.includes("localhost")) {
+        window.location.href = `/?errmsg=${errmsg}`
     }
+}
 
+
+
+
+function load_ticktock() {
+    setTimeout(()=> {
+        console.log("lazyload tick tocking")
+        if (load_ques.length > 0) {
+            const now = Date.now()
+            document.getElementById("loadviewoverlay")!.classList.add("active")
+            const queover = load_ques.find(x=> now - x.ts > 9000)
+            if (queover) {
+                throwup_and_leave(queover.url)
+            } else {
+                load_ticktock()
+            }
+        } else {
+            document.getElementById("loadviewoverlay")!.classList.remove("active")
+        }
+    }, 500)
 }
 
 

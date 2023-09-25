@@ -86,7 +86,7 @@ a:hover {
 
 }
 
-#loadviewoverlay {
+#fetchlassy_overlay, #loadviewoverlay {
   display: none;
   z-index: 1000;
   position: absolute;
@@ -96,7 +96,7 @@ a:hover {
   bottom: 0;
 
 }
-#loadviewoverlay.active {
+#fetchlassy_overlay.active {
   display: block;
 }
 
@@ -191,7 +191,7 @@ button {
 
     & > button {
         font-weight: 400; 
-        color:#9a9a9a;
+        color:#797878;
         font-weight: 400; 
     }
     & button.active {
@@ -402,18 +402,20 @@ i[class^='icon-']:before, i[class*=' icon-']:before {
 }
 
 .icon-arrowright1:before {   content: '\f101';   }
-.icon-arrowright2:before {   content: '\f102';   }
-.icon-checkcircle:before {   content: '\f103';   }
-.icon-edit1:before       {   content: '\f104';   }
-.icon-edit2:before       {   content: '\f105';   }
-.icon-search:before      {   content: '\f106';   }
-.icon-stopwatch:before   {   content: '\f107';   }
-.icon-refresh:before     {   content: '\f108';   }
-.icon-location:before    {   content: '\f109';   }
-.icon-graph:before       {   content: '\f10a';   }
-.icon-info:before        {   content: '\f10b';   }
-.icon-meter:before       {   content: '\f10c';   }
-.icon-pressure:before    {   content: '\f10d';   }
+.icon-arrowleft1:before  {   content: '\f102';   }
+.icon-arrowright2:before {   content: '\f103';   }
+.icon-checkcircle:before {   content: '\f104';   }
+.icon-edit1:before       {   content: '\f105';   }
+.icon-edit2:before       {   content: '\f106';   }
+.icon-tune:before        {   content: '\f107';   }
+.icon-search:before      {   content: '\f108';   }
+.icon-refresh:before     {   content: '\f109';   }
+.icon-location:before    {   content: '\f10a';   }
+.icon-graph:before       {   content: '\f10b';   }
+.icon-info:before        {   content: '\f10c';   }
+.icon-meter:before       {   content: '\f10d';   }
+.icon-pressure:before    {   content: '\f10e';   }
+.icon-stopwatch:before   {   content: '\f10f';   }
 
 
 

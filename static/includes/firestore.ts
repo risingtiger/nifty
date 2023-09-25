@@ -64,7 +64,7 @@ function Retrieve(paths:str[]|str, opts:GetOpts = {}) { return new Promise((res,
 
         if (refs_to_fetch.length > 0) {
 
-            fetch_paths(refs_to_fetch.map(ref=> ref.path), opts, id_token).then((data:any[])=> {
+            firestore_fetch_paths(refs_to_fetch.map(ref=> ref.path), opts, id_token).then((data:any[])=> {
 
                 // refs.filter((_r,i)=> opts.listens[i] === true).forEach(ref=> ref.listen = true) // listening for changes isnt dont yet
 
@@ -183,25 +183,21 @@ function authrequest() { return new Promise<str>(async (res,rej)=> {
 
 
 
-function fetch_paths(paths:any, opts:any, id_token:str) {   return new Promise<any[]|str>(async (res)=> {
+function firestore_fetch_paths(paths:any, body_opts:any, id_token:str) {   return new Promise<any[]|str>(async (res)=> {
 
-    const body = { paths, opts}
+    const body = { paths, opts:body_opts}
 
-    fetch('/api/firestore_retrieve', {
-        method: 'POST',
-        headers: { 
+    const opts = {   
+        method: "POST",  
+        headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + id_token
+            'Authorization': 'Bearer ' + id_token,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body)   
+    }
 
-    }).then(async r=> {
-        let data = await r.json()
-        res(data)
-
-    }).catch(err=> {
-        res(err)
-    })
+    const data = await FetchLassie('/api/firestore_retrieve', opts) as any
+    res(data)
 })}
 
 

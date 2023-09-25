@@ -5,7 +5,7 @@
 
 
 
-import { writeFile, writeFileSync, readdirSync, readFileSync, existsSync, mkdirSync, copyFileSync, cpSync, promises as fspromises  } from 'fs';
+import { writeFile, writeFileSync, readdir, readdirSync, readFileSync, existsSync, mkdirSync, copyFileSync, cpSync, promises as fspromises  } from 'fs';
 import { extname } from 'path';
 import { promisify } 		  from 'util';
 import { exec as cpexec } from 'child_process';
@@ -212,17 +212,18 @@ function handleAction_Lazy(specific_file = "") {
         else {
 
             let all_lazy_files = [...views, ...components, ...thirdparty, ...libs]
+            const promises = []
 
             for(let i = 0; i < all_lazy_files.length; i++) {
 
                 if (all_lazy_files[i].subfolder === "views" || all_lazy_files[i].subfolder === "components")
-                    await process_lazy_view_or_component(all_lazy_files[i])
+                    promises.push(process_lazy_view_or_component(all_lazy_files[i]))
 
                 else if (all_lazy_files[i].subfolder === "thirdparty" || all_lazy_files[i].subfolder === "libs")
-                    await process_lazy_thirdparty_or_lib(all_lazy_files[i]) 
-
+                    promises.push(process_lazy_thirdparty_or_lib(all_lazy_files[i])) 
             }
 
+            await Promise.all(promises)
         }
 
         res(1)
@@ -481,24 +482,64 @@ function process_lazy_view_or_component(file) {
 
     return new Promise(async res=> {
 
+        let dir = `${file.is === "main" ? SOURCE_MAIN_PATH : SOURCE_APP_INSTANCE_PATH}lazy/${file.subfolder}/${file.name}`
         let path = `${file.is === "main" ? SOURCE_MAIN_PATH : SOURCE_APP_INSTANCE_PATH}lazy/${file.subfolder}/${file.name}/${file.name}`
 
-        const js_p   = await process_js(path+".ts");
-        const html_p = await process_html(path+".html");
-        const css_p  = await process_css(path+".css");
+        const promises = []
 
-        let [js_str, html_str, css_str] = await Promise.all([js_p, html_p, css_p]);
+        promises.push(readsubs(dir))
+        promises.push(process_js(path+".ts"))
+        promises.push(process_html(path+".html"))
+        promises.push(process_css(path+".css"))
 
+        let [subdirs, js_str, html_str, css_str] = await Promise.all(promises);
 
-        let jswithimports = js_str.replace("{--htmlcss--}", `<style>${css_str}</style>${html_str}`);
+        js_str = await process_subview_if_any(dir, js_str, subdirs)
 
+        js_str = js_str.replace("{--htmlcss--}", `<style>${css_str}</style>${html_str}`);
 
-        writeFileSync(`${OUTPUT_PATH_DEV}lazy/${file.subfolder}/${file.name}.js`, jswithimports);
+        writeFileSync(`${OUTPUT_PATH_DEV}lazy/${file.subfolder}/${file.name}.js`, js_str);
 
         res(1)
-
     })
 
+    
+    function readsubs(directory) { return new Promise(res=> {
+        readdir(directory, { withFileTypes: true }, (_err, files) => {
+            const subs = files.filter(d => d.isDirectory()).map(d => d.name)
+            res(subs)
+        })
+    })}
+
+
+    function process_subview_if_any(dir, jsstr, subdirs) { return new Promise(async res=> {
+
+        if (subdirs.length === 0) {
+            res(jsstr)
+            return
+        }
+
+        const promises = []
+
+        for(let i = 0; i < subdirs.length; i++) {
+            promises.push(process_html(`${dir}/${subdirs[i]}/${subdirs[i]}.html`))
+            promises.push(process_css(`${dir}/${subdirs[i]}/${subdirs[i]}.css`))
+        }
+
+        const pr = await Promise.all(promises)
+
+        for(let i = 0; i < subdirs.length; i++) {
+            const stri1 = jsstr.indexOf("{--htmlcss--}")
+            const stri2 = jsstr.indexOf("customElements.define(\"vc-", stri1)
+
+            if (jsstr.substring(stri2+26, stri2+26+subdirs[i].length) === subdirs[i]) {
+                jsstr = jsstr.replace("{--htmlcss--}", `<style>${pr[i*2+1]}</style>${pr[i*2]}`)
+            }
+        }
+
+        res(jsstr)
+
+    })}
 }
 
 

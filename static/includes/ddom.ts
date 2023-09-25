@@ -80,34 +80,24 @@ function DDomObserve(viewEl:HTMLElement) {
 
 async function activate(el:HTMLElement) {
 
-  document.getElementById("loadviewoverlay")!.classList.add("active")
-
-  let isLoaded = false
-  setTimeout(()=> {   
-    if (!isLoaded && !window.location.href.includes("localhost")) {   
-      window.location.href = `/?errmsg=${encodeURIComponent('Unable to Load DDom')}`; 
-    }   
-  }, 5000)
-
   const sy = el.tagName.toLowerCase().substring(0,2)
   if (sy === "c-") {
     await LazyLoad([{what:"components", name:el.tagName.toLowerCase().substring(2).replace("-", "_")}])
     await (el as any).Activate()
   }
 
-  isLoaded = true
   animateshow()
 
 
   function animateshow() {
-    let wrapper:HTMLElement|null = el.querySelector(":scope > c-overlay") || null
+    let overlay_wrapper:HTMLElement|null = el.querySelector(":scope > c-overlay") || null
     let animation = el.getAttribute("animation") || "fadein"
 
-    if (wrapper) {
+    if (overlay_wrapper) {
       el.style.display = "block"
-      wrapper.addEventListener("requested_close", handleRequestedCloseEvent)
-      wrapper.addEventListener("opened", handleWrapperOpenedEvent)
-      setTimeout(()=> wrapper!.setAttribute("show", "true"), 10)
+      overlay_wrapper.addEventListener("requested_close", handleRequestedCloseEvent)
+      overlay_wrapper.addEventListener("opened", handleWrapperOpenedEvent)
+      setTimeout(()=> overlay_wrapper!.setAttribute("show", "true"), 60)
     }
     else  {
       animateIn(el, animation)
@@ -130,7 +120,7 @@ function handleRequestedCloseEvent(ev:any) {
 
 function handleWrapperOpenedEvent(_ev:any) {
 
-  document.getElementById("loadviewoverlay")!.classList.remove("active")
+    //
 
 }
 
@@ -159,8 +149,6 @@ function animateIn(el:HTMLElement, animation:str) {
 
 function deactivate(el:HTMLElement) {
 
-  document.getElementById("loadviewoverlay")!.classList.add("active")
-
   let wrapper:HTMLElement|null = el.querySelector(":scope > c-overlay") || null
   let animation = el.getAttribute("animation") || "fadein"
 
@@ -179,7 +167,6 @@ function deactivate(el:HTMLElement) {
 
 function handleWrapperClosedEvent(ev:any) {
 
-  document.getElementById("loadviewoverlay")!.classList.remove("active")
   ev.currentTarget.parentElement.style.display = "none"
 
 }
@@ -222,8 +209,6 @@ function attachAnimationIfNotAlready(el:HTMLElement, animation:str) {
 
 
 function handleAnimationFinish(ev:any) {
-
-  document.getElementById("loadviewoverlay")!.classList.remove("active")
 
   const elanimation = _elAnimations.find(ea=> ea.animation === ev.currentTarget)!
 

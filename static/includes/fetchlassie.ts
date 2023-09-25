@@ -1,15 +1,39 @@
 
 
+type Que = {
+    i: int,
+    url: str,
+    ts: int
+}
+
+const ques:Que[] = []
+let que_i = 0
+
+
 
 
 function FetchLassie(url:str, options:any = {}) { return new Promise(async res=> { 
 
     let flg = false
 
-    set_pre()
+    const i = que_i++
+
+    set_pre(url, i)
 
     if (!options.method) {
         options.method = 'GET'
+    }
+
+    if (!options.headers) {
+        options.headers = {}
+    }
+
+    if (!options.headers["Content-Type"]) {
+        options.headers["Content-Type"] = "application/json"
+    }
+
+    if (!options.headers["Accept"]) {
+        options.headers["Accept"] = "application/json"
     }
 
     execute(url, options)
@@ -17,7 +41,7 @@ function FetchLassie(url:str, options:any = {}) { return new Promise(async res=>
         .then((result:any)=> {
             if (!flg) {
                 flg = true
-                set_success()
+                set_success(i)
                 res(result)
             }
         })
@@ -65,25 +89,52 @@ function execute(resource:str, options:any) { return new Promise(async (res,er)=
 
 function error_out(er:any = null) {
     if (!window.location.href.includes("localhost")) {   
-        window.location.href = `/?errmsg=${encodeURIComponent('Unable to FetchLassie')}`; 
+        document.getElementById("fetchlassy_overlay")!.classList.add("active")
+        window.location.href = `/?errmsg=${encodeURIComponent('Unable to Fetch')}`; 
     }   
 
-    console.error("FetchLassie Error: ")
+    console.error("Fetch Error: ")
     console.error(er)
 }
 
 
 
 
-function set_pre() {
-    document.getElementById("loadviewoverlay")!.classList.add("active")
+function set_pre(url:str, this_que_i:int) {
+
+    document.getElementById("fetchlassy_overlay")!.classList.add("active")
+    ques.push({ i:this_que_i, url, ts: Date.now() })
+    ticktock()
 }
 
 
 
 
-function set_success() {
-    document.getElementById("loadviewoverlay")!.classList.remove("active")
+function set_success(this_que_i:int) {
+
+    const que_index = ques.findIndex(x=> x.i === this_que_i)
+    ques.splice(que_index)
+}
+
+
+
+
+function ticktock() {
+    setTimeout(()=> {
+        console.log("tick tocking")
+        if (ques.length > 0) {
+            const now = Date.now()
+            document.getElementById("fetchlassy_overlay")!.classList.add("active")
+            const queover = ques.find(x=> now - x.ts > 9000)
+            if (queover) {
+                error_out("FetchLassie timed out")
+            } else {
+                ticktock()
+            }
+        } else {
+            document.getElementById("fetchlassy_overlay")!.classList.remove("active")
+        }
+    }, 500)
 }
 
 

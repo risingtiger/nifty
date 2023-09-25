@@ -1,7 +1,7 @@
 
 
 
-<div class="wrapper" style="${'width:'+_s.width+';'} ${'height:'+_s.height+';'} ${'left:'+_s.left+';'} ${'top:'+_s.top+';'} ${_s.margin_left ? 'margin-left:' + _s.margin_left : ''}">
+<div class="wrapper ${_s.width} ${_s.height}">
   ${_s.showheader ? Lit_Html`
     <header>
       <div class="left">${_s.closebtn ? Lit_Html`<a @click="${()=>this.dispatchEvent(new Event('requested_close'))}">close</a>` : ''} <slot name="headerleft"></slot></div>
@@ -12,7 +12,4 @@
   <slot></slot>
 </div>
 
-<div class="backgroundcover" @click="${()=> { this.dispatchEvent(new Event('requested_close'));}}">
-    <div class="topcover"></div>
-    <div class="bottomcover"></div>
-</div>
+<div class="backgroundcover" @click="${()=> { this.dispatchEvent(new Event('requested_close'));}}"></div>

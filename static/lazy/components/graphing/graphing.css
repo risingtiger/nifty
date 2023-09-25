@@ -5,27 +5,36 @@ c-graphing {
 
     & .ct-chart {
 
-        & .ct-series-a { 
+        & .ct-series { 
             & .ct-line {
                 stroke-width: 1.5px;
-                stroke: #0091e8;
             }
 
             & .ct-bar {
-                stroke: #0091e8;
             }
         }
+        & .ct-series-a .ct-line, & .ct-series-a .ct-bar { stroke: #0091e8; }
+        & .ct-series-b .ct-line, & .ct-series-b .ct-bar { stroke: #1eeba7; }
+        & .ct-series-c .ct-line, & .ct-series-c .ct-bar { stroke: #eb1e7c; }
+        & .ct-series-d .ct-line, & .ct-series-d .ct-bar { stroke: #1ad0ff; }
+    }
 
-        & .ct-series-b { 
-            & .ct-line {
-                stroke-width: 1.5px;
-                stroke: #1eeba7;
-            }
-
-            & .ct-bar {
-                stroke: #1eeba7;
-            }
-        }
+    & .nodata_overlay {
+        display: none;
+        position: absolute;
+        top: 75px;
+        left: 50%;
+        margin-left: -200px;
+        width: 400px;
+        height: 120px;
+        background-color: #fff;
+        padding: 20px 20px 2px 20px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        text-align: center;
+    }
+    & .nodata_overlay.active {
+        display: block;
     }
 
     & #legend {
