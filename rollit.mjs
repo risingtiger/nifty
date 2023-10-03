@@ -312,7 +312,7 @@ function handleAction_Dist() {
 
     return new Promise(async res=> {
 
-        let app_version = await get_app_version()
+        let app_version = get_app_version()
 
         await exec(`if [ -e "${OUTPUT_PATH_DIST}" ];then rm -rf "${OUTPUT_PATH_DIST}" ; fi && mkdir -p ${OUTPUT_PATH_DIST}`);
 
@@ -356,13 +356,9 @@ function handleAction_Dist() {
         main_css_file_to_dist(app_version)
         webmanifest_file_to_dist(app_version)
         media_folder_to_dist(app_version)
+        appengine_index_js_to_dist(app_version)
 
-        let exstr = `
-            sd 'version": [0-9]+' 'version": ${app_version}' ${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest &&
-            sd 'App Version: [0-9]+' 'App Version: ${app_version}' ${OUTPUT_PATH_DIST}app_${app_version}.webmanifest &&
-            sd 'APPVERSION \= [0-9]+' 'APPVERSION = ${app_version}' ${APP_ENGINE_PATH}build/src/index.js `;
-
-        await exec(exstr); 
+        await exec(`sd 'version": [0-9]+' 'version": ${app_version}' ${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`); 
 
         res(1)
 
@@ -371,14 +367,10 @@ function handleAction_Dist() {
 
     function get_app_version() {
 
-        return new Promise(res=> {
+        let web_manifest_str = readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`, "utf8");
+        let vers             = Number(web_manifest_str.match(/version\"\: ([0-9]+)/)[1]) + 1;
 
-            //let web_manifest_str = readFileSync(`${SOURCE_APP_INSTANCE_PATH}app_xtend.webmanifest`, "utf8");
-            //let vers             = Number(web_manifest_str.match(/version\"\: "([0-9]+)"/)[1]) + 1;
-
-            //res(vers);
-            res(1140)
-        })
+        return vers
     }
 
 
@@ -465,6 +457,12 @@ function handleAction_Dist() {
         
         }
 
+    }
+
+    async function appengine_index_js_to_dist(app_version) {
+
+        let exstr = `sd 'APPVERSION \= 0' 'APPVERSION = ${app_version}' ${APP_ENGINE_PATH}build/src/index.js `
+        await exec(exstr); 
     }
 
     function replace_media_urls(str, app_version) {

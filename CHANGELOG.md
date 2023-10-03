@@ -1,6 +1,19 @@
 
+## 1.1.0 -- UNRELEASED
 
-## 1.0.10 -- UNRELEASED
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- ...
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.0.10 -- RELEASED -- 2023-10-03
 
 ### FEATURES
 - ...
@@ -8,6 +21,9 @@
 ### ENHANCEMENTS
 - big step forward on firestore data sync and realtime with SSE. Not done yet, code is there but not called
 - big step up on graphing and telemetry. UI upgrades and more accessiblity to data
+- big step up on influx and firestore libraries, both client and server side. better able to handle different kinds of queries 
+- solid improvement on auto update
+- big step up on lazy load of components and transitioning in overlay with component or basic html
 
 ### BUGFIXES
 - ...

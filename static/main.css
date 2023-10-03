@@ -420,10 +420,6 @@ i[class^='icon-']:before, i[class*=' icon-']:before {
 
 
 
-/* is for animation transitions or delayed hiding/showing driven by animatestate */
-*[ddomgo] {
-  display: none;
-}
 
 /* currently not being used. need to finish the listen for updates feature. not finished yet
 #data_has_changed_alert {

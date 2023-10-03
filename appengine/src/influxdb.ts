@@ -214,7 +214,6 @@ function callserver(fluxstr:str, token:str) {
 
 
 function parseit_for_series(queries_length:int, data_str:str, fields:str[], tags:str[], priors:str[]) : Series[][] {
-    console.log(data_str)
 
     const queries_list:Series[][] = []
     let   last_tag_name = ""

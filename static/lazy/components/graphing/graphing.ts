@@ -123,7 +123,7 @@ static get observedAttributes() { return ['runupdate']; }
 
                 this.stateChanged();
 
-                this.dispatchEvent(new Event('hydrate'))
+                this.dispatchEvent(new Event('hydrated'))
             }, 10)
         }
     }

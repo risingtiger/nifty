@@ -33,8 +33,6 @@ class Route {
 
         return new Promise<any>( async (res, rej) => {
 
-            let flg = false;
-
             if ( this.auth.length > 0 && !this.auth.includes(localStorage.getItem('auth_group')!)) {
                 const errmsg = "not_authorized_to_view_page"
                 rej(errmsg)
@@ -49,26 +47,11 @@ class Route {
 
             parentEl.insertAdjacentHTML("beforeend", `<v-${this.name} class='view' ${urstr}></v-${this.name}>`);
 
-            const el = parentEl.querySelector(`v-${this.name}`)
+            const el = parentEl.querySelector(`v-${this.name}`) as HTMLElement
 
-            el?.addEventListener("hydrate", ()=> {
-                if (!flg) {
-                    flg = true
-                    res(1)
-                }
-            })
-
-            setTimeout(()=> {
-                if (!flg) {
-                    flg = true
-                    rej("timeout")
-                }
-            }, 5000)
-
+            el.addEventListener("hydrated", ()=> res(1))
         })
-
     }
-
 }
 
 
@@ -145,18 +128,6 @@ function _doRoute(url: str, is_going_back:bool) {
 
     })
 
-    .catch((err:str)=> {
-
-        const errmsg = encodeURIComponent(`Unable to Lazy Load View Data: ${url} -- ${err}`)
-
-        console.info(`/?errmsg=${errmsg}`)
-        if (!window.location.href.includes("localhost")) {
-            window.location.href = `/?errmsg=${errmsg}`
-        }
-        
-    })
-
-
 
     function set_match_and_get_match_and_route(url: str) : [Array<str>, Route] {
 
@@ -176,7 +147,7 @@ function _doRoute(url: str, is_going_back:bool) {
 
 
 
-    function posthash(el:HTMLElement) {
+    function posthash(_el:HTMLElement) {
 
         document.querySelector("#loadviewoverlay")!.classList.remove("active")
 
@@ -188,8 +159,6 @@ function _doRoute(url: str, is_going_back:bool) {
             _hstack.push(url)
         }
 
-        (window as any).DDomObserve(el)
-
         _intransitionLock = false;
 
         localStorage.setItem("hstack", JSON.stringify(_hstack))
@@ -197,14 +166,6 @@ function _doRoute(url: str, is_going_back:bool) {
         document.querySelector("#views").dispatchEvent(view_load_done_event);
     }
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -248,6 +209,7 @@ function hashChanged() {
     }
 
 }
+
 
 
 

@@ -46,7 +46,7 @@ constructor() {
 
 connectedCallback() {   
 
-    setTimeout(()=> {   this.dispatchEvent(new Event('hydrate'))   }, 100)
+    setTimeout(()=> {   this.dispatchEvent(new Event('hydrated'))   }, 100)
 
     document.addEventListener('keyup', (e) => {   if (e.key === 'Enter') {   this.Login();   }})
 
@@ -69,11 +69,16 @@ stateChanged() {
 
 async Login() {
 
+    const xenkey = "AIzaSyCdBd4FDBCZbL03_M4k2mLPaIdkUo32giI"
+    const pwkey  = "AIzaSyCdBd4FDBCZbL03_M4k2mLPaIdkUo32giI"
+
+
+
     const formel = this.querySelector("form[name='login']") as HTMLFormElement
 
     const els = formel.elements as any
 
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyCdBd4FDBCZbL03_M4k2mLPaIdkUo32giI`
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + (window as any).__APPINSTANCE.firebase.identity_platform_key
 
     const opts = {
         method: 'POST',

@@ -28,10 +28,10 @@ type Listener = {
     path: str,
 }
 
-type GetOpts = {
-    pageSizes?: int[]
-    listens?: bool[],
-    orderBys?: str[],
+type GetOpt = {
+    limit?: int
+    listen?: bool,
+    order_by?: str,
 }
 
 
@@ -45,8 +45,7 @@ const data_change_event = new Event("data_change");
 
 
 
-let tempfl = false
-function Retrieve(paths:str[]|str, opts:GetOpts = {}) { return new Promise((res,_rej)=> { 
+function Retrieve(paths:str[]|str, opts:GetOpt|GetOpt[]|null) { return new Promise((res,_rej)=> { 
 
     last_active_timestamnp = Math.floor(Date.now() / 1000)
 
@@ -54,24 +53,32 @@ function Retrieve(paths:str[]|str, opts:GetOpts = {}) { return new Promise((res,
 
         paths = Array.isArray(paths) ? paths : [paths]
 
-        if (!opts.pageSizes) opts.pageSizes = paths.map(()=> null)
-        if (!opts.listens)   opts.listens = paths.map(()=> false)
-        if (!opts.orderBys)  opts.orderBys = paths.map(()=> null)
+        const options:GetOpt[] = (!opts) ? paths.map(()=> ({})) : Array.isArray(opts) ? opts : paths.map(()=> opts)
+
+        options.forEach(o=> {
+            if (!o.limit) o.limit = null
+            if (!o.listen) o.listen = false
+            if (!o.order_by) o.order_by = null
+        })
 
         const refs:Array<Collection|Doc> = paths.map(path=> ref_from_path(path))
+        
+        const refs_to_fetch:Array<Collection|Doc> = refs
+        const options_to_fetch = options
 
-        const refs_to_fetch:Array<Collection|Doc> = refs.filter(ref=> ref.isfilled === false)
+        // will come  back to this and finish syncing data and also listening for changes
+        //const refs_to_fetch:Array<Collection|Doc> = refs.filter(ref=> ref.isfilled === false)
+        //const options_to_fetch = options.filter((_o,i)=> refs[i].isfilled === false)
 
         if (refs_to_fetch.length > 0) {
 
-            firestore_fetch_paths(refs_to_fetch.map(ref=> ref.path), opts, id_token).then((data:any[])=> {
+            firestore_fetch_paths(refs_to_fetch.map(ref=> ref.path), options_to_fetch, id_token).then((data:any[])=> {
 
                 // refs.filter((_r,i)=> opts.listens[i] === true).forEach(ref=> ref.listen = true) // listening for changes isnt dont yet
 
                 // listen to feature not done. FOR NOW, IM DISABLING THE isfilled flag. will ALWAYS be false, until I finish the listen feature
                 populate_to_refs(data, refs_to_fetch) 
                 const returns = collect_from_refs(refs)
-                tempfl = true
 
                 res(returns)
 
@@ -183,9 +190,9 @@ function authrequest() { return new Promise<str>(async (res,rej)=> {
 
 
 
-function firestore_fetch_paths(paths:any, body_opts:any, id_token:str) {   return new Promise<any[]|str>(async (res)=> {
+function firestore_fetch_paths(paths:str[], options:GetOpt[], id_token:str) {   return new Promise<any[]|str>(async (res)=> {
 
-    const body = { paths, opts:body_opts}
+    const body = { paths, opts:options}
 
     const opts = {   
         method: "POST",  
@@ -214,7 +221,9 @@ function populate_to_refs(fetch_results:any[], refs_to_fetch:Array<Collection|Do
             ref.docs = new Map() 
 
             a.forEach((data:any)=> {
-                const newdoc:Doc = { istype: RefType.Doc, path: ref.path + '/' + data.id, id: data.id, isfilled: true, listen:false, is_listening: false, data, collections: [] }
+                // will put back in the isfilled to true once i finish the sync and listen features
+                //const newdoc:Doc = { istype: RefType.Doc, path: ref.path + '/' + data.id, id: data.id, isfilled: true, listen:false, is_listening: false, data, collections: [] }
+                const newdoc:Doc = { istype: RefType.Doc, path: ref.path + '/' + data.id, id: data.id, isfilled: false, listen:false, is_listening: false, data, collections: [] }
                 //@ts-ignore
                 ref.docs.set(data.id, newdoc)
             })
@@ -226,10 +235,10 @@ function populate_to_refs(fetch_results:any[], refs_to_fetch:Array<Collection|Do
         else if (ref.istype === RefType.Doc) {
 
             //@ts-ignore
-            ref.data = a[0]
+            ref.data = a
 
-
-            ref.isfilled = true
+            // listen to feature not done. FOR NOW, IM DISABLING THE isfilled flag. will ALWAYS be false, until I finish the listen feature
+            //ref.isfilled = true
         }
     })
 }

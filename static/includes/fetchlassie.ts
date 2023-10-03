@@ -14,8 +14,6 @@ let que_i = 0
 
 function FetchLassie(url:str, options:any = {}) { return new Promise(async res=> { 
 
-    let flg = false
-
     const i = que_i++
 
     set_pre(url, i)
@@ -39,24 +37,13 @@ function FetchLassie(url:str, options:any = {}) { return new Promise(async res=>
     execute(url, options)
 
         .then((result:any)=> {
-            if (!flg) {
-                flg = true
-                set_success(i)
-                res(result)
-            }
+            set_success(i)
+            res(result)
         })
 
         .catch((err:any)=> {
-            flg = true
             error_out(err)
         })
-
-    setTimeout(()=> {   
-        if (!flg) {
-            flg = true   
-            error_out("FetchLassie timed out")
-        }
-    }, 5000)
 })}
 
 
@@ -68,10 +55,25 @@ function execute(resource:str, options:any) { return new Promise(async (res,er)=
 
     fetch(resource, options)
 
-        .then(async (req:any)=> {
-            if (req.ok) {
-                const request_result = await (accept_type === "text" ? req.text() : req.json())
-                res(request_result)
+        .then(async (server_response:any)=> {
+            if (server_response.ok) {
+
+                if (resource.includes("/api/")) {
+                    const server_appversion = Number(server_response.headers.get("Appversion"))
+                    const local_appversion = Number((window as any).APPVERSION)
+
+                    if (server_appversion !== local_appversion) {
+                        window.location.href = "/index.html?update=1"
+
+                    } else {
+                        const request_result = await (accept_type === "text" ? server_response.text() : server_response.json())
+                        res(request_result)
+                    }
+
+                } else {
+                    const request_result = await (accept_type === "text" ? server_response.text() : server_response.json())
+                    res(request_result)
+                }
             }
 
             else {

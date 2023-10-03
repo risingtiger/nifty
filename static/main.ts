@@ -6,7 +6,6 @@ import  './includes/fetchlassie.js';
 import  './includes/lazyload.js';
 import  './includes/firestore.js';
 import  './includes/influxdb.js';
-import  './includes/ddom.js';
 
 
 
@@ -37,7 +36,8 @@ let _is_in_initial_view_load = true;
 (window as any).__COMPONENTS = [
     { name: "graphing", dependencies: [{ what: "thirdparty", name: "chartist" }]},
     { name: "auth", dependencies: [{ what: "thirdparty", name: "overlay" }]},
-    { name: "overlay", dependencies: []}
+    { name: "overlay", dependencies: []},
+    { name: "templateload", dependencies: []}
 ];
 
 
@@ -77,9 +77,10 @@ window.addEventListener("load", async (_e) => {
         window.location.href = (decoded.includes("Firestore Auth Error")) ? "/#auth" : "/"
     }
 
-    else if (window.location.hash.includes("update")) {
-        const round = (window.location.hash.match(/update_(.+)/))![1]
-        update(Number(round))
+    else if (window.location.search.includes("update")) {
+        const params = new URLSearchParams(window.location.search)
+        const round = Number(params.get("update"))
+        update(round)
     }
 
     else {
@@ -100,8 +101,6 @@ document.querySelector("#views").addEventListener("view_load_done", () => {
             if (navigator.serviceWorker.controller)
                 navigator.serviceWorker.controller!.postMessage({ command: "load_core" })
         }, 3000)
-
-        check_for_updates();
     }
 })
 
@@ -145,6 +144,7 @@ document.addEventListener("data_change", () => {
 
 
 
+/*
 window.addEventListener("focus", () => {
 
     check_for_updates()
@@ -167,11 +167,14 @@ function check_for_updates() {
         })
     }
 }
+*/
 
 
 
 
 async function update(round:int) {
+
+    const backto = window.location.href.includes("localhost") ? "localhost" : ""
 
     if (round===1) {
 
@@ -185,21 +188,22 @@ async function update(round:int) {
             await caches.delete(c);
         })
 
-        window.location.href = "http://www.yavada.com/bouncebacktopurewater?round=1"
+
+        window.location.href = "http://www.yavada.com/bouncebacktopurewater?round=1&backto="+backto
 
     }
 
     else if (round===2) {
 
         setTimeout(()=> {
-            window.location.href = "http://www.yavada.com/bouncebacktopurewater?round=2"
+            window.location.href = "http://www.yavada.com/bouncebacktopurewater?round=2&backto="+backto
         }, 1000)
     }
 
     else if (round===3) {
 
         setTimeout(()=> {
-            window.location.href = "/"
+            window.location.href = "/index.html"
         }, 500)
     }
 

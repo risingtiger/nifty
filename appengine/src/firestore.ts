@@ -10,97 +10,52 @@ import fetch from 'node-fetch';
 
 
 
-function Retrieve(paths:str[], opts:any, token:str) { return new Promise((res, rej) => {
+function Retrieve(db:any, pathstr:str[], opts:{order_by:str, listen:bool, limit:int}[]) { return new Promise((res, _rej) => {
 
+    const promises = []
 
-    let preurl = `https://firestore.googleapis.com/v1/projects/purewatertech/databases/(default)/documents`
+    for (let i = 0; i < pathstr.length; i++) {
+        let d = parse_request(db, pathstr[i])
 
+        const order_by = opts[i].order_by || null
+        const limit    = opts[i].limit || null
 
-    const results = paths.map(()=> { return { items:[], flg: false } })
+        if (order_by) d = d.orderBy(order_by.split(",")[0], order_by.split(",")[1])
+        if (limit && limit !== -1) d = d.limit(limit)
 
-    paths.forEach((path:any, i:int)=> { 
-        let query_params = ""
-
-        if (opts.pageSizes[i] === -1) opts.pageSizes[i] = 1000
-
-        if (opts.pageSizes[i]) query_params += `pageSize=${opts.pageSizes[i]}&`
-        if (opts.orderBys[i]) query_params += `orderBy=${opts.orderBys[i]}&`
-
-        let { urlstr, structuredQuery } = parse_request(path)
-
-        if (structuredQuery) {
-
-            const body = {structuredQuery}
-
-            fetch(`${preurl}${urlstr}?${query_params}`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}` 
-                },
-                body: JSON.stringify(body)
-            })
-            .then((response:any) => response.json())
-            .then((json:any) => {
-                if (json.error) {
-                    rej(json.error)
-                }
-                else if (json.length > 0) {  
-                    let parsed_docs = json.map((item:any)=> parse_response(item.document, true))
-                    post_fetch(parsed_docs, i)
-                }
-            })
-            .catch((err:any) => rej(err))
-        }
-
-        else {
-            fetch(`${preurl}${urlstr}?${query_params}`, {
-                method: "GET",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}` 
-                },
-            })
-            .then((response:any) => response.json())
-            .then((json:any) => {
-                if (json.error) {
-                    rej(json.error)
-                }
-
-                else {
-                    let parsed_docs = []
-
-                    if (json.documents) {
-                        parsed_docs = json.documents.map((item:any)=> parse_response(item, true)) 
-
-                    } else {
-                        parsed_docs = [parse_response(json, true)]
-                    }
-
-                    post_fetch(parsed_docs, i)
-                }
-            })
-            .catch((err:any) => rej(err))
-        }
-    })
-
-
-    function post_fetch(items:any[], index:int) {
-        results[index].flg = true
-        results[index].items = items
-
-        if (results.every((r:any)=> r.flg)) {
-            res(results.map((r:any)=> r.items))
-        }
+        promises.push(d.get())
     }
+
+    Promise.all(promises).then((results:any[])=> {
+        const returns = []
+
+        for (let i = 0; i < results.length; i++) {
+
+            if (results[i].docs && results[i].docs.length === 0) {
+                returns.push([])
+            } 
+
+            else if (results[i].docs && results[i].docs.length) {
+                const docs = results[i].docs.map((doc:any)=> {
+                    return {id: doc.id, ...doc.data()}
+                })
+                returns.push(docs)
+            } 
+
+            else {
+                returns.push({id: results[i].id, ...results[i].data()})
+            }
+        }
+        res(returns)
+    })
 })}
 
 
 
 
-function Patch(path:str, mask:any[], data:any, id_token:str) {   return new Promise(async (res, rej)=> {
+function Patch(_db:any, path:str, mask:any[], data:any, id_token:str, projectname:str) {   return new Promise(async (res, rej)=> {
 
-    const url = `https://firestore.googleapis.com/v1/projects/purewatertech/databases/(default)/documents/${path}`
+    const url = `https://firestore.googleapis.com/v1/projects/${projectname}/databases/(default)/documents/${path}`
 
     const maskstr  = "?" + mask.map(m=> `updateMask.fieldPaths=${m}`).join("&")
 
@@ -160,70 +115,114 @@ function Patch(path:str, mask:any[], data:any, id_token:str) {   return new Prom
 
 
 
-function parse_request(pathstr:str) : {urlstr:str, structuredQuery:any|null} {
+function parse_request(db:any, pathstr:str) : any {
 
-    let urlstr = ""
-    let structuredQuery:any|null = null
     const pathsplit = pathstr.split("/")
+    let d = db
 
-    if (pathsplit.length % 2 === 0) { // doc
-        urlstr += "/" + pathstr
+    for (let i = 0; i < pathsplit.length; i++) {
+
+        if (i % 2 === 1) { // doc
+            d = d.doc(pathsplit[i])
+
+        } else { // collection
+
+            if (pathsplit[i].includes(":")) {
+
+                const querystr = pathsplit[i].substring(pathsplit[i].indexOf(":") + 1, pathsplit[i].length)
+                const collection_name = pathsplit[i].substring(0,pathsplit[i].indexOf(":"))
+
+                d = d.collection(collection_name)
+
+                /*
+                let valuestr = ""
+                let field = {fieldPath: ""}
+                */
+                let field = ""
+                let op = ""
+                let splitquery:str[] = []
+                let val:str|int|bool = 0
+
+                if (querystr.includes("==")) {
+                    splitquery = querystr.split("==")
+                    field = splitquery[0]
+                    op = "=="
+
+                    if (splitquery[1] === 'true') val = true
+                    else if (splitquery[1] === 'false') val = false
+                    else if (splitquery[1].charAt(0) === "'") val = splitquery[1].substring(1, splitquery[1].length-1)
+                    else if (splitquery[1].charAt(0) === '"') val = splitquery[1].substring(1, splitquery[1].length-1)
+                    else if ( !isNaN(Number(splitquery[1])) ) val = Number(splitquery[1])
+        
+                    /*
+                    op = "EQUAL"
+                    field.fieldPath = querystr.substring(0, querystr.indexOf("=="))
+                    valuestr = querystr.substring(querystr.indexOf("==") + 2)
+                    */
+                }
+                else if (querystr.includes("<")) {
+                    splitquery = querystr.split("<")
+                    field = splitquery[0]
+                    op = "<"
+                    val = Number(splitquery[1])
+                    /*
+                    op = "LESS_THAN"
+                    field.fieldPath = querystr.substring(0, querystr.indexOf("<"))
+                    valuestr = querystr.substring(querystr.indexOf("<") + 1)
+                    */
+                }
+                else if (querystr.includes(">")) {
+                    splitquery = querystr.split(">")
+                    field = splitquery[0]
+                    op = ">"
+                    val = Number(splitquery[1])
+                    /*
+                    op = "GREATER_THAN" 
+                    field.fieldPath = querystr.substring(0, querystr.indexOf(">"))
+                    valuestr = querystr.substring(querystr.indexOf(">") + 1)
+                    */
+                }
+                else if (querystr.includes("<=")) {
+                    splitquery = querystr.split("<=")
+                    field = splitquery[0]
+                    op = "<="
+                    val = Number(splitquery[1])
+                    /*
+                    op = "LESS_THAN_OR_EQUAL"
+                    field.fieldPath = querystr.substring(0, querystr.indexOf("<="))
+                    valuestr = querystr.substring(querystr.indexOf("<=") + 2)
+                    */
+                }
+                else if (querystr.includes(">=")) {
+                    splitquery = querystr.split(">=")
+                    field = splitquery[0]
+                    op = ">="
+                    val = Number(splitquery[1])
+                    /*
+                    op = "GREATER_THAN_OR_EQUAL"
+                    field.fieldPath = querystr.substring(0, querystr.indexOf(">="))
+                    valuestr = querystr.substring(querystr.indexOf(">=") + 2)
+                    */
+                }
+
+                //const field = splitquery[0]
+                //const op = splitquery[1]
+
+                //if (!isNaN(Number(valuestr))) value = { integerValue: Number(valuestr) }
+                //else if (valuestr === "true") value = { booleanValue: true }
+                //else if (valuestr === "false") value = { booleanValue: false }
+                //else value = { stringValue: valuestr }
+
+                d = d.where(field, op, val)
+            }
+
+            else {
+                d = d.collection(pathsplit[i])
+            }
+        }
     }
 
-    else if (pathsplit.length % 2 === 1) { // collection
-
-        if (pathstr.includes(":")) {
-
-            //urlstr += "/" + whatstr.substring(0, whatstr.indexOf(":"))
-
-            const querystr = pathstr.substring(pathstr.indexOf(":") + 1, pathstr.length)
-
-            let op = ""
-            let valuestr = ""
-            let field = {fieldPath: ""}
-
-            if (querystr.includes("==")) {
-                op = "EQUAL"
-                field.fieldPath = querystr.substring(0, querystr.indexOf("=="))
-                valuestr = querystr.substring(querystr.indexOf("==") + 2)
-            }
-            else if (querystr.includes("<")) {
-                op = "LESS_THAN"
-                field.fieldPath = querystr.substring(0, querystr.indexOf("<"))
-                valuestr = querystr.substring(querystr.indexOf("<") + 1)
-            }
-            else if (querystr.includes(">")) {
-                op = "GREATER_THAN" 
-                field.fieldPath = querystr.substring(0, querystr.indexOf(">"))
-                valuestr = querystr.substring(querystr.indexOf(">") + 1)
-            }
-            else if (querystr.includes("<=")) {
-                op = "LESS_THAN_OR_EQUAL"
-                field.fieldPath = querystr.substring(0, querystr.indexOf("<="))
-                valuestr = querystr.substring(querystr.indexOf("<=") + 2)
-            }
-            else if (querystr.includes(">=")) {
-                op = "GREATER_THAN_OR_EQUAL"
-                field.fieldPath = querystr.substring(0, querystr.indexOf(">="))
-                valuestr = querystr.substring(querystr.indexOf(">=") + 2)
-            }
-
-            //if (!isNaN(Number(valuestr))) value = { integerValue: Number(valuestr) }
-            //else if (valuestr === "true") value = { booleanValue: true }
-            //else if (valuestr === "false") value = { booleanValue: false }
-            //else value = { stringValue: valuestr }
-            let value = { stringValue: valuestr }
-
-            structuredQuery = { from: [{collectionId: 'machines'}], where:  { fieldFilter: { field, op, value } } }
-            urlstr += ":runQuery"
-        }
-
-        else {
-            urlstr += "/" + pathstr
-        }
-    }
-
-    return { urlstr, structuredQuery }
+    return d
 }
 
 
@@ -339,3 +338,82 @@ const Firestore = { Retrieve, Patch }
 export { Firestore }
 
 
+/*
+    for (let i = 0; i < collections.length; i++) { 
+
+function parse_request(db:any, pathstr:str, wherestr:str) : any {
+        
+
+        if (opts.limit[i]) opts.limit[i] = 1000
+
+        if (opts.pageSizes[i]) query_params += `pageSize=${opts.pageSizes[i]}&`
+        if (opts.orderBys[i]) query_params += `orderBy=${opts.orderBys[i]}&`
+
+        let { urlstr, structuredQuery } = parse_request(path)
+
+        if (structuredQuery) {
+
+            const body = {structuredQuery}
+
+            fetch(`${preurl}${urlstr}?${query_params}`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}` 
+                },
+                body: JSON.stringify(body)
+            })
+            .then((response:any) => response.json())
+            .then((json:any) => {
+                if (json.error) {
+                    rej(json.error)
+                }
+                else if (json.length > 0) {  
+                    let parsed_docs = json.map((item:any)=> parse_response(item.document, true))
+                    post_fetch(parsed_docs, i)
+                }
+            })
+            .catch((err:any) => rej(err))
+        }
+
+        else {
+            fetch(`${preurl}${urlstr}?${query_params}`, {
+                method: "GET",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}` 
+                },
+            })
+            .then((response:any) => response.json())
+            .then((json:any) => {
+                if (json.error) {
+                    rej(json.error)
+                }
+
+                else {
+                    let parsed_docs = []
+
+                    if (json.documents) {
+                        parsed_docs = json.documents.map((item:any)=> parse_response(item, true)) 
+
+                    } else {
+                        parsed_docs = [parse_response(json, true)]
+                    }
+
+                    post_fetch(parsed_docs, i)
+                }
+            })
+            .catch((err:any) => rej(err))
+        }
+    }
+
+
+    function post_fetch(items:any[], index:int) {
+        results[index].flg = true
+        results[index].items = items
+
+        if (results.every((r:any)=> r.flg)) {
+            res(results.map((r:any)=> r.items))
+        }
+    }
+    */

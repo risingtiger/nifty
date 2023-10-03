@@ -10,7 +10,7 @@
 type Load_Item = {what:str, name:str}
 type Load_Que = {
     i: int,
-    url,
+    url: str,
     ts: int
 }
 
@@ -119,7 +119,11 @@ function suck_in_file(fpath:str) {
         })
 
         .catch((_e)=> {
-            throwup_and_leave(fpath)
+            if (!window.location.href.includes("localhost")) {
+                window.location.href = "/index.html?update=1"
+            } else {
+                throwup_and_leave(fpath)
+            }
         })	
     })
 }

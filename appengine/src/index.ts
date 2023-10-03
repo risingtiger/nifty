@@ -7,7 +7,7 @@ type str = string; type int = number; type bool = boolean;
 
 
 
-
+import https from 'https';
 import fetch from 'node-fetch';
 import { promises as fs } from "fs";
 import path from 'path'
@@ -20,7 +20,7 @@ import { getFirestore }  from "firebase-admin/firestore";
 import { SecretManagerServiceClient }  from "@google-cloud/secret-manager";
 import { Firestore } from "./firestore.js"
 import { InfluxDB } from "./influxdb.js"
-import { authenticate as googleauthenticate } from '@google-cloud/local-auth'
+//import { authenticate as googleauthenticate } from '@google-cloud/local-auth'
 import { google as googleapis} from 'googleapis'
 // @ts-ignore
 import { Init, projectId, keyFilename, identity_platform_api } from "../appengine/src/index_extend.js"
@@ -129,12 +129,14 @@ app.get(['/assets/*\.js$', '/sw*.js$'], async (req, res) => {
 
 
 
+/*
 app.get('/api/appfocusping', (_req, res) => {
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
 
     res.status(200).send(APPVERSION.toString())
 })
+*/
 
 
 
@@ -152,6 +154,7 @@ app.post('/api/firestore_refresh_auth', async (req, res) => {
     })
     .then(async (result:any) => {
         const data = await result.json()
+        res.setHeader('Appversion', APPVERSION);
         res.status(200).send(JSON.stringify(data))
     })
     .catch((err:any) => {
@@ -164,11 +167,13 @@ app.post('/api/firestore_refresh_auth', async (req, res) => {
 
 app.post('/api/firestore_retrieve', async (req, res) => {
 
-    const id_token = req.headers.authorization?.substring(7, req.headers.authorization?.length);
+    //const id_token = req.headers.authorization?.substring(7, req.headers.authorization?.length);
 
     const paths = Array.isArray(req.body.paths) ? req.body.paths : [req.body.paths]
+    const opts = req.body.opts
 
-    Firestore.Retrieve(paths, req.body.opts, id_token).then((results:any)=> {
+    Firestore.Retrieve(db, paths, opts).then((results:any)=> {
+        res.setHeader('Appversion', APPVERSION);
         res.status(200).send(JSON.stringify(results))
     }).catch((err:str)=> {
         res.status(401).send(err)
@@ -189,10 +194,11 @@ app.post('/api/firestore_patch', async (req, res) => {
         err: null,
     }
 
-    Firestore.Patch(req.body.path, req.body.mask, req.body.data, id_token).then((result:any)=> {
+    Firestore.Patch(db, req.body.path, req.body.mask, req.body.data, id_token, projectId).then((result:any)=> {
 
         if (result.ok) {
             return_data.result = "ok"
+            res.setHeader('Appversion', APPVERSION);
             res.status(200).send(JSON.stringify(return_data))
         } else {
             return_data.err = "not ok"
@@ -213,6 +219,7 @@ app.post('/api/influxdb_retrieve', async (req, res) => {
     const rb = req.body
 
     InfluxDB.Retrieve(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags, rb.intrv, rb.priors).then((results:any)=> {
+        res.setHeader('Appversion', APPVERSION);
         res.status(200).send(JSON.stringify(results))
     }).catch((err:str)=> {
         res.status(401).send(err)
@@ -229,6 +236,7 @@ app.post('/api/influxdb_retrieve_points', async (req, res) => {
     const rb = req.body
 
     InfluxDB.Retrieve_Points(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags).then((results:any)=> {
+        res.setHeader('Appversion', APPVERSION);
         res.status(200).send(JSON.stringify(results))
     }).catch((err:str)=> {
         res.status(401).send(err)
@@ -245,6 +253,7 @@ app.post('/api/influxdb_retrieve_medians', async (req, res) => {
     const rb = req.body
 
     InfluxDB.Retrieve_Medians(rb.bucket, rb.begins, rb.ends, rb.dur_amounts, rb.dur_units, rb.msrs, rb.fields, rb.tags, rb.aggregate_fn).then((results:any)=> {
+        res.setHeader('Appversion', APPVERSION);
         res.status(200).send(JSON.stringify(results))
     }).catch((err:str)=> {
         res.status(401).send(err)
@@ -256,23 +265,23 @@ app.post('/api/influxdb_retrieve_medians', async (req, res) => {
 
 
 if (env === "dist") {
+    /*
     app.listen( Number(process.env.PORT), () => {
       console.info(`App listening on port ${(process.env.PORT)}`);
     })
-    // const https_options = {
-    //     key: readFileSync(process.cwd() + "/localhost-key.pem"),
-    //     cert: readFileSync(process.cwd() + "/localhost.pem")
-    // }
-    //
-    //
-    // let https_server:any
-    // if (env === "dist") {
-    //     https_server = https.createServer(https_options, app)
-    // }
-    //
-    // https_server.listen( Number(process.env.PORT), () => {
-    //     console.info(`HTTPS App listening on port ${(process.env.PORT)}`);
-    // })
+    */
+
+    const https_options = {
+        key: readFileSync(process.cwd() + "/localhost-key.pem"),
+        cert: readFileSync(process.cwd() + "/localhost.pem")
+    }
+    
+    
+    const https_server = https.createServer(https_options, app)
+    
+    https_server.listen( Number(process.env.PORT), () => {
+        console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(process.env.PORT)}`);
+    })
 }
 
 else {
@@ -397,6 +406,7 @@ function should_compress(req:any, _res:any) {
 
 
 
+/*
 async function loadSavedCredentialsIfExist() {
     try {
         const content = await fs.readFile(TOKEN_PATH);
@@ -406,7 +416,7 @@ async function loadSavedCredentialsIfExist() {
         return null;
     }
 }
-
+*/
 
 
 export default app
