@@ -62,7 +62,7 @@ function execute(resource:str, options:any) { return new Promise(async (res,er)=
                     const server_appversion = Number(server_response.headers.get("Appversion"))
                     const local_appversion = Number((window as any).APPVERSION)
 
-                    if (server_appversion !== local_appversion) {
+                    if ((window as any).APPVERSION !== 0 && server_appversion !== local_appversion) {
                         window.location.href = "/index.html?update=1"
 
                     } else {

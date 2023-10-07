@@ -119,7 +119,7 @@ function suck_in_file(fpath:str) {
         })
 
         .catch((_e)=> {
-            if (!window.location.href.includes("localhost")) {
+            if ((window as any).APPVERSION !== 0) {
                 window.location.href = "/index.html?update=1"
             } else {
                 throwup_and_leave(fpath)

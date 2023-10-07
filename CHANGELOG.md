@@ -1,5 +1,4 @@
-
-## 1.1.0 -- UNRELEASED
+## 1.1.1 -- UNRELEASED
 
 ### FEATURES
 - ...
@@ -9,6 +8,20 @@
 
 ### BUGFIXES
 - ...
+
+
+
+
+## 1.1.0 -- RELEASED -- 2023-10-07
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- ...
+
+### BUGFIXES
+- fixing time alignement on charts both on server and client
 
 
 

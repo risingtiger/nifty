@@ -214,11 +214,11 @@ app.post('/api/firestore_patch', async (req, res) => {
 
 
 
-app.post('/api/influxdb_retrieve', async (req, res) => {
+app.post('/api/influxdb_retrieve_series', async (req, res) => {
 
     const rb = req.body
 
-    InfluxDB.Retrieve(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags, rb.intrv, rb.priors).then((results:any)=> {
+    InfluxDB.Retrieve_Series(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags, rb.intrv, rb.priors).then((results:any)=> {
         res.setHeader('Appversion', APPVERSION);
         res.status(200).send(JSON.stringify(results))
     }).catch((err:str)=> {
@@ -265,23 +265,25 @@ app.post('/api/influxdb_retrieve_medians', async (req, res) => {
 
 
 if (env === "dist") {
-    /*
-    app.listen( Number(process.env.PORT), () => {
-      console.info(`App listening on port ${(process.env.PORT)}`);
-    })
-    */
 
-    const https_options = {
-        key: readFileSync(process.cwd() + "/localhost-key.pem"),
-        cert: readFileSync(process.cwd() + "/localhost.pem")
+    if (process.platform === 'darwin') {
+        const https_options = {
+            key: readFileSync(process.cwd() + "/localhost-key.pem"),
+            cert: readFileSync(process.cwd() + "/localhost.pem")
+        }
+        
+        const https_server = https.createServer(https_options, app)
+        
+        https_server.listen( Number(process.env.PORT), () => {
+            console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(process.env.PORT)}`);
+        })
     }
-    
-    
-    const https_server = https.createServer(https_options, app)
-    
-    https_server.listen( Number(process.env.PORT), () => {
-        console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(process.env.PORT)}`);
-    })
+
+    else {
+        app.listen( Number(process.env.PORT), () => {
+          console.info(`App listening on port ${(process.env.PORT)}`);
+        })
+    }
 }
 
 else {

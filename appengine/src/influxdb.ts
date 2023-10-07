@@ -21,7 +21,7 @@ const PWTT = "DMXLf9z4x6mPlptmmvt0HM6i9oqPQFTQpSOjeORSa54Dm2O-dyFixw9qm6KCMYbaWB
 const XENT = "pcsqD8RR3DAYqxvGrUhFnC4i82pUMce1kuXRfQP4pvxJAnxwQBCgDlpUAM2dVvjEJ8XvrixQxdwOmKy0kYtvJg=="
 
 
-function Retrieve(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[], intrv:int[], priors:str[]) { 
+function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[], intrv:int[], priors:str[]) { 
 
     return new Promise<Series[][]>(async (res, _rej) => {
 
@@ -93,8 +93,7 @@ function Retrieve_Medians(bucket:str, begins:int[], ends:int[], dur_amounts:int[
                         |> filter(fn: (r) => r["_measurement"] == "${msrs[i]}")
                         |> filter(fn: (r) => ${get_fieldstr(fields[i])})
                         ${get_tagstr(tags[i])}
-                        |> aggregateWindow(every: ${dur_amounts[i]}${dur_units[i]}, fn:${aggregate_fn[i]})
-                        |> median()
+                        |> aggregateWindow(every: ${dur_amounts[i]}${dur_units[i]}, fn:${aggregate_fn[i]}, timeSrc:"_start")
                         |> yield(name: "yield${ i }")
                         \n`
         }
@@ -146,7 +145,7 @@ function setcomplexfluxstr(index:int, bucket:str, msr: str, fields:str, tags:str
                     |> filter(fn: (r) => r["_measurement"] == "${msr}")
                     |> filter(fn: (r) => ${fieldstr})
                     ${tagstr}
-                    |> aggregateWindow(every: ${intrv}s, fn:mean, createEmpty: true)
+                    |> aggregateWindow(every: ${intrv}s, fn:mean, createEmpty: true, timeSrc:"_start")
                     |> yield(name: "index${index}_${ c.priors_amount !== null ? 'priors_' + c.priors_amount + "_" + c.priors_unit : "main" }")
                     \n`
     }
@@ -351,7 +350,7 @@ function get_tagstr(tags_str:str) {
 
 
 
-const InfluxDB = { Retrieve, Retrieve_Points, Retrieve_Medians }
+const InfluxDB = { Retrieve_Series, Retrieve_Points, Retrieve_Medians }
 export { InfluxDB }
 
 

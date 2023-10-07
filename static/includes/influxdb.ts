@@ -3,7 +3,7 @@
 function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[], intrv:int[], priors:str[]) {   
     return new Promise<any>(async (res, _rej)=> { 
         const body = { bucket, begins, ends, msrs, fields, tags, intrv, priors } 
-        const parsed_data = await influx_fetch_paths("retrieve", body)
+        const parsed_data = await influx_fetch_paths("retrieve_series", body)
 
         for (let i=0; i<parsed_data.length; i++) {
             for (let ii=0; ii<parsed_data[i].length; ii++) {

@@ -10,11 +10,6 @@ import  './includes/influxdb.js';
 
 
 
-(window as any).tempywumpy = "";
-
-
-
-
 (window as any).APPVERSION=0;
 (window as any).APPUPDATE_TS=0;
 

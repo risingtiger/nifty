@@ -108,16 +108,21 @@ static get observedAttributes() { return ['runupdate']; }
                 // thats why I'm moving the begin and end dates around so the graph will actually show gallons at the 2am x frame, which is 2 frames back from influxdb aggregated time window
                 // kinda funky I know.
 
-                const actual_begin = this.s.begin + this.s.intrv
-                const actual_end = end + this.s.intrv
-                const queries_list = await InfluxDB.Retrieve_Series(this.s.bucket, [actual_begin], [actual_end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
+                //const actual_begin = this.s.begin + this.s.intrv
+                //const actual_end = end + this.s.intrv
+                //const queries_list = await InfluxDB.Retrieve_Series(this.s.bucket, [actual_begin], [actual_end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
 
+                /*
                 queries_list[0].forEach((q:any)=> {
                     q.points.forEach((p:any)=> {
                         const s = Math.floor(p.date.getTime() / 1000 - (this.s.intrv * 2))
                         p.date = new Date(s * 1000)
                     })
                 })
+                */
+                // .... AND now all that crap in previous comments is irrelevant 
+
+                const queries_list = await InfluxDB.Retrieve_Series(this.s.bucket, [this.s.begin], [end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
 
                 render_graph_frame(this.querySelector('.ct-chart'), this.s.type, queries_list[0], this.s.lowhigh, this.s.unitterms)
 
