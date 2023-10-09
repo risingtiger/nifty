@@ -342,9 +342,9 @@ function handleAction_Dist() {
             opath:`${OUTPUT_PATH_DEV}main`, 
             spath: `${OUTPUT_PATH_DIST}main`,
             hookfunc: (str)=> {
-                let appversion_replaced = str.replace(/APPVERSION.*=.*0/, `APPVERSION=${app_version}`)
+                let appversion_replaced = str.replace(/APPVERSION = 0;/, `APPVERSION=${app_version};`)
 
-                let appupdate_ts_replaced = appversion_replaced.replace(/APPUPDATE_TS.*=.*0/, `APPUPDATE_TS=${Date.now()}`)
+                let appupdate_ts_replaced = appversion_replaced.replace(/APPUPDATE_TS = 0;/, `APPUPDATE_TS=${Date.now()}`)
 
                 return appupdate_ts_replaced.replace('navigator.serviceWorker.register("/sw.js"', `navigator.serviceWorker.register("/sw-v${app_version}.js"`)
             }

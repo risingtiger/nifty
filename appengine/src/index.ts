@@ -74,14 +74,6 @@ db = getFirestore();
 
 
 
-app.get('/sw-v*.js$', async (req, res) => {
-
-    process_file_request(req.url, res)
-})
-
-
-
-
 app.get(['/','/index.html'], async (_req, res) => {
 
     const full_url = process.cwd() + `/static_${env}/` + (`index${env==='dev' ? '' : '-v'+APPVERSION}.html`)
@@ -295,7 +287,7 @@ else {
 
 
 
-Init(app, db, secrets_client, sheets)
+Init(app, db, secrets_client, sheets, APPVERSION)
 
 
 

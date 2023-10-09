@@ -10,8 +10,8 @@ import  './includes/influxdb.js';
 
 
 
-(window as any).APPVERSION=0;
-(window as any).APPUPDATE_TS=0;
+(window as any).APPVERSION=0; // at_main_js
+(window as any).APPUPDATE_TS=0; // at_main_js
 
 
 
