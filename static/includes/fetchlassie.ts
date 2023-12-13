@@ -106,7 +106,7 @@ function set_pre(url:str, this_que_i:int) {
 
     document.getElementById("fetchlassy_overlay")!.classList.add("active")
     ques.push({ i:this_que_i, url, ts: Date.now() })
-    ticktock()
+    fetch_lassie_ticktock()
 }
 
 
@@ -121,9 +121,8 @@ function set_success(this_que_i:int) {
 
 
 
-function ticktock() {
+function fetch_lassie_ticktock() {
     setTimeout(()=> {
-        console.log("tick tocking")
         if (ques.length > 0) {
             const now = Date.now()
             document.getElementById("fetchlassy_overlay")!.classList.add("active")
@@ -131,7 +130,7 @@ function ticktock() {
             if (queover) {
                 error_out("FetchLassie timed out")
             } else {
-                ticktock()
+                fetch_lassie_ticktock()
             }
         } else {
             document.getElementById("fetchlassy_overlay")!.classList.remove("active")

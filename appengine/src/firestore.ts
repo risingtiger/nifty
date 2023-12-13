@@ -6,54 +6,82 @@ type str = string; type int = number; type bool = boolean;
 'use strict';
 
 import fetch from 'node-fetch';
+import { getAuth } from "firebase-admin/auth";
+
+
+
+type RetrieveOptsT = { order_by:str|null, modts:int|null, limit:int|null }
+function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null, id_token:str) { 
+
+    return new Promise(async (res, _rej) => {
+
+        await auth_request(id_token)
+
+        const promises = []
+
+        pathstr = Array.isArray(pathstr) ? pathstr : [pathstr]
+
+        if (!opts) opts = [{order_by: "", modts: null, limit: null}]
+
+        for(let i = opts.length; i < pathstr.length; i++) opts.push(opts[opts.length-1])
+
+        for (let i = 0; i < pathstr.length; i++) {
+            let d = parse_request(db, pathstr[i], opts[i].modts)
+
+            if (opts[i].order_by) d = d.orderBy(opts[i].order_by.split(",")[0], opts[i].order_by.split(",")[1])
+            if (opts[i].limit) d = d.limit(opts[i].limit)
+
+            promises.push(d.get())
+        }
+
+        Promise.all(promises).then((results:any[])=> {
+            const returns = []
+            for (let i = 0; i < results.length; i++) {
+
+                if (results[i].docs && results[i].docs.length === 0) {
+                    returns.push([])
+                } 
+
+                else if (results[i].docs && results[i].docs.length) {
+                    const docs = results[i].docs.map((doc:any)=> {
+                        return {id: doc.id, ...doc.data()}
+                    })
+                    returns.push(docs)
+                } 
+
+                else {
+                    returns.push({id: results[i].id, ...results[i].data()})
+                }
+            }
+            res(returns)
+        })
+    })
+}
 
 
 
 
-function Retrieve(db:any, pathstr:str[], opts:{order_by:str, listen:bool, limit:int}[]) { return new Promise((res, _rej) => {
+function Add(db:any, path:str, newdocs:any[], id_token:str, projectname:str) {   return new Promise(async (res, rej)=> {
 
-    const promises = []
+    await auth_request(id_token)
 
-    for (let i = 0; i < pathstr.length; i++) {
-        let d = parse_request(db, pathstr[i])
+    const batch        = db.batch()
 
-        const order_by = opts[i].order_by || null
-        const limit    = opts[i].limit || null
-
-        if (order_by) d = d.orderBy(order_by.split(",")[0], order_by.split(",")[1])
-        if (limit && limit !== -1) d = d.limit(limit)
-
-        promises.push(d.get())
+    for(const newdoc of newdocs) {
+        const doc_ref = db.collection(path).doc()
+        batch.set(doc_ref, newdoc)
     }
 
-    Promise.all(promises).then((results:any[])=> {
-        const returns = []
+    await batch.commit().catch((err:any)=> { rej(err) })
 
-        for (let i = 0; i < results.length; i++) {
-
-            if (results[i].docs && results[i].docs.length === 0) {
-                returns.push([])
-            } 
-
-            else if (results[i].docs && results[i].docs.length) {
-                const docs = results[i].docs.map((doc:any)=> {
-                    return {id: doc.id, ...doc.data()}
-                })
-                returns.push(docs)
-            } 
-
-            else {
-                returns.push({id: results[i].id, ...results[i].data()})
-            }
-        }
-        res(returns)
-    })
+    res({ok: true})
 })}
 
 
 
-
 function Patch(_db:any, path:str, mask:any[], data:any, id_token:str, projectname:str) {   return new Promise(async (res, rej)=> {
+
+    await auth_request(id_token)
 
     const url = `https://firestore.googleapis.com/v1/projects/${projectname}/databases/(default)/documents/${path}`
 
@@ -115,7 +143,7 @@ function Patch(_db:any, path:str, mask:any[], data:any, id_token:str, projectnam
 
 
 
-function parse_request(db:any, pathstr:str) : any {
+function parse_request(db:any, pathstr:str, modts:int) : any {
 
     const pathsplit = pathstr.split("/")
     let d = db
@@ -216,7 +244,10 @@ function parse_request(db:any, pathstr:str) : any {
                 d = d.where(field, op, val)
             }
 
-            else {
+            else if (modts !== null) {
+                d = d.collection(pathsplit[i]).where("modts", ">", modts)
+
+            } else {
                 d = d.collection(pathsplit[i])
             }
         }
@@ -228,26 +259,40 @@ function parse_request(db:any, pathstr:str) : any {
 
 
 
-function parse_response(item:any, maketype:bool) : any {
+function auth_request(id_token:str) {
 
-    const namesplit = item.name.split("/")
-    // const collection = namesplit[namesplit.length-2]
-    const d = { id: namesplit[namesplit.length-1]};
+    return new Promise((res, _rej)=> {
 
+        getAuth()
 
-    for(const prop in item.fields) 
-        d[prop] = parse_response_core(item.fields[prop]);
+        .verifyIdToken(id_token)
 
+        .then((decodedToken) => {
+             res(decodedToken.uid)
+        })
 
-    if (maketype)
-        // print it out
-
-    return d;
+        .catch((_error) => {
+            throw new Error("unauthorized")
+        })
+    })
 }
 
 
 
 
+
+
+
+
+
+
+const Firestore = { Retrieve, Add, Patch }
+export { Firestore }
+
+
+
+
+/*
 function parse_response_core(obj:any) : any {
 
     if (obj.hasOwnProperty("integerValue")) {
@@ -278,6 +323,28 @@ function parse_response_core(obj:any) : any {
 
         return x;
     }
+}
+
+*/
+
+
+
+/*
+function parse_response(item:any, maketype:bool) : any {
+
+    const namesplit = item.name.split("/")
+    // const collection = namesplit[namesplit.length-2]
+    const d = { id: namesplit[namesplit.length-1]};
+
+
+    for(const prop in item.fields) 
+        d[prop] = parse_response_core(item.fields[prop]);
+
+
+    if (maketype)
+        // print it out
+
+    return d;
 }
 
 
@@ -329,14 +396,7 @@ function parse_response_type(items:any) : any {
         }
     }
 }
-
-
-
-
-
-const Firestore = { Retrieve, Patch }
-export { Firestore }
-
+*/
 
 /*
     for (let i = 0; i < collections.length; i++) { 

@@ -147,7 +147,6 @@ function throwup_and_leave(fpath:str) {
 
 function load_ticktock() {
     setTimeout(()=> {
-        console.log("lazyload tick tocking")
         if (load_ques.length > 0) {
             const now = Date.now()
             document.getElementById("loadviewoverlay")!.classList.add("active")

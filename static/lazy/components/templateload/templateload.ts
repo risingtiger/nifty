@@ -42,11 +42,9 @@ class CTemplateLoad extends HTMLElement {
 
     async connectedCallback() {   
 
-        await LazyLoad([
-            {what:"components", name: "machine_details"},
-            {what:"components", name: "machine_map"},
-            {what:"components", name: "machine_edit"}
-        ])
+        const customelements = find_all_custom_components(this)
+        
+        await LazyLoad(customelements.map((name:str)=> { return {what:"components", name} }))
 
         this.sc()
 
@@ -86,6 +84,21 @@ class CTemplateLoad extends HTMLElement {
 
 customElements.define('c-templateload', CTemplateLoad);
 
+
+
+
+function find_all_custom_components(container_element:HTMLElement) {
+    
+    let all = container_element.getElementsByTagName("*")
+    let all_custom = []
+
+    for (let i = 0; i < all.length; i++) {
+        if (all[i].tagName.startsWith("C-")) {
+            all_custom.push(all[i].tagName.toLowerCase().substring(2).replace(/-/g, "_"))
+        }
+    }
+    return all_custom
+}
 
 
 export {  }

@@ -8,6 +8,18 @@ type str = string
 declare var Lit_Render: any;
 declare var Lit_Html: any;
 
+type ViewT = {
+    animate: bool,
+}
+
+type BackgroundT = {
+    opacity: int,
+    blur: int,
+}
+
+type WrapperT = {
+    animation: str
+}
 
 type State = {
     width: str,
@@ -18,6 +30,9 @@ type State = {
     pinto: str,
     closebtn: bool,
     showheader: bool,
+    view: ViewT,
+    background: BackgroundT,
+    wrapper: WrapperT,
 }
 
 
@@ -55,6 +70,9 @@ class COverlay extends HTMLElement {
             pinto: "",
             closebtn: false,
             showheader: false,
+            view: {animate:true},
+            background: {opacity:0.75, blur:4},
+            wrapper: {animation:"fadeup"}
         }
 
         this.$ = this.querySelector
@@ -67,9 +85,15 @@ class COverlay extends HTMLElement {
 
         this.s.closebtn = this.getAttribute("closebtn") === "true" ? true : false
         this.s.showheader = this.getAttribute("showheader") === "true" ? true : false
+
+        const { view, background, wrapper } = get_params(this.s.view, this.s.background, this.s.wrapper, this.getAttribute("view"), this.getAttribute("background"), this.getAttribute("wrapper"))
+        this.s.view = view
+        this.s.background = background
+        this.s.wrapper = wrapper
+
         this.stateChanged()
 
-        this.setup_animations_etc()
+        this.setup_animations_etc(this.s.view, this.s.background, this.s.wrapper)
 
         const child = this.firstElementChild as HTMLElement
 
@@ -99,7 +123,7 @@ class COverlay extends HTMLElement {
         function continue_to_open() {
             this.setup_pos_size_etc()
             this.stateChanged()
-            animate_in(this.backgroundAnimation, this.viewAnimation, this.wrapperAnimation)
+            animate_in(this.backgroundAnimation, this.viewAnimation, this.wrapperAnimation, this.s.view.animate)
         }
     }
 
@@ -109,7 +133,7 @@ class COverlay extends HTMLElement {
     async attributeChangedCallback(name:str) {
 
         if (name === "closing") { 
-            animate_out(this.backgroundAnimation, this.viewAnimation, this.wrapperAnimation)
+            animate_out(this.backgroundAnimation, this.viewAnimation, this.wrapperAnimation, this.s.view.animate)
         }
     }
 
@@ -120,11 +144,14 @@ class COverlay extends HTMLElement {
 
 
 
-    setup_animations_etc() {
+    setup_animations_etc(vieww:ViewT, background:BackgroundT, wrapper:WrapperT) {
 
         let elW = this.shadow.querySelector(".wrapper")!
-        let elB = this.shadow.querySelector(".backgroundcover")!
+        let elB = this.shadow.querySelector(".backgroundcover") as HTMLElement
         let elC = document.querySelector("#views > .view > .content")!
+
+        elB.style.backgroundColor = `rgba(249,249,249,${background.opacity})`
+        elB.style.backdropFilter = `blur(${background.blur}px)`
 
         const anim0 = [
           {transform: "translate3d(0, 0px, 0)"},
@@ -146,10 +173,6 @@ class COverlay extends HTMLElement {
           fill: "both",
           iterations: 1,
         }
-        const anim2 = [
-          {opacity: '0', transform: `translate3d(0, 80px, 0) scale(1.10)`},
-          {opacity: '1', transform: "translate3d(0, 0, 0) scale(1)"}
-        ]
         const timing2 = {
           duration: 380,
           easing: "cubic-bezier(.71,0,0,1)",
@@ -160,10 +183,12 @@ class COverlay extends HTMLElement {
         this.backgroundAnimation = elB.animate(anim1, timing1 as any)
         this.backgroundAnimation.pause()
 
-        this.viewAnimation = elC.animate(anim0, timing0 as any)
-        this.viewAnimation.pause()
+        if (vieww.animate) {
+            this.viewAnimation = elC.animate(anim0, timing0 as any)
+            this.viewAnimation.pause()
+        }
 
-        this.wrapperAnimation = elW.animate(anim2, timing2 as any)
+        this.wrapperAnimation = elW.animate(animations.get(wrapper.animation), timing2 as any)
         this.wrapperAnimation.pause()
     }
 
@@ -269,28 +294,83 @@ customElements.define('c-overlay', COverlay);
 
 
 
-function animate_in(backgroundAnimation:Animation, viewAnimation:Animation, wrapperAnimation:Animation) {
+function animate_in(backgroundAnimation:Animation, viewAnimation:Animation, wrapperAnimation:Animation, showviewAnimation:bool) {
     backgroundAnimation!.playbackRate = 1
     backgroundAnimation!.currentTime = 0
     backgroundAnimation!.play()
 
-    viewAnimation!.playbackRate = 1
-    viewAnimation!.currentTime = 0
-    viewAnimation!.play()
+    if (showviewAnimation) {
+        viewAnimation!.playbackRate = 1
+        viewAnimation!.currentTime = 0
+        viewAnimation!.play()
+    }
 
     wrapperAnimation!.playbackRate = 1
     wrapperAnimation!.currentTime = 0
     wrapperAnimation!.play()
 }
 
-function animate_out(backgroundAnimation:Animation, viewAnimation:Animation, wrapperAnimation:Animation) {
+function animate_out(backgroundAnimation:Animation, viewAnimation:Animation, wrapperAnimation:Animation, showviewAnimation:bool) {
     backgroundAnimation!.reverse()
-    viewAnimation!.reverse()
+
+    if (showviewAnimation)
+        viewAnimation!.reverse()
+
     wrapperAnimation!.reverse()
 }
 
 
 
+
+function get_params(view:ViewT, background:BackgroundT, wrapper:WrapperT, view_str:str, background_str:str, wrapper_str:str) : { view:ViewT, background:BackgroundT, wrapper:WrapperT } {
+
+    view_str = view_str || ""
+    background_str = background_str || ""
+    wrapper_str = wrapper_str || ""
+
+    const view_return = view
+    const background_return = background
+    const wrapper_return = wrapper
+
+    runit(view_str.split(","), view_return)
+    runit(background_str.split(","), background_return)
+    runit(wrapper_str.split(","), wrapper_return)
+
+    return { view:view_return, background:background_return, wrapper:wrapper_return } 
+
+    
+    function runit(s:str[], o:any) {
+        s.forEach((x:str)=> {
+            let y = x.trim().split(":")
+            y = y.map((z:str)=> z.trim())
+
+            let val:boolean|number|string|null = y[1]
+            let valn = Number(val)
+            if (val === "true") val = true
+            else if (val === "false") val = false
+            else if (val === "null") val = null
+            else if (!isNaN(valn)) val = valn
+            else val = String(val)
+
+            o[y[0]] = val
+        })
+    }
+}
+
+
+
+
+const animations = new Map<str, Array<any>>()
+
+animations.set("fadeup", [
+    {opacity: '0', transform: `translate3d(0, 80px, 0) scale(1.10)`},
+    {opacity: '1', transform: "translate3d(0, 0, 0) scale(1)"}
+])
+
+animations.set("faderight", [
+    {opacity: '0', transform: `translate3d(-20px, 0, 0) scale(1.10)`},
+    {opacity: '1', transform: "translate3d(0, 0, 0) scale(1)"}
+])
 
 export {  }
 

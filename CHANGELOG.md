@@ -1,10 +1,13 @@
+
 ## 1.1.1 -- UNRELEASED
 
 ### FEATURES
 - ...
 
 ### ENHANCEMENTS
-- ...
+- More admin abilities to view firestore data and manipulate
+- logo on home screen
+- and much much more. just forgot what the heck it all was so shoot me
 
 ### BUGFIXES
 - ...

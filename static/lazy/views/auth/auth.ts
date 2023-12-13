@@ -26,8 +26,6 @@ s:State
 
 
 
-static get observedAttributes() { return ['animateshow']; }
-
 
 
 
@@ -68,11 +66,6 @@ stateChanged() {
 
 
 async Login() {
-
-    const xenkey = "AIzaSyCdBd4FDBCZbL03_M4k2mLPaIdkUo32giI"
-    const pwkey  = "AIzaSyCdBd4FDBCZbL03_M4k2mLPaIdkUo32giI"
-
-
 
     const formel = this.querySelector("form[name='login']") as HTMLFormElement
 

@@ -1,0 +1,28 @@
+
+
+<header class="viewheader">
+    <a class="left" @click="${()=>window.location.hash='index'}"><span>‸</span><span>home</span></a>
+    <div class="middle"><h1>Sign Up for Notifications</h1></div>
+    <div class="right">
+        &nbsp;
+    </div>
+</header>
+
+
+<div class="content">
+    <div style="text-align:center; padding-top: 30px;">
+
+        ${_s.is_subscribed ? Lit_Html`
+            <h2>You are subscribed to notifications</h2>
+            <button class="btn" @click="${()=>this.Unsubscribe()}">Unsubscribe</button>
+        ` : Lit_Html`
+            <h2>You are not subscribed to notifications</h2>
+            <button class="btn" @click="${()=>this.Subscribe()}">Subscribe</button>
+        `}
+
+    </div>
+
+</div>
+
+
+

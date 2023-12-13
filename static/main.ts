@@ -6,6 +6,10 @@ import  './includes/fetchlassie.js';
 import  './includes/lazyload.js';
 import  './includes/firestore.js';
 import  './includes/influxdb.js';
+import * as Firestore_Live from './includes/firestore_live.js';
+import * as IndexedDB from './includes/indexeddb.js';
+import * as SSEvents from './includes/sse.js';
+import * as AppFocusListen from './includes/appfocus_listen.js';
 
 
 
@@ -17,12 +21,17 @@ import  './includes/influxdb.js';
 
 
 let _is_in_initial_view_load = true;
+let serviceworker_reg:ServiceWorkerRegistration;
 
 
 
 
 (window as any).__VIEWS = [
     { path: "^auth$", name: "auth", dependencies:[], auth: [] },
+    { path: "^beginnotify$", name: "beginnotify", 
+        dependencies:[], 
+        auth: [] 
+    },
 ];
 
 
@@ -30,7 +39,6 @@ let _is_in_initial_view_load = true;
 
 (window as any).__COMPONENTS = [
     { name: "graphing", dependencies: [{ what: "thirdparty", name: "chartist" }]},
-    { name: "auth", dependencies: [{ what: "thirdparty", name: "overlay" }]},
     { name: "overlay", dependencies: []},
     { name: "templateload", dependencies: []}
 ];
@@ -54,8 +62,14 @@ let _is_in_initial_view_load = true;
 
 window.addEventListener("load", async (_e) => {
 
-    if ((window as any).APPVERSION > 0) {
-        await navigator.serviceWorker.register("/sw.js", {   scope: "/"   });
+    const collections = (window as any).__APPINSTANCE.indexeddb_collections
+
+    AppFocusListen.AppFocus_Init()
+    IndexedDB.Init(collections)
+    Firestore_Live.Init(collections)
+
+    if (location.protocol === "https:") {
+        serviceworker_reg = await navigator.serviceWorker.register("/sw.js", {   scope: "/"   });
     }
 
     const views = [...(window as any).__VIEWS, ...(window as any).__APPINSTANCE_VIEWS];
@@ -93,11 +107,94 @@ document.querySelector("#views").addEventListener("view_load_done", () => {
         _is_in_initial_view_load = false;
 
         setTimeout(()=> {
-            if (navigator.serviceWorker.controller)
-                navigator.serviceWorker.controller!.postMessage({ command: "load_core" })
-        }, 3000)
+
+            if (location.protocol === "https:") {
+                serviceworker_reg.active.postMessage({ command: "load_core" })
+            }
+
+            SSEvents.Init()
+
+        }, 5000)
     }
 })
+
+
+
+
+async function update(round:int) {
+
+    const backto = window.location.href
+    const tohref = "http://www.yavada.com/bouncebacktopurewater?round="+round+"&backto="+backto
+
+    if (round===1) {
+
+        const cache = await caches.open(`cacheV__${(window as any).APPVERSION}__`)
+
+        await cache.delete("/")
+
+        let x = await caches.keys();
+
+        x.forEach(async (c)=> {
+            await caches.delete(c);
+        })
+
+
+        if (location.protocol === "https:") {
+            await serviceworker_reg.update()
+        }
+
+        setTimeout(()=> {
+            window.location.href = tohref
+        }, 2500)
+
+    }
+
+    else if (round===2) {
+
+        setTimeout(()=> {
+            window.location.href = tohref
+        }, 1000)
+    }
+
+    else if (round===3) {
+
+        setTimeout(()=> {
+            window.location.href = "/index.html"
+        }, 500)
+    }
+
+}
+
+
+
+
+
+/*
+async function sse_triggered(obj:any) {
+
+    if (obj.what === "firestore_changed") {
+        (window as any).Firestore.Update_Triggered(obj.paths).then(()=> {
+
+            const activeview = document.querySelector("#views > .view.active")!
+
+            if ((activeview as any).SSE_Update) (activeview as any).SSE_Update(obj)
+
+        })
+    }
+}
+*/
+
+
+/*
+
+const INDEXEDDB_STORES_YA = ["pers_cats","pers_sources","pers_tags","pers_transactions"]
+
+
+
+
+*/
+
+
 
 
 
@@ -106,7 +203,6 @@ document.querySelector("#views").addEventListener("view_load_done", () => {
  *
 document.addEventListener("data_change", () => {
 
-    console.log("main data change event receieved in main")
 
 
     const alertel = document.querySelector("#data_has_changed_alert")
@@ -163,47 +259,3 @@ function check_for_updates() {
     }
 }
 */
-
-
-
-
-async function update(round:int) {
-
-    const backto = window.location.href.includes("localhost") ? "localhost" : ""
-
-    if (round===1) {
-
-        const cache = await caches.open(`cacheV__${(window as any).APPVERSION}__`)
-
-        await cache.delete("/")
-
-        let x = await caches.keys();
-
-        x.forEach(async (c)=> {
-            await caches.delete(c);
-        })
-
-
-        window.location.href = "http://www.yavada.com/bouncebacktopurewater?round=1&backto="+backto
-
-    }
-
-    else if (round===2) {
-
-        setTimeout(()=> {
-            window.location.href = "http://www.yavada.com/bouncebacktopurewater?round=2&backto="+backto
-        }, 1000)
-    }
-
-    else if (round===3) {
-
-        setTimeout(()=> {
-            window.location.href = "/index.html"
-        }, 500)
-    }
-
-}
-
-
-
-

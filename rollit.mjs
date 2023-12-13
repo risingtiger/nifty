@@ -22,10 +22,10 @@ const exec = promisify(cpexec);
 
 
 
-const _WHATAPPINSTANCE           = process.argv[2]
-const _WHATACTION                = (process.argv[3].split("-")[0] || process.argv[3]).toLowerCase()
-const _WHATACTION_DETAIL         = (process.argv[3].split("-")[1] || "").toLowerCase()
-const _DEBUG                     = process.argv[4]
+const _WHATAPPINSTANCE           = readFileSync(`./package.json`, "utf8").match(/\"instance\"\: \"([a-z]+)\"/)[1]
+const _WHATACTION                = (process.argv[2].split("-")[0] || process.argv[2]).toLowerCase()
+const _WHATACTION_DETAIL         = (process.argv[2].split("-")[1] || "").toLowerCase()
+const _DEBUG                     = process.argv[3]
 
 const SOURCE_MAIN_PATH           = "./static/";
 const SOURCE_APP_INSTANCE_PATH   = `./${_WHATAPPINSTANCE}app/static/`;
@@ -38,7 +38,13 @@ const OUTPUT_PATH_DIST           = `${APP_ENGINE_PATH}static_dist/`;
 
 void async function() {
 
-    if (_DEBUG) {
+    if (_WHATACTION === "instance") {
+        const packagejsonstr = readFileSync(`./package.json`, "utf8")
+        const packagejson = JSON.parse(packagejsonstr)
+        packagejson.instance = process.argv[3]
+        writeFileSync(`./package.json`, JSON.stringify(packagejson, null, 2))
+
+    } else if (_DEBUG) {
         process.stdin.on('data', async function () {
             handleAction_Init()
         })
@@ -69,7 +75,7 @@ async function handleAction_Init() {
 
     else if (_WHATACTION === "runlisten")  { await handleAction_RunListen(); }
 
-    else if (_WHATACTION === "dist")       { await handleAction_AppEngine(); await handleAction_Dist(); }
+    else if (_WHATACTION === "dist")       { await handleAction_Dist(); }
 
 }
 
@@ -119,6 +125,9 @@ function handleAction_Main() {   return new Promise(async res=> {
     manifestMain.name = manifestApp.name
     manifestMain.short_name = manifestApp.short_name
     manifestMain.description = `App Version: ${manifestApp.version}`
+    manifestMain.icons = manifestApp.icons
+    manifestMain.theme_color = manifestApp.theme_color
+    manifestMain.background_color = manifestApp.background_color
     manifestMain.version = manifestApp.version.toString()
 
     const jsMainP         = process_js(`${SOURCE_MAIN_PATH}main.ts`)
@@ -168,6 +177,10 @@ function handleAction_Lazy(specific_file = "") {
     const libsAppInstance = readdirSync(SOURCE_APP_INSTANCE_PATH + "lazy/libs", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.ts').map(f=> { return {is: 'appinstance', name:f.name.substring(0, f.name.length-3), subfolder: "libs"};})
     const libs = [ ...libsMain, ...libsAppInstance ]
 
+    const workersMain        = readdirSync(SOURCE_MAIN_PATH + "lazy/workers", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.ts').map(f=> { return {is: 'main', name:f.name.substring(0, f.name.length-3), subfolder: "workers"};})
+    const workersAppInstance = readdirSync(SOURCE_APP_INSTANCE_PATH + "lazy/workers", { withFileTypes:true }).filter(f=> extname(f.name).toLowerCase() === '.ts').map(f=> { return {is: 'appinstance', name:f.name.substring(0, f.name.length-3), subfolder: "workers"};})
+    const workers = [ ...workersMain, ...workersAppInstance ]
+
     if (!existsSync(OUTPUT_PATH_DEV+"lazy")) 
         mkdirSync(OUTPUT_PATH_DEV+"lazy")
 
@@ -177,11 +190,14 @@ function handleAction_Lazy(specific_file = "") {
     if (!existsSync(OUTPUT_PATH_DEV+"lazy/components")) 
         mkdirSync(OUTPUT_PATH_DEV+"lazy/components")
 
+    if (!existsSync(OUTPUT_PATH_DEV+"lazy/thirdparty")) 
+        mkdirSync(OUTPUT_PATH_DEV+"lazy/thirdparty")
+
     if (!existsSync(OUTPUT_PATH_DEV+"lazy/libs")) 
         mkdirSync(OUTPUT_PATH_DEV+"lazy/libs")
 
-    if (!existsSync(OUTPUT_PATH_DEV+"lazy/thirdparty")) 
-        mkdirSync(OUTPUT_PATH_DEV+"lazy/thirdparty")
+    if (!existsSync(OUTPUT_PATH_DEV+"lazy/workers")) 
+        mkdirSync(OUTPUT_PATH_DEV+"lazy/workers")
 
     return new Promise(async res=> {
 
@@ -191,6 +207,7 @@ function handleAction_Lazy(specific_file = "") {
             let c = components.find(c=> c.name === specific_file)
             let t = thirdparty.find(c=> c.name === specific_file)
             let l = libs.find(c=> c.name === specific_file)
+            let w = workers.find(c=> c.name === specific_file)
 
             if (v)
                 await process_lazy_view_or_component(v)
@@ -199,10 +216,13 @@ function handleAction_Lazy(specific_file = "") {
                 await process_lazy_view_or_component(c)
 
             else if (t)
-                await process_lazy_thirdparty_or_lib(t) 
+                await process_lazy_thirdparty_or_lib_or_worker(t) 
 
             else if (l)
-                await process_lazy_thirdparty_or_lib(l) 
+                await process_lazy_thirdparty_or_lib_or_worker(l) 
+
+            else if (w)
+                await process_lazy_thirdparty_or_lib_or_worker(w) 
 
             else
                 console.info("no action found")
@@ -211,7 +231,7 @@ function handleAction_Lazy(specific_file = "") {
 
         else {
 
-            let all_lazy_files = [...views, ...components, ...thirdparty, ...libs]
+            let all_lazy_files = [...views, ...components, ...thirdparty, ...libs, ...workers]
             const promises = []
 
             for(let i = 0; i < all_lazy_files.length; i++) {
@@ -219,8 +239,8 @@ function handleAction_Lazy(specific_file = "") {
                 if (all_lazy_files[i].subfolder === "views" || all_lazy_files[i].subfolder === "components")
                     promises.push(process_lazy_view_or_component(all_lazy_files[i]))
 
-                else if (all_lazy_files[i].subfolder === "thirdparty" || all_lazy_files[i].subfolder === "libs")
-                    promises.push(process_lazy_thirdparty_or_lib(all_lazy_files[i])) 
+                else if (all_lazy_files[i].subfolder === "thirdparty" || all_lazy_files[i].subfolder === "libs" || all_lazy_files[i].subfolder === "workers")
+                    promises.push(process_lazy_thirdparty_or_lib_or_worker(all_lazy_files[i])) 
             }
 
             await Promise.all(promises)
@@ -335,6 +355,7 @@ function handleAction_Dist() {
         js_files.push({
             opath:`${OUTPUT_PATH_DEV}sw`, 
             spath: `${OUTPUT_PATH_DIST}sw`,
+            append_app_version_to_filename: false,
             hookfunc: (str)=> str.replace('cacheV__0__', `cacheV__${app_version}__`)
         })
 
@@ -346,7 +367,8 @@ function handleAction_Dist() {
 
                 let appupdate_ts_replaced = appversion_replaced.replace(/APPUPDATE_TS = 0;/, `APPUPDATE_TS=${Date.now()}`)
 
-                return appupdate_ts_replaced.replace('navigator.serviceWorker.register("/sw.js"', `navigator.serviceWorker.register("/sw-v${app_version}.js"`)
+                //return appupdate_ts_replaced.replace('navigator.serviceWorker.register("/sw.js"', `navigator.serviceWorker.register("/sw-v${app_version}.js"`)
+                return appupdate_ts_replaced.replace('navigator.serviceWorker.register("/sw.js"', `navigator.serviceWorker.register("/sw.js"`)
             }
         })
 
@@ -391,14 +413,16 @@ function handleAction_Dist() {
         }
 
         const js_compressed = brotli.compress( Buffer.from(js_uglified.code, "utf8") )
+
+        const append_app_version_to_filename = f.append_app_version_to_filename === undefined ? true : f.append_app_version_to_filename
+        const fpath_appversion = append_app_version_to_filename ? "-v"+app_version : ""
         
         if (js_compressed) {
-            writeFile(f.spath + "-v"+app_version + ".min.js.br", js_compressed, {}, ()=>{})
+            writeFile(f.spath + fpath_appversion + ".min.js.br", js_compressed, {}, ()=>{})
         }
 
         else {
-            writeFile(f.spath + "-v" + app_version + ".min.js", js_uglified.code, {}, ()=>{})
-            writeFile(f.spath + "-v"+app_version + ".min.js", js_str, {}, ()=>{})
+            writeFile(f.spath + fpath_appversion + ".min.js", js_uglified.code, {}, ()=>{})
         }
 
     }
@@ -543,7 +567,7 @@ function process_lazy_view_or_component(file) {
 
 
 
-function process_lazy_thirdparty_or_lib(file) {
+function process_lazy_thirdparty_or_lib_or_worker(file) {
 
     return new Promise(async res=> {
 
