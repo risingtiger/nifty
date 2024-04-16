@@ -11,8 +11,8 @@ type str = string; //type int = number; type bool = boolean;
 async function Send(to: str, subject: str, message: str, from: str = "") {
 
     const url = 'https://api.mailjet.com/v3.1/send';
-    const username = '2269ce42acdd34698b46f64ac7c66bde';
-    const password = '9e1aa816f58fcd7a0606491a0efa63c2';
+    const username = put in username to process var
+    const password = put in password to process var
 
     const auth = 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 

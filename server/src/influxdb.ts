@@ -16,8 +16,8 @@ type Series = {
 }
 
 
-const PWTT = "DMXLf9z4x6mPlptmmvt0HM6i9oqPQFTQpSOjeORSa54Dm2O-dyFixw9qm6KCMYbaWB06ityzwy5iul0Oujspzg=="
-const XENT = "pcsqD8RR3DAYqxvGrUhFnC4i82pUMce1kuXRfQP4pvxJAnxwQBCgDlpUAM2dVvjEJ8XvrixQxdwOmKy0kYtvJg=="
+const PWTT = put in influx token into process var
+const XENT = put in influx token into process var
 
 
 function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[], intrv:int[], priors:str[]) { 
