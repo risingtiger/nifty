@@ -5,6 +5,21 @@
 - ...
 
 ### ENHANCEMENTS
+- ...
+
+### BUGFIXES
+- ...
+
+
+
+
+## 1.1.1 -- UNRELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- removed tokens and json 
 - Changes around bringing Xen Finance to finish line
 - More admin abilities to view firestore data and manipulate
 - logo on home screen
