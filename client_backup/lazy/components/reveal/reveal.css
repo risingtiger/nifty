@@ -1,0 +1,27 @@
+
+
+:host {
+    display: none;
+    position: absolute;
+    width: 100%;
+    box-sizing: border-box;
+    top: 0;
+    left: 0;
+    padding: 0;
+    /*border-bottom:1px solid #ededed;*/
+    background-color: #f5f5f5;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%);
+    transition-property: clip-path;
+    transition-duration: 0.9s;
+    transition-timing-function: cubic-bezier(0.91, 0, 0.19, 1);
+}
+
+
+.wrap {
+    opacity: 0;
+    transform: translateY(-20px);
+    transition-property: transform, opacity;
+    transition-duration: 0.9s;
+    transition-timing-function: cubic-bezier(0.91, 0, 0.19, 1);
+}
+

@@ -1,0 +1,18 @@
+
+
+
+<div class="wrapper" style="${'width:'+_s.width+';'} ${'height:'+_s.height+';'} ${'left:'+_s.left+';'} ${'top:'+_s.top+';'} ${_s.margin_left ? 'margin-left:' + _s.margin_left : ''}">
+  ${_s.showheader ? Lit_Html`
+    <header>
+      <div class="left">${_s.closebtn ? Lit_Html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
+      <div class="middle"><h1><slot name="headermiddle"></slot></h1></div>
+      <div class="right"><slot name="headerright"></slot></div>
+    </header>
+  ` : ''}
+  <slot></slot>
+</div>
+
+<div class="backgroundcover" @click="${()=>this.close()}">
+    <div class="topcover"></div>
+    <div class="bottomcover"></div>
+</div>

@@ -57,6 +57,7 @@ pub fn setinstance(set_instance_to:&str) -> Result<()> {
     // END SERVER INDEX
 
 
+    println!("Remember to run 'source ~/.zprofile' to update the environment variable.");
 
 
     Ok(())

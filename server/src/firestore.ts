@@ -9,7 +9,7 @@ type RetrieveOptsT = { order_by:str|null, ts:int|null, limit:int|null }
 
 function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   return new Promise(async (res, _rej) => {
 
-    const promises = []
+    const promises:any = []
 
     pathstr = Array.isArray(pathstr) ? pathstr : [pathstr]
 
@@ -20,14 +20,14 @@ function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   retu
     for (let i = 0; i < pathstr.length; i++) {
         let d = parse_request(db, pathstr[i], opts[i].ts)
 
-        if (opts[i].order_by) d = d.orderBy(opts[i].order_by.split(",")[0], opts[i].order_by.split(",")[1])
+        if (opts[i].order_by) d = d.orderBy(opts[i].order_by!.split(",")[0], opts[i].order_by!.split(",")[1])
         if (opts[i].limit) d = d.limit(opts[i].limit)
 
         promises.push(d.get())
     }
 
     Promise.all(promises).then((results:any[])=> {
-        const returns = []
+        const returns:any = []
         for (let i = 0; i < results.length; i++) {
 
             if (results[i].docs && results[i].docs.length === 0) {
@@ -52,16 +52,19 @@ function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   retu
 
 
 
-function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res, rej)=> {
+function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res, _rej)=> {
 
     const batch        = db.batch()
 
     for(const newdoc of newdocs) {
         const doc_ref = db.collection(path).doc()
+
+        // db.collection(obj[key][0]).doc(obj[key][1])
+
         batch.set(doc_ref, newdoc)
     }
 
-    await batch.commit().catch((err:any)=> { rej(err) })
+    await batch.commit().catch((_err:any)=> { res({err:"batch commit failed"}) })
 
     res({ok: true})
 })}
@@ -233,188 +236,155 @@ export { Firestore }
 
 
 
-/*
-function parse_response_core(obj:any) : any {
 
-    if (obj.hasOwnProperty("integerValue")) {
-        return Number(obj.integerValue);
 
-    } else if (obj.hasOwnProperty("doubleValue")) {
-        return Number(obj.doubleValue);
 
-    } else if (obj.hasOwnProperty("stringValue")) {
-        return obj.stringValue;
 
-    } else if (obj.hasOwnProperty("booleanValue")) {
-        return obj.booleanValue;
 
-    } else if (obj.hasOwnProperty("referenceValue")) {
-        const m = obj.referenceValue.match(/^projects\/.+\/databases\/\(default\)\/documents\/(.+)\/(.+)$/)
-        return {collection: m[1], id: m[2]}
 
-    } else if (obj.hasOwnProperty("arrayValue")) {
-        return obj.arrayValue.values ? obj.arrayValue.values.map((m:any)=> parse_response_core(m)) : []
 
-    } else if (obj.hasOwnProperty("mapValue")) {
-        const x = {};
+// Move this into xen instance. And make proper place to store all database collection schemas
 
-        for(const prop in obj.mapValue.fields) {
-            x[prop] = parse_response_core(obj.mapValue.fields[prop]);
+
+    
+
+enum ST {
+    str,
+    int,
+    bool,
+    map,
+    array_int,
+    array_str,
+    array_bool,
+    ref
+}
+
+
+
+
+
+
+
+
+// currently the schema setup isnt used
+
+
+const schemas = [
+    {
+        collection_name: "cats",
+        schema: {
+            area: { t: ST.ref, c: "areas", r: false },
+            bucket: { t: ST.map, r: true, s: 
+                {
+                    diffs: { t: ST.array_int, len: 3, r: false },
+                    val: { t: ST.int, r: false }
+                } 
+            }, 
+            budget: { t: ST.int, r: false },
+            name: { t: ST.str, r: true },
+            parent: { t: ST.ref, c: "cats", r: false },
+            ts: { t: ST.int, r: true }
         }
-
-        return x;
+    },
+    {
+        collection_name: "areas",
+        schema: {
+            longname: { t: ST.str, r: true },
+            name: { t: ST.str, r: true },
+            ts: { t: ST.int, r: true }
+        }
     }
-}
-
-*/
-
-
-
-/*
-function parse_response(item:any, maketype:bool) : any {
-
-    const namesplit = item.name.split("/")
-    // const collection = namesplit[namesplit.length-2]
-    const d = { id: namesplit[namesplit.length-1]};
-
-
-    for(const prop in item.fields) 
-        d[prop] = parse_response_core(item.fields[prop]);
-
-
-    if (maketype)
-        // print it out
-
-    return d;
-}
+]
 
 
 
 
-function parse_response_type(items:any) : any {
+function sanitize_with_schema(db:any, schema:any, obj:object) : object|false {
 
-    let typestr = `export type Type = { \n`;
+    const sanitized = {}
 
-    for(const prop in items.fields) {
-        typestr += `${prop}: ${run_core(items.fields[prop])}, `;
-    }
+    for (const key in schema) {
 
-    return typestr;
+        if (schema[key].t === ST.int) {
 
-
-    function run_core(obj:any) {
-
-        if (obj.hasOwnProperty("integerValue")) {
-            return "number \n";
-
-        } else if (obj.hasOwnProperty("doubleValue")) {
-            return "number \n";
-
-        } else if (obj.hasOwnProperty("stringValue")) {
-            return "string \n";
-
-        } else if (obj.hasOwnProperty("booleanValue")) {
-            return "bool \n";
-
-        } else if (obj.hasOwnProperty("referenceValue")) {
-            const m = obj.referenceValue.match(/^projects\/.+\/databases\/\(default\)\/documents\/(.+)\/(.+)$/)
-            return `${m[1]}Type`;
-
-        } else if (obj.hasOwnProperty("arrayValue")) {
-            return run_core(obj.arrayValue.values[0]) + "[] \n";
-
-        } else if (obj.hasOwnProperty("mapValue")) {
-            let x = "{ ";
-
-            for(const prop in obj.mapValue.fields) {
-                x += prop + ": ";
-                x += run_core(obj.mapValue.fields[prop]) + ",";
+            if (obj[key] === null || obj[key] === undefined) {
+                if (schema[key].r) return false
+                sanitized[key] = null
+                continue
             }
 
-            x += "}";
+            if (typeof obj[key] !== "number") return false
+            sanitized[key] = obj[key]
 
-            return x;
+        } else if (schema[key].t === ST.str) {
+
+            if (obj[key] === null || obj[key] === undefined) {
+                if (schema[key].r) return false
+                sanitized[key] = null
+                continue
+            }
+
+            if (typeof obj[key] !== "string") return false
+            sanitized[key] = obj[key]
+
+        } else if (schema[key].t === ST.bool) {
+
+            if (obj[key] === null || obj[key] === undefined) {
+                if (schema[key].r) return false
+                sanitized[key] = null
+                continue
+            }
+
+            if (typeof obj[key] !== "boolean") return false
+            sanitized[key] = obj[key]
+
+        } else if (schema[key].t === ST.map) {
+
+            if (obj[key] === null || obj[key] === undefined) {
+                if (schema[key].r) return false
+                sanitized[key] = null
+                continue
+            }
+
+            if (typeof obj[key] !== "object") return false
+
+            const inner = sanitize(db, schema[key].s, obj[key])
+            if (inner === false) return false
+
+            sanitized[key] = inner
+
+        } else if (schema[key].t === ST.array_int || schema[key].t === ST.array_str || schema[key].t === ST.array_bool) {
+
+            if (obj[key] === null || obj[key] === undefined) {
+                if (schema[key].r) return false
+                sanitized[key] = null
+                continue
+            }
+
+            if (!Array.isArray(obj[key])) return false
+            if (schema[key].len && obj[key].length !== schema[key].len) return false
+
+            const typeofval = schema[key].t === ST.array_int ? "number" : schema[key].t === ST.array_str ? "string" : "boolean"
+            for (const val of obj[key]) {
+                if (typeof val !== typeofval) return false
+            }
+
+            sanitized[key] = obj[key]
+
+        } else if (schema[key].t === ST.ref) {
+
+            if (obj[key] === null || obj[key] === undefined) {
+                if (schema[key].r) return false
+                sanitized[key] = null
+                continue
+            }
+
+            if (!Array.isArray(obj[key]) || obj[key].length !== 2 || typeof obj[key][1] !== "string") return false
+            if (obj[key][0] !== schema[key].c) return false
+
+            sanitized[key] = db.collection(obj[key][0]).doc(obj[key][1])
         }
     }
+
+    return sanitized
 }
-*/
-
-/*
-    for (let i = 0; i < collections.length; i++) { 
-
-function parse_request(db:any, pathstr:str, wherestr:str) : any {
-        
-
-        if (opts.limit[i]) opts.limit[i] = 1000
-
-        if (opts.pageSizes[i]) query_params += `pageSize=${opts.pageSizes[i]}&`
-        if (opts.orderBys[i]) query_params += `orderBy=${opts.orderBys[i]}&`
-
-        let { urlstr, structuredQuery } = parse_request(path)
-
-        if (structuredQuery) {
-
-            const body = {structuredQuery}
-
-            fetch(`${preurl}${urlstr}?${query_params}`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}` 
-                },
-                body: JSON.stringify(body)
-            })
-            .then((response:any) => response.json())
-            .then((json:any) => {
-                if (json.error) {
-                    rej(json.error)
-                }
-                else if (json.length > 0) {  
-                    let parsed_docs = json.map((item:any)=> parse_response(item.document, true))
-                    post_fetch(parsed_docs, i)
-                }
-            })
-            .catch((err:any) => rej(err))
-        }
-
-        else {
-            fetch(`${preurl}${urlstr}?${query_params}`, {
-                method: "GET",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}` 
-                },
-            })
-            .then((response:any) => response.json())
-            .then((json:any) => {
-                if (json.error) {
-                    rej(json.error)
-                }
-
-                else {
-                    let parsed_docs = []
-
-                    if (json.documents) {
-                        parsed_docs = json.documents.map((item:any)=> parse_response(item, true)) 
-
-                    } else {
-                        parsed_docs = [parse_response(json, true)]
-                    }
-
-                    post_fetch(parsed_docs, i)
-                }
-            })
-            .catch((err:any) => rej(err))
-        }
-    }
-
-
-    function post_fetch(items:any[], index:int) {
-        results[index].flg = true
-        results[index].items = items
-
-        if (results.every((r:any)=> r.flg)) {
-            res(results.map((r:any)=> r.items))
-        }
-    }
-    */

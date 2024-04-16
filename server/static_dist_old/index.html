@@ -1,0 +1,650 @@
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <title>Xen</title>
+
+    <meta charset="utf-8">
+    <meta name="description" content="App">
+
+    <meta name="theme-color" content="#fff">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="PWTApp">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <script>
+        APPINSTANCE='xen'; APPVERSION=3013; APPUPDATE_TS=1711909806;
+
+        let __maincss_str = `/* server/static_dev/main.css */
+:host {
+  --tempvar:blue;
+  --textcolor: #565656;
+  --textcolor-fade: #818181;
+  --textsize: 14px;
+  --actioncolor: #0091e8;
+  --highlight: red;
+  --background: white;
+  --background-highlight: #f5f5f5;
+  --bordercolor: lightgray;
+}
+div,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+button {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: var(--textsize);
+  line-height: 1.2;
+  margin: 0;
+  padding: 0;
+  color: var(--textcolor);
+}
+a:hover {
+  cursor: pointer;
+}
+div.content {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: calc(100% - 34px);
+  overflow-x: hidden;
+  overflow-y: scroll;
+  z-index: 9;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+button {
+  font-family:
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: var(--textsize);
+  line-height: 1.2;
+  margin: 0;
+  padding: 0;
+  color: var(--textcolor);
+}
+a:hover {
+  cursor: pointer;
+}
+header.viewheader {
+  display: flex;
+  position: relative;
+  width: 100%;
+  height: 134px;
+  z-index: 10;
+  padding: 8px 0px 0 0;
+  height: 34px;
+  box-sizing: border-box;
+  background: white;
+  & .left {
+    display: block;
+    width: 21%;
+    padding-top: 1px;
+    & span:nth-child(1) {
+      display: inline-block;
+      transform: rotate(-90deg) scaleX(1.3) translateX(0px);
+      font-size: 19px;
+      font-weight: 700;
+      color: purple;
+    }
+    & span:nth-child(2) {
+      display: inline-block;
+      font-size: 16px;
+      font-weight: 400;
+      color: purple;
+      padding-left: 10px;
+      transform: translateY(-2px);
+    }
+    white-space: nowrap;
+  }
+  & .middle {
+    width: 60%;
+    & h1 {
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+  }
+  & .right {
+    display: block;
+    color: var(--actioncolor);
+    width: 20%;
+    text-align: right;
+    box-sizing: border-box;
+    padding-right: 13px;
+    & > i {
+      font-size: 22px;
+    }
+  }
+}
+ul.items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  & > li {
+    margin: 0;
+    height: 52px;
+    text-indent: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    padding: 0;
+    border-bottom: 0.5px solid var(--bordercolor);
+    & > .thumbnail {
+      padding-top: 0px;
+      width: 43px;
+      & img {
+        width: 27px;
+      }
+      padding: 12px 0 0 12px;
+    }
+    & > h5 {
+      font-weight: 700;
+      padding: 17px 0 0 0;
+    }
+    & > h5:first-child {
+      padding-left: 12px;
+      margin-right: 6px;
+      width: 125px;
+      overflow: hidden;
+      text-wrap: nowrap;
+    }
+    & > p {
+      font-weight: 400;
+      padding: 17px 0 0 0;
+      color: var(--textcolor);
+      flex-grow: 1;
+      text-align: right;
+    }
+    & > p:last-child {
+      padding-right: 11px;
+    }
+    & > i.action {
+      display: block;
+      font-size: 18px;
+      padding: 16px 0 0 0;
+      color: #c1c1c1;
+      margin-left: 11px;
+      margin-right: 11px;
+      font-size: 18px;
+    }
+    & > .aux {
+      flex-grow: 1;
+      & > h5 {
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      & > h6 {
+        font-weight: 500;
+      }
+      & > p {
+        font-weight: 300;
+        color: var(--textcolor-fade);
+      }
+      & > i[class*=" icon-"].action {
+        display: block;
+        font-size: 18px;
+        padding: 17px 0 0 0;
+        color: rgb(189, 189, 189);
+      }
+      & i.icon-edit1.action {
+        font-size: 20px;
+        color: var(--actioncolor);
+      }
+      padding-top: 9px;
+    }
+  }
+  & li:nth-child(1) {
+  }
+  & li:not(.active):hover {
+    cursor: pointer;
+    background-color: var(--background-highlight);
+  }
+}
+dl.define {
+  & dt {
+    font-weight: bold;
+    float: left;
+    display: block;
+    width: 100px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  & dd {
+    margin: 0;
+    padding: 0 0 20px 0;
+    display: block;
+    width: 200px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}
+button {
+  font-weight: 600;
+  display: inline-block;
+  padding: 8px 17px 10px 17px;
+  border: none;
+  border-radius: 18px;
+  color: white;
+  background-image:
+    linear-gradient(
+      0deg,
+      var(--actioncolor),
+      var(--actioncolor));
+  cursor: pointer;
+}
+.btn-group {
+  display: flex;
+  & > button {
+    font-weight: 400;
+    color: #797878;
+    font-weight: 400;
+  }
+  & button.active {
+    background-image: none;
+    background-color: #0083d1;
+    color: white;
+    font-weight: 900;
+    box-shadow: 7px 0 5px -2px #00000045;
+    z-index: 1;
+  }
+  & > button:not(:first-child, :last-child) {
+    border-radius: 0;
+  }
+  & > button:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  & > button:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+}
+form {
+  & span.input {
+    position: relative;
+    box-sizing: border-box;
+    & > input {
+      font-size: 14px;
+      box-sizing: border-box;
+      outline: none;
+      border: 1px solid #cecece;
+      border-radius: 4px;
+      padding: 7px 5px 8px 5px;
+      color: #6d6d6d;
+    }
+    & > i {
+      position: absolute;
+      top: 5px;
+      left: 8px;
+      font-size: 20px;
+    }
+    & > i + input {
+      padding-left: 31px;
+    }
+  }
+  & span.switch {
+    & input {
+      position: relative;
+      -webkit-appearance: none;
+      appearance: none;
+      outline: none;
+      margin-left: auto;
+      width: 50px;
+      height: 30px;
+      background-color: #fff;
+      border: 1px solid #D9DADC;
+      border-radius: 50px;
+      box-shadow: inset -20px 0 0 0 #fff;
+    }
+    & input:after {
+      content: "";
+      position: absolute;
+      top: 1px;
+      left: 1px;
+      background: transparent;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.2);
+    }
+    & input:checked {
+      box-shadow: inset 20px 0 0 0 #4ed164;
+      border-color: #4ed164;
+    }
+    & input:checked:after {
+      left: 20px;
+      box-shadow: -2px 4px 3px rgba(0, 0, 0, 0.05);
+    }
+  }
+  & > ul.items > li > h5 {
+    color: rgb(190 56 151) !important;
+  }
+  & > ul.items > li > i.action {
+    color: var(--actioncolor);
+  }
+  & > ul.items > li > span.input {
+    display: block;
+    padding-top: 9px;
+    padding-right: 12px;
+  }
+  & > ul.items > li > span.switch {
+    padding: 6px 9px 0 0;
+  }
+}
+i[class^=icon-]:before,
+i[class*=" icon-"]:before {
+  font-family: icons !important;
+  font-style: normal;
+  font-weight: normal !important;
+  font-variant: normal;
+  text-transform: none;
+  vertical-align: top;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.icon-arrowright1:before {
+  content: "\\f101";
+}
+.icon-arrowleft1:before {
+  content: "\\f102";
+}
+.icon-arrowright2:before {
+  content: "\\f103";
+}
+.icon-checkcircle:before {
+  content: "\\f104";
+}
+.icon-edit1:before {
+  content: "\\f105";
+}
+.icon-edit2:before {
+  content: "\\f106";
+}
+.icon-tune:before {
+  content: "\\f107";
+}
+.icon-search:before {
+  content: "\\f108";
+}
+.icon-refresh:before {
+  content: "\\f109";
+}
+.icon-location:before {
+  content: "\\f10a";
+}
+.icon-graph:before {
+  content: "\\f10b";
+}
+.icon-info:before {
+  content: "\\f10c";
+}
+.icon-meter:before {
+  content: "\\f10d";
+}
+.icon-pressure:before {
+  content: "\\f10e";
+}
+.icon-stopwatch:before {
+  content: "\\f10f";
+}
+.icon-bucket:before {
+  content: "\\f110";
+}
+.icon-piggy:before {
+  content: "\\f111";
+}
+.icon-list:before {
+  content: "\\f112";
+}
+@media only screen and (max-device-width: 767px) {
+}
+@media only screen and (min-device-width: 768px) {
+}
+`;
+        let __maincsssheet = new CSSStyleSheet();
+        __maincsssheet.replaceSync(__maincss_str);
+
+        window.SetDistCSS = (shadowdom, str)=> {
+            if (str !== '{--distcss--}') {
+                let xcss = new CSSStyleSheet();
+                xcss.replaceSync(str);
+                shadowdom.adoptedStyleSheets = [__maincsssheet, xcss];
+            }
+        }
+    </script>
+
+
+    <link rel="icon" type="image/svg+xml" href="/assets/media/logo-icon_v3013.svg">
+        
+    <link rel="manifest" href="/app_v3013.webmanifest">
+
+    <script type='module'>(()=>{var S=[],K=!1,ot=new Event("view_load_done"),re=class{lazyload_view;path_regex;constructor(t){this.lazyload_view=t,this.path_regex=new RegExp(this.lazyload_view.urlmatch)}attemp_to_load(t){return new Promise(async(s,r)=>{if(this.lazyload_view.auth.length>0&&!this.lazyload_view.auth.includes(localStorage.getItem("auth_group"))){r("not_authorized_to_view_page");return}await LazyLoad([this.lazyload_view]);let o=document.querySelector("#views"),l='urlmatches = "'+t.join(",")+'"';o.insertAdjacentHTML("beforeend",`<v-${this.lazyload_view.name} class='view' ${l}></v-${this.lazyload_view.name}>`),o.querySelector(`v-${this.lazyload_view.name}`).addEventListener("hydrated",()=>s(1))})}},M=[],we=()=>{window.addEventListener("hashchange",()=>ye()),ye()},ge=e=>{M.push(new re(e))};function Y(e,t){if(K)return!1;K=!0;let s=document.querySelector("#views"),[r,o]=l(e);o.attemp_to_load(r).then(()=>{let h=s.children;if(h.length===2){let f=[{opacity:"0",transform:`translate3D(${t?"-":""}35px, 0, 0)`},{opacity:"1",transform:"translate3D(0%, 0, 0)"}],m={duration:300,easing:"cubic-bezier(.42,0,.04,1)",iterations:1};setTimeout(()=>{let $=h[1].animate(f,m);$.onfinish=v=>{h[1].classList.add("active"),u(h[1]),s.removeChild(h[0])}},10)}else h[0].classList.add("active"),u(h[0])});function l(h){for(let f=0;f<M.length;f++){let m=h.match(M[f].path_regex);if(m)return[m.slice(1),M[f]]}return["home".match(/home/g).slice(1),M.find(f=>f.lazyload_view.name==="home")]}function u(h){window.location.hash.substring(1)===S[S.length-2]?S.pop():S.push(e),K=!1,localStorage.setItem("hstack",JSON.stringify(S)),document.querySelector("#views").dispatchEvent(ot)}}function ye(){if(K)return!1;S.length?window.location.hash.substring(1)!==S[S.length-1]&&(window.location.hash.substring(1)===S[S.length-2]?Y(window.location.hash.substring(1),!0):Y(window.location.hash.substring(1),!1)):window.location.hash===""?(window.location.hash="home",Y("home",!1)):Y(window.location.hash.substring(1),!1)}(()=>{var e=globalThis,t=e.trustedTypes,s=t?t.createPolicy("lit-html",{createHTML:n=>n}):void 0,r="$lit$",o=`lit$${(Math.random()+"").slice(9)}$`,l="?"+o,u=`<${l}>`,h=document,f=()=>h.createComment(""),m=n=>n===null||typeof n!="object"&&typeof n!="function",$=Array.isArray,v=n=>$(n)||typeof n?.[Symbol.iterator]=="function",b=`[ 	
+\f\r]`,I=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,P=/-->/g,le=/>/g,D=RegExp(`>|${b}(?:([^\\s"'>=/]+)(${b}*=${b}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`,"g"),de=/'/g,ue=/"/g,he=/^(?:script|style|textarea|title)$/i,fe=n=>(i,...a)=>({_$litType$:n,strings:i,values:a}),We=fe(1),jt=fe(2),L=Symbol.for("lit-noChange"),A=Symbol.for("lit-nothing"),_e=new WeakMap,B=h.createTreeWalker(h,129);function me(n,i){if(!Array.isArray(n)||!n.hasOwnProperty("raw"))throw Error("invalid template strings array");return s!==void 0?s.createHTML(i):i}var Je=(n,i)=>{let a=n.length-1,c=[],d,_=i===2?"<svg>":"",p=I;for(let y=0;y<a;y++){let w=n[y],Z,E,g=-1,x=0;for(;x<w.length&&(p.lastIndex=x,E=p.exec(w),E!==null);)x=p.lastIndex,p===I?E[1]==="!--"?p=P:E[1]!==void 0?p=le:E[2]!==void 0?(he.test(E[2])&&(d=RegExp("</"+E[2],"g")),p=D):E[3]!==void 0&&(p=D):p===D?E[0]===">"?(p=d??I,g=-1):E[1]===void 0?g=-2:(g=p.lastIndex-E[2].length,Z=E[1],p=E[3]===void 0?D:E[3]==='"'?ue:de):p===ue||p===de?p=D:p===P||p===le?p=I:(p=D,d=void 0);let N=p===D&&n[y+1].startsWith("/>")?" ":"";_+=p===I?w+u:g>=0?(c.push(Z),w.slice(0,g)+r+w.slice(g)+o+N):w+o+(g===-2?y:N)}return[me(n,_+(n[a]||"<?>")+(i===2?"</svg>":"")),c]},ne=class ve{constructor({strings:i,_$litType$:a},c){let d;this.parts=[];let _=0,p=0,y=i.length-1,w=this.parts,[Z,E]=Je(i,a);if(this.el=ve.createElement(Z,c),B.currentNode=this.el.content,a===2){let g=this.el.content.firstChild;g.replaceWith(...g.childNodes)}for(;(d=B.nextNode())!==null&&w.length<y;){if(d.nodeType===1){if(d.hasAttributes())for(let g of d.getAttributeNames())if(g.endsWith(r)){let x=E[p++],N=d.getAttribute(g).split(o),G=/([.?@])?(.*)/.exec(x);w.push({type:1,index:_,name:G[2],strings:N,ctor:G[1]==="."?Ze:G[1]==="?"?Ge:G[1]==="@"?Ye:W}),d.removeAttribute(g)}else g.startsWith(o)&&(w.push({type:6,index:_}),d.removeAttribute(g));if(he.test(d.tagName)){let g=d.textContent.split(o),x=g.length-1;if(x>0){d.textContent=t?t.emptyScript:"";for(let N=0;N<x;N++)d.append(g[N],f()),B.nextNode(),w.push({type:2,index:++_});d.append(g[x],f())}}}else if(d.nodeType===8)if(d.data===l)w.push({type:2,index:_});else{let g=-1;for(;(g=d.data.indexOf(o,g+1))!==-1;)w.push({type:7,index:_}),g+=o.length-1}_++}}static createElement(i,a){let c=h.createElement("template");return c.innerHTML=i,c}};function k(n,i,a=n,c){if(i===L)return i;let d=c!==void 0?a._$Co?.[c]:a._$Cl,_=m(i)?void 0:i._$litDirective$;return d?.constructor!==_&&(d?._$AO?.(!1),_===void 0?d=void 0:(d=new _(n),d._$AT(n,a,c)),c!==void 0?(a._$Co??=[])[c]=d:a._$Cl=d),d!==void 0&&(i=k(n,d._$AS(n,i.values),d,c)),i}var Xe=class{constructor(n,i){this._$AV=[],this._$AN=void 0,this._$AD=n,this._$AM=i}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(n){let{el:{content:i},parts:a}=this._$AD,c=(n?.creationScope??h).importNode(i,!0);B.currentNode=c;let d=B.nextNode(),_=0,p=0,y=a[0];for(;y!==void 0;){if(_===y.index){let w;y.type===2?w=new ie(d,d.nextSibling,this,n):y.type===1?w=new y.ctor(d,y.name,y.strings,this,n):y.type===6&&(w=new Ke(d,this,n)),this._$AV.push(w),y=a[++p]}_!==y?.index&&(d=B.nextNode(),_++)}return B.currentNode=h,c}p(n){let i=0;for(let a of this._$AV)a!==void 0&&(a.strings!==void 0?(a._$AI(n,a,i),i+=a.strings.length-2):a._$AI(n[i])),i++}},ie=class $e{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(i,a,c,d){this.type=2,this._$AH=A,this._$AN=void 0,this._$AA=i,this._$AB=a,this._$AM=c,this.options=d,this._$Cv=d?.isConnected??!0}get parentNode(){let i=this._$AA.parentNode,a=this._$AM;return a!==void 0&&i?.nodeType===11&&(i=a.parentNode),i}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(i,a=this){i=k(this,i,a),m(i)?i===A||i==null||i===""?(this._$AH!==A&&this._$AR(),this._$AH=A):i!==this._$AH&&i!==L&&this._(i):i._$litType$!==void 0?this.$(i):i.nodeType!==void 0?this.T(i):v(i)?this.k(i):this._(i)}S(i){return this._$AA.parentNode.insertBefore(i,this._$AB)}T(i){this._$AH!==i&&(this._$AR(),this._$AH=this.S(i))}_(i){this._$AH!==A&&m(this._$AH)?this._$AA.nextSibling.data=i:this.T(h.createTextNode(i)),this._$AH=i}$(i){let{values:a,_$litType$:c}=i,d=typeof c=="number"?this._$AC(i):(c.el===void 0&&(c.el=ne.createElement(me(c.h,c.h[0]),this.options)),c);if(this._$AH?._$AD===d)this._$AH.p(a);else{let _=new Xe(d,this),p=_.u(this.options);_.p(a),this.T(p),this._$AH=_}}_$AC(i){let a=_e.get(i.strings);return a===void 0&&_e.set(i.strings,a=new ne(i)),a}k(i){$(this._$AH)||(this._$AH=[],this._$AR());let a=this._$AH,c,d=0;for(let _ of i)d===a.length?a.push(c=new $e(this.S(f()),this.S(f()),this,this.options)):c=a[d],c._$AI(_),d++;d<a.length&&(this._$AR(c&&c._$AB.nextSibling,d),a.length=d)}_$AR(i=this._$AA.nextSibling,a){for(this._$AP?.(!1,!0,a);i&&i!==this._$AB;){let c=i.nextSibling;i.remove(),i=c}}setConnected(i){this._$AM===void 0&&(this._$Cv=i,this._$AP?.(i))}},W=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(n,i,a,c,d){this.type=1,this._$AH=A,this._$AN=void 0,this.element=n,this.name=i,this._$AM=c,this.options=d,a.length>2||a[0]!==""||a[1]!==""?(this._$AH=Array(a.length-1).fill(new String),this.strings=a):this._$AH=A}_$AI(n,i=this,a,c){let d=this.strings,_=!1;if(d===void 0)n=k(this,n,i,0),_=!m(n)||n!==this._$AH&&n!==L,_&&(this._$AH=n);else{let p=n,y,w;for(n=d[0],y=0;y<d.length-1;y++)w=k(this,p[a+y],i,y),w===L&&(w=this._$AH[y]),_||=!m(w)||w!==this._$AH[y],w===A?n=A:n!==A&&(n+=(w??"")+d[y+1]),this._$AH[y]=w}_&&!c&&this.j(n)}j(n){n===A?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,n??"")}},Ze=class extends W{constructor(){super(...arguments),this.type=3}j(n){this.element[this.name]=n===A?void 0:n}},Ge=class extends W{constructor(){super(...arguments),this.type=4}j(n){this.element.toggleAttribute(this.name,!!n&&n!==A)}},Ye=class extends W{constructor(n,i,a,c,d){super(n,i,a,c,d),this.type=5}_$AI(n,i=this){if((n=k(this,n,i,0)??A)===L)return;let a=this._$AH,c=n===A&&a!==A||n.capture!==a.capture||n.once!==a.once||n.passive!==a.passive,d=n!==A&&(a===A||c);c&&this.element.removeEventListener(this.name,this,a),d&&this.element.addEventListener(this.name,this,n),this._$AH=n}handleEvent(n){typeof this._$AH=="function"?this._$AH.call(this.options?.host??this.element,n):this._$AH.handleEvent(n)}},Ke=class{constructor(n,i,a){this.element=n,this.type=6,this._$AN=void 0,this._$AM=i,this.options=a}get _$AU(){return this._$AM._$AU}_$AI(n){k(this,n)}},Qe=e.litHtmlPolyfillSupport;Qe?.(ne,ie),(e.litHtmlVersions??=[]).push("3.1.2");var et=(n,i,a)=>{let c=a?.renderBefore??i,d=c._$litPart$;if(d===void 0){let _=a?.renderBefore??null;c._$litPart$=d=new ie(i.insertBefore(f(),_),_,void 0,a??{})}return d._$AI(n),d},se={ATTRIBUTE:1,CHILD:2,PROPERTY:3,BOOLEAN_ATTRIBUTE:4,EVENT:5,ELEMENT:6},J=n=>(...i)=>({_$litDirective$:n,values:i}),X=class{constructor(n){}get _$AU(){return this._$AM._$AU}_$AT(n,i,a){this._$Ct=n,this._$AM=i,this._$Ci=a}_$AS(n,i){return this.update(n,i)}update(n,i){return this.render(...i)}},oe=class extends X{constructor(n){if(super(n),this.it=A,n.type!==se.CHILD)throw Error(this.constructor.directiveName+"() can only be used in child bindings")}render(n){if(n===A||n==null)return this._t=void 0,this.it=n;if(n===L)return n;if(typeof n!="string")throw Error(this.constructor.directiveName+"() called with a non-string value");if(n===this.it)return this._t;this.it=n;let i=[n];return i.raw=i,this._t={_$litType$:this.constructor.resultType,strings:i,values:[]}}};oe.directiveName="unsafeHTML",oe.resultType=1;var tt=J(oe),nt=J(class extends X{constructor(n){if(super(n),n.type!==se.ATTRIBUTE||n.name!=="class"||n.strings?.length>2)throw Error("`classMap()` can only be used in the `class` attribute and must be the only part in the attribute.")}render(n){return" "+Object.keys(n).filter(i=>n[i]).join(" ")+" "}update(n,[i]){if(this.st===void 0){this.st=new Set,n.strings!==void 0&&(this.nt=new Set(n.strings.join(" ").split(/\s/).filter(c=>c!=="")));for(let c in i)i[c]&&!this.nt?.has(c)&&this.st.add(c);return this.render(i)}let a=n.element.classList;for(let c of this.st)c in i||(a.remove(c),this.st.delete(c));for(let c in i){let d=!!i[c];d===this.st.has(c)||this.nt?.has(c)||(d?(a.add(c),this.st.add(c)):(a.remove(c),this.st.delete(c)))}return L}}),pe="important",it=" !"+pe,st=J(class extends X{constructor(n){if(super(n),n.type!==se.ATTRIBUTE||n.name!=="style"||n.strings?.length>2)throw Error("The `styleMap` directive must be used in the `style` attribute and must be the only part in the attribute.")}render(n){return Object.keys(n).reduce((i,a)=>{let c=n[a];return c==null?i:i+`${a=a.includes("-")?a:a.replace(/(?:^(webkit|moz|ms|o)|)(?=[A-Z])/g,"-$&").toLowerCase()}:${c};`},"")}update(n,[i]){let{style:a}=n.element;if(this.ft===void 0)return this.ft=new Set(Object.keys(i)),this.render(i);for(let c of this.ft)i[c]==null&&(this.ft.delete(c),c.includes("-")?a.removeProperty(c):a[c]=null);for(let c in i){let d=i[c];if(d!=null){this.ft.add(c);let _=typeof d=="string"&&d.endsWith(it);c.includes("-")||_?a.setProperty(c,_?d.slice(0,-11):d,_?pe:""):a[c]=d}}return L}});window.Lit_Render=et,window.Lit_Html=We,window.Lit_UnsafeHtml=tt,window.Lit_ClassMap=nt,window.Lit_StyleMap=st,window.Lit_Directive=X,window.Lit_directive=J})();var z=[],rt=0;function at(e,t,s){return new Promise(async r=>{let o=rt++;if(lt(e,o),t=t||{method:"GET",headers:{},body:null},s=s||{disable_auth:!1},s.disable_auth=typeof s.disable_auth<"u"?s.disable_auth:!1,t.method=typeof t.method<"u"?t.method:"GET",t.headers=typeof t.headers<"u"?t.headers:{},t.body=typeof t.body<"u"?t.body:null,t.headers["Content-Type"]||(t.headers["Content-Type"]="application/json"),t.headers.Accept||(t.headers.Accept="application/json"),e.startsWith("/api/")&&(t.headers.appversion=window.APPVERSION),e.startsWith("/api/")&&!s.disable_auth){let l=await ut();t.headers.Authorization=`Bearer ${l}`}ct(e,t).then(l=>{dt(o),r(l)}).catch(l=>{C(l)})})}function ct(e,t){return new Promise(async(s,r)=>{fetch(e,t).then(async o=>{if(o.status===401)alert("Not Authorized");else if(o.status===410)window.location.href="/index.html?update=1";else if(o.ok){let l=await(t.headers.Accept==="application/json"?o.json():o.text());s(l)}else r("FetchLassie Error: not ok")}).catch(o=>{r(o)})})}function C(e=null){window.APPVERSION!==0&&(window.location.href=`/?errmsg=${encodeURIComponent("Unable to Fetch")}`),console.error("Fetch Error: "),console.error(e)}function lt(e,t){z.push({i:t,url:e,ts:Date.now()}),Ae()}function dt(e){let t=z.findIndex(s=>s.i===e);z.splice(t)}function ut(){return new Promise(async(e,t)=>{let s=localStorage.getItem("id_token"),r=localStorage.getItem("refresh_token"),o=localStorage.getItem("token_expires_at");if(!s){C("Not Signed In");return}Date.now()/1e3>parseInt(o)-30?fetch("/api/refresh_auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({refresh_token:r})}).then(async u=>{let h=await u.json();h.error?C(h.error.message):(localStorage.setItem("id_token",h.id_token),localStorage.setItem("refresh_token",h.refresh_token),localStorage.setItem("token_expires_at",(Math.floor(Date.now()/1e3)+Number(h.expires_in)).toString()),e(h.id_token))}).catch(u=>{C(u.message)}):e(s)})}function Ae(){setTimeout(()=>{if(z.length>0){let e=Date.now();document.getElementById("fetchlassy_overlay").classList.add("active"),document.getElementById("waiting_animate").classList.add("active"),z.find(s=>e-s.ts>9e3)?C("FetchLassie timed out"):Ae()}else document.getElementById("fetchlassy_overlay").classList.remove("active"),document.getElementById("waiting_animate").classList.remove("active")},350)}window.FetchLassie=at;function ht(e,t){return new Promise(async(s,r)=>{e=Array.isArray(e)?e:[e];let o=mt(e,t),l=await pt(e,o);s(l)})}function ft(e,t){return new Promise(async(s,r)=>{let l={method:"POST",body:JSON.stringify({path:e,newdocs:t})};await FetchLassie("/api/firestore_add",l),s({result_str:"ok"})})}function _t(e,t,s){return new Promise(async(r,o)=>{let u={method:"POST",body:JSON.stringify({paths:e,opts:s,data:t}),auth:!0},h=await FetchLassie("/api/firestore_patch",u);r(h)})}function mt(e,t){let s=t?Array.isArray(t)?t:e.map(()=>t):e.map(()=>({}));return e.map((l,u)=>s[u]?s[u]:s[s.length-1]).map((l,u)=>({limit:l.limit?l.limit:null,order_by:l.order_by?l.order_by:null,ts:null}))}function pt(e,t){return new Promise(async s=>{let o={method:"POST",body:JSON.stringify({paths:e,opts:t})},l=await FetchLassie("/api/firestore_retrieve",o);s(l)})}window.Firestore={Retrieve:ht,Add:ft,Patch:_t};var Ee="";var Q,ee,Ie=[];function yt(e,t){Ie=e,Ee=t}function wt(e,t){return new Promise(async(s,r)=>{await gt();let o=ee.transaction(e,t,{durability:"relaxed"});s(o)})}function be(e){console.info(`/?errmsg=InfluxDB Error: ${e}`),window.APPVERSION>0&&(window.location.href=`/?errmsg=InfluxDB Error: ${e}`)}function gt(){return new Promise(async(e,t)=>{ee?e(!0):(Q=indexedDB.open(Ee,1),Q.onerror=s=>{be("Error creating/accessing IndexedDB database"+s.target.errorCode)},Q.onsuccess=async s=>{ee=s.target.result,ee.onerror=r=>{be("Database error: "+r.target.errorCode)},e(!0)},Q.onupgradeneeded=s=>{let r=s.target.result;for(let o of Ie)r.createObjectStore(o,{keyPath:"id"})})})}var F={New_Tx:wt,Init:yt};var Se;(function(e){e[e.Empty=0]="Empty",e[e.Populated=1]="Populated",e[e.Behind=2]="Behind",e[e.Stale=3]="Stale"})(Se||(Se={}));var T=[],O=[];function Le(e){e.forEach(s=>{let r=Number(localStorage.getItem("ts_"+s)||"0");O.push({name:s,status:r===0?0:3,ts:r,opt:{propa:""}})}),EngagementListen.Add_Listener("firestorelive","focus",()=>{if(O.length){for(let s of O)s.status=3;xe()}}),SSEvents.Add_Listener("firestore","firestore",s=>{if(console.log(document.hasFocus()),!document.hasFocus()){console.log("Document is hidden, not updating collections");return}let o=s.paths.map(u=>u.split("/")[0]),l=O.filter(u=>o.includes(u.name));for(let u of l)u.status=2;xe()}),new MutationObserver((s,r)=>{console.log(s),console.log(r)}).observe(document.getElementById("views"),{attributes:!1,childList:!0,subtree:!1})}async function vt(e,t){return new Promise(async(s,r)=>{let o=e.tagName.toLowerCase();if(!!T.find(v=>v.name===o)){R("Firestore Listener with that name already exists or not attached to a view");return}let u={name:o,htmlel:e,resource_refs:[],callback:()=>{}};(Array.isArray(t)?t:[t]).forEach(v=>{let b=v.split("/");u.resource_refs.push({collection_name:b[0],doc_id:b.length===2?b[1]:null})}),T.push(u);let m=O.filter(v=>v.status!==1).filter(v=>T.find(b=>b.resource_refs.map(I=>I.collection_name).includes(v.name)));if(m.length){let v=await Ne(m);v.length&&await Te(m,v)}let $=await Pe(u.resource_refs);s({ondata:v=>{u.callback=v},initialdata:$})})}function $t(e){let t=e.tagName.toLowerCase();if(console.log(t," Unsubscribe"),!T.find(r=>r.name===t)){R("Firestore Listener with that name does not exist");return}T.splice(T.findIndex(r=>r.name===t),1)}async function xe(){let e=O.filter(o=>o.status===3||o.status===2),t=e.filter(o=>T.find(l=>l.resource_refs.map(u=>u.collection_name).includes(o.name)));if(!t.length)return;let s=T.filter(o=>o.resource_refs.map(l=>l.collection_name).some(l=>e.map(u=>u.name).includes(l))),r=await Ne(t);r.length&&await Te(t,r);for(let o=0;o<s.length;o++){let l=await Pe(s[o].resource_refs);s[o].callback(l)}}function Ne(e){return new Promise(async t=>{let s=e.map(f=>f.name),r=e.map(f=>({order_by:null,limit:null,ts:f.ts})),l={method:"POST",body:JSON.stringify({paths:s,opts:r})},u=await FetchLassie("/api/firestore_retrieve",l),h=e.map((f,m)=>({collection_name:f.name,docs_array:u[m]}));t(h)})}function Te(e,t){return new Promise(async s=>{let r=await F.New_Tx(e.map(l=>l.name),"readwrite"),o=!1;for(let l=0;l<e.length;l++){let u=r.objectStore(e[l].name),h=t.find(f=>f.collection_name===e[l].name);for(let f=0;f<h.docs_array.length;f++){let m=u.put(h.docs_array[f]);m.onerror=$=>o=!0}}r.oncomplete=l=>{if(o){R("Error putting data into IndexedDB");return}e.forEach(u=>{u.status=1,u.ts=Math.floor(Date.now()/1e3),localStorage.setItem("ts_"+u.name,u.ts.toString())}),s(1)},r.onerror=l=>{R("Error getting data from IndexedDB TX at populate_to_refs_from_indexeddb_if_needed")}})}function Pe(e){return new Promise(async t=>{let s=e.map(u=>u.collection_name),r=Array(e.length).fill(null),o=await F.New_Tx(s,"readonly"),l=!1;e.forEach((u,h)=>{let f=o.objectStore(u.collection_name),m=u.doc_id!==null?f.get(u.doc_id):f.getAll();m.onerror=$=>l=!0,m.onsuccess=$=>{u.doc_id,r[h]=$.target.result}}),o.oncomplete=u=>{if(l){R("Error reading data from IndexedDB");return}t(r)},o.onerror=u=>{R("Error getting data from IndexedDB TX at populate_to_refs_from_indexeddb_if_needed")}})}function R(e){console.info(`/?errmsg=Firestore Error: ${e}`),window.APPVERSION>0&&(window.location.href=`/?errmsg=Firestore Error: ${e}`)}window.Firestore_Live={Subscribe:vt,Unsubscribe:$t};function bt(e,t,s,r,o,l,u,h){return new Promise(async(f,m)=>{let v=await ae("retrieve_series",{bucket:e,begins:t,ends:s,msrs:r,fields:o,tags:l,intrv:u,priors:h});for(let b=0;b<v.length;b++)for(let I=0;I<v[b].length;I++)for(let P=0;P<v[b][I].points.length;P++)v[b][I].points[P].date=new Date(v[b][I].points[P].date);f(v)})}function Et(e,t,s,r,o,l){return new Promise(async(u,h)=>{let m=await ae("retrieve_points",{bucket:e,begins:t,ends:s,msrs:r,fields:o,tags:l});for(let $=0;$<m.length;$++)m[$].date=new Date(m[$].date),m[$].val=m[$].val==="true";u(m)})}function It(e,t,s,r,o,l,u,h,f){return new Promise(async(m,$)=>{let b=await ae("retrieve_medians",{bucket:e,begins:t,ends:s,dur_amounts:r,dur_units:o,msrs:l,fields:u,tags:h,aggregate_fn:f});m(b)})}function ae(e,t){return new Promise(async s=>{let r={method:"POST",body:JSON.stringify(t)},o=await FetchLassie("/api/influxdb_"+e,r);s(o)})}window.InfluxDB={Retrieve_Series:bt,Retrieve_Points:Et,Retrieve_Medians:It};var De=[],St=[],U=0;function xt(e){return new Promise(async(t,s)=>{if(U>0){console.log("LazyLoad loadstart_ts > 0, returning early."),t(!0);return}let r=[];for(let o of e)Be(o,r);r.length>0?(console.log("LazyLoad loadque.length > 0, starting load."),U=Date.now(),Oe(),await Nt(r),U=0):console.log("LazyLoad loadque.length === 0, returning early."),t(!0)})}function Lt(e){De=e}function Be(e,t){if(St.find(s=>s.type===e.type&&s.name===e.name&&s.instance===e.instance)){console.log("already loaded",e);return}if(t.find(s=>s.type===e.type&&s.name===e.name&&s.instance===e.instance)){console.log("already in que",e);return}for(let s of e.dependencies){let r=s.instance?s.instance:null,o=De.find(l=>l.type===s.type&&l.name===s.name&&l.instance==r);Be(o,t)}t.push(e)}function Nt(e){return new Promise(async(t,s)=>{let r=[],o=e.map(l=>Tt(l.type,l.name,l.instance));for(let l of o)r.push(import(l).catch(u=>ke(l)));await Promise.all(r),t(!0)})}function Tt(e,t,s){let r=s?`/assets/client_${s}/`:"/assets/",o=window.APPVERSION>0?`_v${window.APPVERSION}`:"";switch(e){case"view":r+=`lazy/views/${t}/${t}${o}.js`;break;case"component":r+=`lazy/components/${t}/${t}${o}.js`;break;case"thirdparty":r+=`thirdparty/${t}${o}.js`;break;case"lib":r+=`lazy/lib/${t}${o}.js`;break}return r}function ke(e){let t=encodeURIComponent(`Unable to Lazy Load Js: ${e}`);console.info(`/?errmsg=${t}`),window.location.href.includes("localhost")||(window.location.href=`/?errmsg=${t}`)}function Oe(){setTimeout(()=>{if(console.log("ticktock 50ms"),U>0){let e=Date.now();document.getElementById("loadviewoverlay").classList.add("active"),document.getElementById("waiting_animate").classList.add("active"),e-U>9e3?ke(""):Oe()}else document.getElementById("loadviewoverlay").classList.remove("active"),document.getElementById("waiting_animate").classList.remove("active")},350)}window.LazyLoad=xt;var Re={Init:Lt};window.dumpdefenitions_to_keep_build_process_from_erasing_this_file=!0;var V=[],te=null;function Pt(){let e=localStorage.getItem("sse_id");e||(e=Math.random().toString(36).substring(2,15)+Math.random().toString(36).substring(2,15),localStorage.setItem("sse_id",e)),te=new EventSource("/api/sse_add_listener?id="+e),te.onerror=t=>{console.log("SSE Error"),console.log(t)},te.addEventListener("connected",t=>{console.log("SSE Connected")}),te.addEventListener("firestore",t=>{let s=JSON.parse(t.data);V.filter(r=>r.trigger==="firestore").forEach(r=>r.cb(s))})}function je(e,t,s){if(!!V.find(o=>o.name===e)){redirect_from_error("SSE Listener with that name already exists");return}V.push({name:e,trigger:t,cb:s})}function He(e){V.splice(V.findIndex(t=>t.name===e),1)}window.SSEvents={Add_Listener:je,Remove_Listener:He};var Me={Init:Pt,Add_Listener:je,Remove_Listener:He};var Ce;(function(e){e.focus="focus",e.blur="blur"})(Ce||(Ce={}));var j=[];function ze(e,t,s){let r=t==="focus"?"focus":"blur";if(j.find(l=>l.type===r&&l.name===e)){Ue("AppFocus Listener with that name and type already exists");return}j.push({name:e,type:"focus",callback:s})}function Fe(e,t){let s=t==="focus"?"focus":"blur",r=j.findIndex(o=>o.name===e&&o.type===s);if(r===-1){Ue("AppFocus Listener with that name and type does not exist");return}j.splice(r,1)}function Dt(){window.onblur=()=>{for(let e of j.filter(t=>t.type==="blur"))e.callback(!1)},window.onfocus=async()=>{for(let e of j.filter(t=>t.type==="focus"))e.callback(!1)}}function Ue(e){console.info(`/?errmsg=SSE Error: ${e}`),window.APPVERSION>0&&(window.location.href=`/?errmsg=SSE Error: ${e}`)}window.EngagementListen={Add_Listener:ze,Remove_Listener:Fe};var Ve={Init:Dt,Add_Listener:ze,Remove_Listener:Fe};var H={name:"xen",firebase:{project:"xenition",identity_platform_key:"AIzaSyDfXcwqyiRGGO6pMBsG8CvNEtDIhdspKRI"},indexeddb_collections:["transactions"]},Bt=[{type:"view",urlmatch:"^home$",name:"home",instance:H.name,dependencies:[],auth:[]},{type:"view",urlmatch:"^finance$",name:"finance",instance:H.name,dependencies:[{type:"component",name:"ol"}],auth:[]},{type:"view",urlmatch:"^addtr$",name:"addtr",instance:H.name,dependencies:[],auth:[]},{type:"view",urlmatch:"^flashcards$",name:"flashcards",instance:H.name,dependencies:[],auth:[]},{type:"component",urlmatch:null,name:"placeholder_component",instance:H.name,dependencies:[],auth:[]}],kt={INFO:H,LAZYLOADS:Bt},q=kt;var qe=!0,ce,Ot=[{type:"view",urlmatch:"^auth$",name:"auth",instance:null,dependencies:[],auth:[]},{type:"view",urlmatch:"^notifications$",name:"notifications",instance:null,dependencies:[{type:"component",name:"ol"}],auth:["admin","store_manager","scanner"]},{type:"component",urlmatch:null,name:"graphing",instance:null,dependencies:[{type:"thirdparty",name:"chartist"}],auth:[]},{type:"component",urlmatch:null,name:"ol",instance:null,dependencies:[],auth:[]},{type:"component",urlmatch:null,name:"tl",instance:null,dependencies:[],auth:[]},{type:"component",urlmatch:null,name:"reveal",instance:null,dependencies:[],auth:[]},{type:"thirdparty",urlmatch:null,name:"chartist",instance:null,dependencies:[],auth:[]},{type:"lib",urlmatch:null,name:"testlib",instance:null,dependencies:[],auth:[]}];window.addEventListener("load",async e=>{let t=[...Ot,...q.LAZYLOADS],s=q.INFO.indexeddb_collections;if(F.Init(s,q.INFO.firebase.project),Le(s),Ve.Init(),Re.Init(t),ce=await navigator.serviceWorker.register("/sw.js",{scope:"/"}),localStorage.setItem("identity_platform_key",q.INFO.firebase.identity_platform_key),t.filter(r=>r.type==="view").forEach(r=>ge(r)),window.location.href.includes("errmsg")){let r=window.location.href.match(/errmsg=(.+)/)[1],o=decodeURIComponent(r);confirm(o),window.location.href=o.includes("Firestore Auth Error")?"/#auth":"/"}else if(window.location.search.includes("update")){let r=new URLSearchParams(window.location.search),o=Number(r.get("update"));Rt(o)}else we();document.addEventListener("mouseup",r=>(console.log("remember you have this bubble animate thing on click. but I want to make it a case by case basis"),!1))});document.querySelector("#views").addEventListener("view_load_done",()=>{qe&&(qe=!1,setTimeout(()=>{ce.active.postMessage({command:"load_core"}),Me.Init()},5e3))});async function Rt(e){let t=window.location.origin,s="http://www.yavada.com/bouncebacktopurewater?round="+e+"&origin="+t;e===1?(document.getElementById("updatevisual").classList.add("active"),document.getElementById("waiting_animate").classList.add("active"),document.getElementById("waiting_animate").style.top="250px",await(await caches.open(`cacheV__${window.APPVERSION}__`)).delete("/"),(await caches.keys()).forEach(async l=>{await caches.delete(l)}),await ce.update(),setTimeout(()=>{window.location.href=s},1500)):e===2?(document.getElementById("updatevisual").classList.add("active"),document.getElementById("waiting_animate").classList.add("active"),document.getElementById("waiting_animate").style.top="250px",setTimeout(()=>{window.location.href=s},1500)):e===3&&(document.getElementById("updatevisual").classList.add("active"),document.getElementById("waiting_animate").classList.add("active"),document.getElementById("waiting_animate").style.top="250px",setTimeout(()=>{window.location.href="/index.html"},1500))}})();
+/*! Bundled license information:
+
+lit-html/lit-html.js:
+  (**
+   * @license
+   * Copyright 2017 Google LLC
+   * SPDX-License-Identifier: BSD-3-Clause
+   *)
+
+lit-html/directive.js:
+  (**
+   * @license
+   * Copyright 2017 Google LLC
+   * SPDX-License-Identifier: BSD-3-Clause
+   *)
+
+lit-html/directives/unsafe-html.js:
+  (**
+   * @license
+   * Copyright 2017 Google LLC
+   * SPDX-License-Identifier: BSD-3-Clause
+   *)
+
+lit-html/directives/class-map.js:
+  (**
+   * @license
+   * Copyright 2018 Google LLC
+   * SPDX-License-Identifier: BSD-3-Clause
+   *)
+
+lit-html/directives/style-map.js:
+  (**
+   * @license
+   * Copyright 2018 Google LLC
+   * SPDX-License-Identifier: BSD-3-Clause
+   *)
+*/
+</script>
+    <style>/* server/static_dev/index.css */
+@font-face {
+  font-family: "icons";
+  src: url(data:application/octet-stream;base64,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);
+}
+html {
+  width: 100%;
+  height: 100%;
+}
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  background: white;
+}
+body {
+  margin: 0;
+  padding: 0;
+}
+#views {
+  width: 100%;
+  max-width: 1370px;
+  margin: 0 auto;
+  height: 100%;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  position: relative;
+  & > * {
+    display: none;
+  }
+  & > *.active {
+    display: block;
+  }
+  & .view {
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow-y: hidden;
+    overflow-x: hidden;
+    opacity: 0;
+    transform-origin: 0px 50%;
+    transform: translate3D(35px, 0, 0);
+    background-color: white;
+  }
+  & .view.active {
+    opacity: 1;
+    transform: translate3D(0, 0, 0);
+  }
+}
+#updatevisual {
+  display: none;
+  padding-top: 300px;
+  width: 370px;
+  margin: 0 auto;
+  & > p {
+    text-align: center;
+    font-size: 20px;
+    color: #666;
+    padding-bottom: 20px;
+  }
+}
+#updatevisual.active {
+  display: block;
+}
+#fetchlassy_overlay,
+#loadviewoverlay {
+  display: none;
+  z-index: 1000;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+}
+#fetchlassy_overlay.active,
+#loadviewoverlay.active {
+  display: block;
+}
+#waiting_animate {
+  display: none;
+  z-index: 1001;
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  margin-left: -25px;
+  background: white;
+  box-shadow: 0 0 20px 20px white;
+  & > .spinner {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    border: 3px solid #e1e1e1;
+    border-radius: 50%;
+    border-top-color: #0091e8;
+    animation: spin 1s ease-in-out infinite;
+  }
+}
+#waiting_animate.active {
+  display: block;
+}
+#click_visual {
+  display: none;
+  z-index: 1002;
+  position: absolute;
+  top: 100px;
+  left: 0px;
+  width: 0px;
+  height: 40px;
+  & > .clickybubble {
+    display: inline-block;
+    top: 0;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e0e0e0;
+    opacity: 0;
+    transform: scale(.5);
+  }
+}
+#click_visual.active {
+  display: block;
+}
+@keyframes spin {
+  to {
+    -webkit-transform: rotate(360deg);
+  }
+}
+@-webkit-keyframes spin {
+  to {
+    -webkit-transform: rotate(360deg);
+  }
+}
+</style>
+
+</head>
+
+<body>
+
+    <div id="updatevisual">
+        <p>... updating ...</p>
+        <p>KEEP WINDOW OPEN</p>
+        <p>this may take 30 seconds or so</p>
+    </div>
+
+    <div id="views"></div>
+    <div id="fetchlassy_overlay"></div>
+    <div id="loadviewoverlay"></div>
+
+    <div id="waiting_animate"><div class="spinner"></div></div>
+    <div id="click_visual"><div class="clickybubble"></div></div>
+</body>
+
+</html>

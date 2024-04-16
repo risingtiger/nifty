@@ -170,12 +170,11 @@ async function firestore_add(req:any, res:any) {
 
     const result:any = await Firestore.Add(db, req.body.path, req.body.newdocs)
 
-    if (result.ok) {
-        return_data.result = "ok"
-        res.status(200).send(JSON.stringify(return_data))
-    } else {
+    if (result.err) {
         return_data.err = "not ok"
         res.status(400).send(JSON.stringify(return_data))
+    } else {
+        res.status(200).send(JSON.stringify(result))
     }
 }
 
@@ -343,8 +342,11 @@ async function init() { return new Promise(async (res, _rej)=> {
 
     if (process.platform === 'darwin') {
 
+        console.log(process.cwd() + '/sheets_key.json')
+
         const googleauth = new googleapis.auth.GoogleAuth({
-            keyFile: INSTANCE.SHEETS_KEYJSONFILE,
+            //keyFile: INSTANCE.SHEETS_KEYJSONFILE,
+            keyFile: process.cwd() + '/sheets_key.json',
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         })
         let google_auth:any = await googleauth.getClient();
@@ -357,6 +359,13 @@ async function init() { return new Promise(async (res, _rej)=> {
     } 
 
     else { 
+
+        const googleauth = new googleapis.auth.GoogleAuth({
+            keyFile: process.cwd() + '/sheets_key.json',
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        })
+        let google_auth:any = await googleauth.getClient();
+        sheets = googleapis.sheets({version: 'v4', auth: google_auth});
 
         //const googleauth = new googleapis.auth.GoogleAuth({
         //    scopes: GSHEETS_SCOPES,
@@ -383,8 +392,8 @@ async function startit() {
         
         const s = https.createServer(https_options, app)
         
-        s.listen( Number(process.env.PORT), () => {
-            console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(process.env.PORT)}`);
+        s.listen( INSTANCE.LOCALPORT, () => {
+            console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(INSTANCE.LOCALPORT)}`);
         })
     } 
 
@@ -432,7 +441,7 @@ async function bootstrapit() {
 
     await init()
 
-    INSTANCE.Set_Server_Mains(app, db, sheets, Notifications, SSE, APPVERSION, validate_request)
+    INSTANCE.Set_Server_Mains(app, db, Firestore, sheets, Notifications, SSE, APPVERSION, validate_request)
     INSTANCE.Set_Routes()
 
     startit()

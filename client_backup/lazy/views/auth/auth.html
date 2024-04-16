@@ -1,0 +1,34 @@
+
+<header class="viewheader">
+    <div class="left">
+        <img class="logo" src="/assets/media/logo-icon.svg" alt="pwtlogo" /><strong>Pure Water Technologies</strong>
+    </div>
+    <div class="middle">&nbsp;</div>
+    <div class="right">&nbsp;</div>
+</header>
+
+
+<div class="content">
+
+    <h1>Authenticate</h1>
+
+    <form name="login">
+        <ul class="items">
+            <li>
+                <h5>Username</h5>
+                <span class="input"><input type="text" name="username" id="username" value=""></span>
+            </li>
+
+            <li>
+                <h5>Password</h5>
+                <span class="input"><input type="password" name="password" id="password" value=""></span>
+            </li>
+        </ul>
+    </form>
+
+    ${_s.error_msg ? Lit_Html`<div class="error">${_s.error_msg}</div>` : ''}
+
+    <button class="btn" @click="${()=>this.Login()}">login</span>
+
+</div>
+
