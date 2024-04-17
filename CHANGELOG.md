@@ -1,5 +1,5 @@
 
-## 1.1.1 -- UNRELEASED
+## 1.1.2 -- UNRELEASED
 
 ### FEATURES
 - ...
