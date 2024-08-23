@@ -1,22 +1,36 @@
 
 
-import { str, bool } from "../../../definitions.js";
+import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
 declare var SetDistCSS: any;
 
-type State = {
-    prop: bool
+
+
+
+type StateT = {
+    placeholder: str,
 }
+
+type ModelT = {
+    placeholder: str,
+}
+
+
 
 
 let distcss = `{--distcss--}`;
 
 
+
+
 class CForm extends HTMLElement {
 
-    s:State
+    s:StateT
+    m:ModelT
+
+    c_in_els:NodeListOf<HTMLElement>
     shadow:ShadowRoot
 
 
@@ -29,8 +43,9 @@ class CForm extends HTMLElement {
         this.shadow = this.attachShadow({mode: 'open'});
 
         this.s = {
-            prop: false,
+            placeholder: this.getAttribute("placeholder") || "",
         }
+
 
         SetDistCSS(this.shadow, distcss)
     }
@@ -42,11 +57,15 @@ class CForm extends HTMLElement {
 
         this.sc()
 
-        this.shadow.querySelector("form")!.addEventListener("submit", (e:Event) => {
-            e.preventDefault()
-            console.log("form submitted")
-            this.formsubmitted()
-        })
+        /*
+        this.c_in_els = this.querySelectorAll("c-in");
+
+        this.c_in_els.forEach((el:HTMLElement) => {
+            el.addEventListener("save", (e:any) => {
+                this.dispatchEvent(new CustomEvent("itemsave", { detail: e.detail }));
+            });
+        });
+        */
     }
 
 
@@ -57,19 +76,7 @@ class CForm extends HTMLElement {
 
 
 
-    formsubmitted() {
-
-        const formel = this.querySelector("form") as HTMLFormElement
-
-        const data = new FormData(formel)
-
-        this.dispatchEvent(new CustomEvent("formsubmitted", {detail: data}))
-    }
-
-
-
-
-    template = (_s:State) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = (_s:StateT) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
 }
 
 

@@ -1,14 +1,13 @@
 
-import '../definitions.js'
+import { SSE_TriggersE } from '../definitions.js'
 
 //declare var EngagementListen:any;
 
 
-//enum EventState_     {  CONNECTING = 0, OPEN = 1, UNINITIALIZED = 2, ERRORED = 3, ERROR_FLUSHING = 4   }
 
 type SSE_Listener = {
     name: str,
-    trigger:"firestore"|"cssupdate",
+    triggers:SSE_TriggersE[],
     cb:(paths:str[])=>void
 }
 
@@ -24,6 +23,53 @@ let evt: EventSource|null = null
 
 function Init() {   
 
+    boot_up()
+}
+
+
+
+
+function Add_Listener(name:str, triggers:SSE_TriggersE[], callback_:(obj:any)=>void) {
+
+    const is_already_listener = sse_listeners.find(l=> l.name === name) ? true : false
+
+    if (is_already_listener) {
+        redirect_from_error("SSE Listener with that name already exists")
+        return
+    }
+
+    sse_listeners.push({
+        name: name,
+        triggers,
+        cb: callback_
+    })
+}
+
+
+
+
+function Remove_Listener(name:str) {   sse_listeners.splice(sse_listeners.findIndex(l=> l.name === name), 1)   }
+
+
+
+
+async function Reset() {
+
+    if (evt) {
+        evt.close()
+        evt = null
+    }
+
+    setTimeout(()=> {
+        boot_up()
+    }, 5000)
+}
+
+
+
+
+function boot_up() {
+
     let id = localStorage.getItem('sse_id')
 
     if (!id) {
@@ -34,17 +80,17 @@ function Init() {
     evt = new EventSource("/api/sse_add_listener?id=" + id)
 
     evt.onerror = (e) => {
-        console.log("SSE Error")
-        console.log(e)
+        console.error("SSE Error")
+        console.error(e)
     }
 
     evt.addEventListener("connected", (_e) => {
-        console.log("SSE Connected")
+        //
     })
 
-    evt.addEventListener("firestore", (e) => {
+    evt.addEventListener("a_"+SSE_TriggersE.FIRESTORE, (e) => {
         const data = JSON.parse(e.data)
-        sse_listeners.filter(l=> l.trigger === "firestore").forEach(l=> l.cb(data))
+        sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
     }) 
 
     // lets just see if the browser will take care of when user goes in and out of focus on window / app
@@ -61,30 +107,6 @@ function Init() {
     })
     */
 }
-
-
-
-
-function Add_Listener(name:str, trigger:"firestore"|"cssupdate", callback_:(obj:any)=>void) {
-
-    const is_already_listener = sse_listeners.find(l=> l.name === name) ? true : false
-
-    if (is_already_listener) {
-        redirect_from_error("SSE Listener with that name already exists")
-        return
-    }
-
-    sse_listeners.push({
-        name: name,
-        trigger: trigger,
-        cb: callback_
-    })
-}
-
-
-
-
-function Remove_Listener(name:str) {   sse_listeners.splice(sse_listeners.findIndex(l=> l.name === name), 1)   }
 
 
 
@@ -194,7 +216,6 @@ function sse_ticktock_run() : int {
 
 
 
-/*
 function redirect_from_error(errmsg:str) {
     console.info(`/?errmsg=SSE Error: ${errmsg}`)
 
@@ -202,13 +223,12 @@ function redirect_from_error(errmsg:str) {
         window.location.href = `/?errmsg=SSE Error: ${errmsg}`
     }
 }
-*/
 
 
 
 
 (window as any).SSEvents = { Add_Listener, Remove_Listener }
 
-export default { Init, Add_Listener, Remove_Listener }
+export default { Init, Reset, Add_Listener, Remove_Listener }
 
 

@@ -91,11 +91,11 @@ fn all(instance:&str) -> Result<()> {
     std::fs::create_dir_all(&y)?;
 
 
+    mediafiles::files(&instance)?;
+    mediafiles::iconsfont(&instance)?;
     core::runit(&instance)?;
     thirdpartyfiles::thirdpartyfiles(&instance)?;
     lazy::runit(&instance)?;
-    mediafiles::files(&instance)?;
-    mediafiles::iconsfont(&instance)?;
     serverfiles::serverfiles(&instance)?;
 
     Ok(())

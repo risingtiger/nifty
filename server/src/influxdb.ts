@@ -16,8 +16,10 @@ type Series = {
 }
 
 
-const PWTT = put in influx token into process var
-const XENT = put in influx token into process var
+const PWTT = process.env.PWT_INFLUXDB || ""
+const XENT = process.env.XEN_INFLUXDB || ""
+
+
 
 
 function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[], intrv:int[], priors:str[]) { 
@@ -99,7 +101,7 @@ function Retrieve_Medians(bucket:str, begins:int[], ends:int[], dur_amounts:int[
 
         const data = await callserver(bodystr, token)
 
-        const yields = begins.map(_b=> [])
+        const yields = begins.map(_b=> []) as {field:str,median:int}[][]
 
         data.split("\n").forEach((r:str)=> {
             if (r.includes("result") || r.length < 20)   return
@@ -114,6 +116,15 @@ function Retrieve_Medians(bucket:str, begins:int[], ends:int[], dur_amounts:int[
         res(yields) 
     })
 }
+
+
+
+
+function Retrieve(bucket:str, fluxstr:str) {   return new Promise<str>(async (res, _rej)=> {
+    let token = bucket === "PWT" ? PWTT : XENT
+    const r = await callserver(fluxstr, token)
+    res(r)
+})}
 
 
 
@@ -346,7 +357,7 @@ function get_tagstr(tags_str:str) {
 
 
 
-const InfluxDB = { Retrieve_Series, Retrieve_Points, Retrieve_Medians }
+const InfluxDB = { Retrieve_Series, Retrieve_Points, Retrieve_Medians, Retrieve }
 export { InfluxDB }
 
 

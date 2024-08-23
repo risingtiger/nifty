@@ -20,11 +20,10 @@ import { Firestore } from "./firestore.js"
 import { InfluxDB } from "./influxdb.js"
 import SSE from "./sse.js"
 import Notifications from "./notifications.js"
-import Emailing from "./emailing.js"
 import FileRequest from "./filerequest.js"
 import UpdateOnChange from "./update_onchange.js"
 
-import INSTANCE from './server_xen/index_extend.js'
+import INSTANCE from './server_pwt/index_extend.js'
 
 
 
@@ -95,17 +94,13 @@ app.post('/api/influxdb_retrieve_medians', influxdb_retrieve_medians)
 
 
 
-app.get("/api/sse_add_listener", sse_add_listener)
+app.get("/api/sse_add_listener", (req:any, res:any)=> {sse_add_listener(req, res)})
 
 
 
 app.get("/api/notifications_add_subscription", notifications_add_subscription)
 app.get("/api/notifications_remove_subscription", notifications_remove_subscription)
 app.post("/api/notifications_send_msg", notifications_send_msg)
-
-
-
-app.post("/api/emailing/send", emailing_send)
 
 
 
@@ -316,14 +311,6 @@ async function notifications_send_msg(req:any, res:any) {
 
 
 
-async function emailing_send(req:any, res:any) {
-
-    if (! await validate_request(res, req)) return 
-
-    await Emailing.Send(req.body.to, req.body.subject, req.body.message, req.body.from)
-
-    res.status(200).send(JSON.stringify({message:"email sent"}))
-}
 
 // END ROUTES
 
@@ -342,11 +329,11 @@ async function init() { return new Promise(async (res, _rej)=> {
 
     if (process.platform === 'darwin') {
 
-        console.log(process.cwd() + '/sheets_key.json')
+        console.log('/Users/dave/.ssh/xenfinancesheets_key.json')
 
         const googleauth = new googleapis.auth.GoogleAuth({
             //keyFile: INSTANCE.SHEETS_KEYJSONFILE,
-            keyFile: process.cwd() + '/sheets_key.json',
+            keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json',
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         })
         let google_auth:any = await googleauth.getClient();
@@ -360,18 +347,14 @@ async function init() { return new Promise(async (res, _rej)=> {
 
     else { 
 
+        /*
         const googleauth = new googleapis.auth.GoogleAuth({
             keyFile: process.cwd() + '/sheets_key.json',
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         })
         let google_auth:any = await googleauth.getClient();
         sheets = googleapis.sheets({version: 'v4', auth: google_auth});
-
-        //const googleauth = new googleapis.auth.GoogleAuth({
-        //    scopes: GSHEETS_SCOPES,
-        //})
-        //google_auth = await googleauth.getClient();
-        //google_sheets = googleapis.sheets({version: 'v4', auth: google_auth});
+        */
 
         initializeApp()
         db = getFirestore();

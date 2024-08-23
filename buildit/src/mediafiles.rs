@@ -26,9 +26,9 @@ pub fn files(instance:&str) -> Result<()> {
 pub fn iconsfont(_instance:&str) -> Result<()> {
 
     let ci = format!("{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_MAIN_SRC_PATH, "media/icons");
-    let oi = format!("{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, "media/icons");
+    //let oi = format!("{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, "media/icons");
 
-    let fantasticonargs = ["fantasticon", &ci, "-n", "icons", "-t", "woff2", "-o", &oi];
+    let fantasticonargs = ["fantasticon", &ci, "-n", "icons", "-t", "woff2", "-o", &ci];
     let _fantasticon = Command::new("npx").args(fantasticonargs).output().expect("rsync chucked an error on main media");
 
     Ok(())

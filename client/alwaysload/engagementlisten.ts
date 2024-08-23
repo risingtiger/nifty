@@ -56,7 +56,7 @@ function Remove_Listener(name:string, type_:'focus'|'blur') {
 
 
 function Init() {
-    
+
     window.onblur = () => {
         for(const l of elisteners.filter(l=> l.type === EListenerTypeT.blur)) {
             l.callback(false)
@@ -73,6 +73,13 @@ function Init() {
 
 
 
+function IsDocFocused() {
+    return document.hasFocus()
+}
+
+
+
+
 function redirect_from_error(errmsg:string) {
     console.info(`/?errmsg=SSE Error: ${errmsg}`)
     if ((window as any).APPVERSION > 0) {
@@ -83,8 +90,8 @@ function redirect_from_error(errmsg:string) {
 
 
 
-(window as any).EngagementListen = { Add_Listener, Remove_Listener }
+(window as any).EngagementListen = { Add_Listener, Remove_Listener, IsDocFocused }
 
-export default { Init, Add_Listener, Remove_Listener }
+export default { Init, IsDocFocused }
 
 

@@ -1,32 +1,86 @@
 
 
-import { str, bool, num } from "../../../definitions.js";
+
+import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
 declare var SetDistCSS: any;
 
 
-type State = {
-    eltype: str,
-    type: str,
-    label: str,
-    value: str,
-    placeholder: str,
-    opt_vals: str[],
-    opt_labels: str[],
-    opt_selected: num
 
+enum ModeT { EDIT = 0, VIEW = 1, SAVING = 2, SAVED = 3, ERRORED = 4}
+enum LayoutT { ROW = 0, INLINE = 1 }
+enum TypeT { INPUT = 0, DSELECT = 1, TOGGLE = 2 }
+type InputStrT = "none" | "text" | "phone" | "email" | "password" | "number" | "url" | "date" | "time" | "datetime" | "month" | "week" | "color" | "search" | "file" | "range"
+//enum InputTypeT { NONE = 0, TEXT = 1, PHONE = 2, EMAIL = 3, PASSWORD = 4, NUMBER = 5, URL = 6, DATE = 7, TIME = 8, DATETIME = 9, MONTH = 10, WEEK = 11, COLOR = 12, SEARCH = 13, FILE = 14, RANGE = 15 }
+
+
+type StateT = {
+    mode: ModeT,
+    isanimating: bool,
+    val: str,
+    term: str,
+    error: str,
+    attr_flg: bool
 }
+
+type ModelT = {
+    layout: LayoutT,
+    cansave: bool,
+    name: str,
+    type: TypeT,
+    inputtype: InputStrT,
+    label: str,
+    labelwidth: num,
+    placeholder: str,
+}
+
+type ElsT = {
+    label:HTMLLabelElement|null,
+    section:HTMLElement|null,
+    view:HTMLSpanElement|null,
+    edit:HTMLSpanElement|null,
+    displayval:HTMLParagraphElement|null,
+    action:HTMLElement|null,
+    editdone:HTMLElement|null,
+    animeffect:HTMLElement|null,
+    input:HTMLInputElement|null,
+    switch:HTMLSpanElement|null,
+    dselect:HTMLElement|null,
+}
+
+type AnimationHandlesT = {
+    view: Animation|null,
+    edit: Animation|null,
+}
+
+type KeyframesT = {
+    view: KeyframeEffect|null,
+    edit: KeyframeEffect|null,
+}
+
 
 
 let distcss = `{--distcss--}`;
 
 
+
+
 class CIn extends HTMLElement {
 
-    s:State
+    s:StateT
+    m:ModelT
+    els:ElsT
+    
+    animatehandles: AnimationHandlesT
+    keyframes: KeyframesT
     shadow:ShadowRoot
+
+
+
+
+    //static get observedAttributes() { return ['val']; }
 
 
 
@@ -37,18 +91,13 @@ class CIn extends HTMLElement {
 
         this.shadow = this.attachShadow({mode: 'open'});
 
+        this.s = { mode: ModeT.VIEW, val: "", term: "", error: "", isanimating: false, attr_flg: false}
+        this.m = { layout: LayoutT.ROW, cansave:true, name: "", type: TypeT.INPUT, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
+        this.els = { label: null, section: null, view: null, edit: null, displayval: null, action: null, editdone: null, animeffect: null, input: null, switch: null, dselect: null}
 
+        this.animatehandles = { view: null, edit: null, }// label: null}
+        this.keyframes = { view: null, edit: null, }// label: null}
 
-        this.s = {
-            eltype: this.getAttribute("eltype") || "input",
-            type: this.getAttribute("type") || "text",
-            label: this.getAttribute("label") || "",
-            value: this.getAttribute("value") || "",
-            placeholder: this.getAttribute("placeholder") || "",
-            opt_vals: [],
-            opt_labels: [],
-            opt_selected: 0,
-        }
 
         SetDistCSS(this.shadow, distcss)
     }
@@ -58,44 +107,542 @@ class CIn extends HTMLElement {
 
     connectedCallback() {   
 
-        const opts_str = this.getAttribute("opts") || "";
-        const opt_vals:str[] = [];
-        const opt_labels:str[] = [];
-        
-        let opt_selected = 0;
-
-        if (opts_str) {
-            opts_str.split(",").forEach((opt) => {
-                const [val, label] = opt.split(";");
-                opt_vals.push(val);
-                opt_labels.push(label);
-            })
-
-            opt_selected = this.getAttribute("opt_selected") ? parseInt(this.getAttribute("opt_selected")!) : 0;
-
-            this.s.opt_vals = opt_vals;
-            this.s.opt_labels = opt_labels;
-            this.s.opt_selected = opt_selected;
-        }
         this.sc()
+
+        const attr_typestr = this.getAttribute("type") || "toggle"
+
+        this.s.val   = this.getAttribute("val") || ""
+        this.m.label = this.getAttribute("label") || ""
+        this.m.labelwidth = parseInt(this.getAttribute("labelwidth") || "125")
+        this.m.layout = this.hasAttribute("inline") ? LayoutT.INLINE : LayoutT.ROW
+        this.m.cansave = this.hasAttribute("nosave") ? false : true
+        this.m.name = this.getAttribute("name") || ""
+
+        if (attr_typestr === "toggle") {
+            this.s.mode = ModeT.EDIT
+            this.m.type = TypeT.TOGGLE
+            this.m.inputtype = "none"
+
+        } else if (attr_typestr === "dselect") {
+            this.s.mode = !this.m.cansave ? ModeT.EDIT : ( this.hasAttribute("edit") ? ModeT.EDIT : ModeT.VIEW )
+            this.m.type = TypeT.DSELECT
+            this.m.inputtype = "none"
+
+            this.s.term = this.getAttribute("term") || ""
+
+        } else { 
+            this.s.mode = !this.m.cansave ? ModeT.EDIT : ( this.hasAttribute("edit") ? ModeT.EDIT : ModeT.VIEW )
+            this.m.type = TypeT.INPUT
+            this.m.inputtype = attr_typestr as any
+        }
+
+        const frag = document.createDocumentFragment()
+
+        this.els.label = document.createElement("label")
+        this.els.section = document.createElement("section")
+
+        this.els.label.part.add("label")
+        this.els.label.textContent = this.m.label
+        this.els.label.style.width = this.m.labelwidth + "px"
+
+        if (this.s.mode === ModeT.EDIT) {
+            this.insert_edit()
+        } else {
+            this.insert_view()
+        }
+
+        frag.appendChild(this.els.label)
+        frag.appendChild(this.els.section)
+
+        this.shadow.appendChild(frag)
+
+        this.addEventListener("click", (e) => this.clicked(e), true)
+
+        this.classList.add ( this.m.layout === LayoutT.ROW ? 'row' : 'inline' )
     }
 
 
 
 
-    sc() {   Lit_Render(this.template(this.s), this.shadow);   }
+    async attributeChangedCallback(name:str, oldval:str, newval:str) {
+
+        /*
+        if (name === "val" && oldval !== null) { 
+
+            this.s.attr_flg = 
+
+            setTimeout(() => {
+
+                let newval = this.getAttribute("val") || null
+                let oldval:str|null = this.s.val 
+                let error = this.getAttribute("error") || null
+
+                if (error !== null) { newval = null; oldval = null;}
+
+                this.to_saved_result(newval, oldval, error)
+
+            }, 10)
+        }
+
+        /*
+        if (name === "val" && this.s.mode === 'saving' && this.s.isanimating === false) { 
+            this.to_saved(new_val)
+        }
+
+        else if (name === "gomodeedit" && old_val !== null && this.s.mode === 'view' && this.s.isanimating === false) {
+            this.to_edit()
+        }
+        */
+    }
+
+
+
+
+    SaveResponse(newval:str, newterm:str|null) {   this.to_saved_result(newval, newterm);   }
+    SaveResponseError(error:str)          {   this.to_error_result(error);             }
+    GetVal() {   return this.s.val;   }
+
+
+
+
+    clicked(e:Event) {
+
+        let allow_propagation = false
+
+        if (this.s.mode === ModeT.EDIT) {
+
+            if (this.m.type === TypeT.TOGGLE) {
+                allow_propagation = true
+            }
+
+            else if (this.m.type === TypeT.INPUT) {
+                this.els.input?.focus()
+                allow_propagation = true
+            }
+
+            else if (this.m.type === TypeT.DSELECT) {
+
+                allow_propagation = true
+                /*
+                if ((this.els.dselect as any).GetMode() === 1) {
+                    allow_propagation = true
+                } else {
+                    (this.els.dsselect as any).OpenIt();
+                }
+                */
+            }
+        }
+
+        else if (this.s.mode === ModeT.VIEW) {
+
+            if (this.m.type === TypeT.INPUT) {
+                this.to_edit()
+            }
+
+            else if (this.m.type === TypeT.DSELECT) {
+                this.to_edit()
+            }
+        }
+
+        if (allow_propagation === false)
+            e.stopPropagation()
+
+        /*
+        if (this.s.mode === ModeT.VIEW && this.m.dselect_initial_mode === ModeT.EDIT) {
+            this.to_dselect_edit()
+        }
+
+        else {
+            this.to_edit()
+        }
+        */
+    }
 
 
 
 
 
-    template = (_s:State) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    insert_edit(immediate_focus = false) {
+
+        this.els.edit = document.createElement("span")
+        this.els.edit.id = "edit"
+
+        if (this.m.type === TypeT.TOGGLE) {
+            this.els.switch = document.createElement("span")
+            const span_inner_el = document.createElement("span")
+
+            this.els.switch.className = "switch"
+            span_inner_el.className = "inner"
+            
+            this.els.switch.style.transition = "none"
+            span_inner_el.style.transition = "none"
+
+            if (this.s.val === "true") { this.els.switch.classList.add("istrue") }
+
+            this.els.switch.appendChild(span_inner_el)
+
+            this.els.edit.appendChild(this.els.switch)
+
+            setTimeout(() => {
+                this.els.switch!.style.transition = ""
+                span_inner_el.style.transition = ""
+            }, 700)
+
+            this.els.switch.addEventListener("click", () => {
+                const newval = this.s.val === "true" ? "false" : "true"
+                if (newval === "true") { this.els.switch!.classList.add("istrue") } else { this.els.switch!.classList.remove("istrue") }
+
+                if (this.m.cansave) {  this.to_saving(newval, this.s.val) } else { this.s.val = newval }
+            })
+
+        } else if (this.m.type === TypeT.INPUT) {
+
+            this.els.input = document.createElement("input")
+            this.els.input.type = this.els.input.type
+            this.els.input.value = this.s.val
+            this.els.input.placeholder = this.getAttribute("placeholder") || ""
+
+            if (this.els.input.type === "range") {
+                this.els.input.min = this.getAttribute("min") || ""
+                this.els.input.max = this.getAttribute("max") || ""
+            }
+
+            this.els.edit.appendChild(this.els.input)
+
+            this.els.input.addEventListener("change", () => {
+                this.s.val = this.els.input?.value || ""
+                this.setAttribute("val", this.s.val)
+            })
+
+            if (this.m.cansave) {
+                this.els.editdone = document.createElement("i")
+                this.els.editdone.className = "icon-edit2"
+
+                this.els.editdone.addEventListener("click", () => {
+                    const newval = this.els.input?.value || ""
+                    const oldval = this.s.val
+
+                    if (this.m.cansave)   this.to_saving(newval, oldval); else this.s.val = newval;
+                })
+
+                this.els.edit.appendChild(this.els.editdone)
+
+            } else {
+                //
+            }
+
+            if (immediate_focus) {
+                setTimeout(()=>this.els.input!.focus(), 800)
+            }
+
+        } else if (this.m.type === TypeT.DSELECT) {
+
+            this.els.dselect = document.createElement("c-dselect")
+            this.els.dselect.setAttribute("options", this.getAttribute("options") || "")
+            this.els.dselect.setAttribute("term", this.s.term || "")
+            this.els.dselect.setAttribute("val", this.s.val)
+
+
+            this.els.dselect.addEventListener("changed", (e:Event) => {
+                if (this.m.cansave) {
+                    this.to_saving((e as CustomEvent).detail.newval, (e as CustomEvent).detail.oldval); 
+                } else { 
+                    this.s.val = this.els.dselect!.getAttribute("val") || ""
+                    this.s.term = this.els.dselect!.getAttribute("term") || ""
+
+                    this.setAttribute("val", this.s.val)
+                    this.setAttribute("term", this.s.term)
+                }
+            })
+
+            this.els.dselect.addEventListener("closed", (_e:Event) => {
+                if (this.m.cansave) {
+                    this.s.mode = ModeT.SAVED
+                    this.to_view()
+                }
+            })
+
+            this.els.edit.appendChild(this.els.dselect)
+
+            if (immediate_focus) {
+                setTimeout(()=> (this.els.dselect as any).OpenIt(), 20)
+            }
+        }
+
+        this.els.section?.appendChild(this.els.edit)
+    }
+
+
+
+
+    insert_view() {
+
+        this.els.view = document.createElement("span")
+        this.els.view.id = "view"
+
+        this.els.displayval = document.createElement("p")
+
+        this.els.action = document.createElement("i")
+        this.els.action.className = "icon-edit1"
+
+        this.els.displayval.textContent = this.s.term || this.s.val
+
+        this.els.view.appendChild(this.els.displayval)
+        this.els.view.appendChild(this.els.action)
+        this.els.section?.appendChild(this.els.view) 
+    }
+
+
+
+
+    to_edit() {
+
+        if (this.s.mode === ModeT.VIEW && this.s.isanimating === false) {
+
+            this.s.mode = ModeT.EDIT
+            this.s.isanimating = true
+
+            this.insert_edit(true)
+
+            this.set_animation()
+
+            this.animatehandles!.edit!.play()
+            this.animatehandles!.view!.play()
+
+            this.animatehandles!.edit!.onfinish = () => {
+                this.s.isanimating = false
+                this.els.view?.parentElement?.removeChild(this.els.view)
+            }
+        }
+    }
+
+
+
+
+    to_saving(newval:str, oldval:str|null = null) { 
+
+        if (this.s.mode === ModeT.EDIT && this.s.isanimating === false) {
+
+            this.s.mode = ModeT.SAVING
+
+            if (newval === oldval) {
+                this.to_saved_result(newval, oldval)
+                return
+            }
+
+
+            if (this.m.type === TypeT.TOGGLE) {
+                //
+
+            } else if (this.m.type === TypeT.INPUT) {
+                this.els.editdone?.classList.add("hide_while_spinner")
+
+            } else if (this.m.type === TypeT.DSELECT) {
+                //
+            }
+
+
+            this.els.animeffect = document.createElement("c-animeffect")
+            this.els.animeffect.setAttribute("active", "")
+
+            this.els.edit?.appendChild(this.els.animeffect)
+            /*
+            if (this.m.type === TypeT.TOGGLE) {
+            } else if (this.m.type === TypeT.INPUT) {
+            } else if (this.m.type === TypeT.DSELECT) {
+            }
+            */
+
+            this.els.animeffect.offsetWidth
+            this.els.animeffect.className = "active"
+
+            setTimeout(() => {
+                this.dispatchEvent(new CustomEvent("save", {detail: {name:this.m.name, newval, oldval}}))
+            }, 500)
+        }
+    }
+
+
+
+
+    to_saved_result(newval:str, term:str|null) {
+
+        if (this.s.mode === ModeT.SAVING && this.s.isanimating === false) {
+
+            this.s.mode = ModeT.SAVED
+
+            if (this.m.type === TypeT.TOGGLE) {
+
+                this.els.animeffect?.remove()
+
+                if (newval === "true") { this.els.switch!.classList.add("istrue"); } else { this.els.switch!.classList.remove("istrue"); } 
+
+                this.s.val = newval!
+                this.setAttribute("val", newval!)
+
+                this.s.mode = ModeT.EDIT
+
+            } else if (this.m.type === TypeT.INPUT) {
+
+                this.s.val = newval!
+                this.setAttribute("val", newval!)
+
+                this.to_view()
+
+            } else if (this.m.type === TypeT.DSELECT) {
+
+                this.s.val = newval!
+                this.s.term = term!
+
+                this.setAttribute("val", newval!)
+                this.setAttribute("term", term!)
+
+                this.to_view()
+            }
+        }
+    }
+
+
+
+
+    to_error_result(error:str) {
+
+        if (this.s.mode === ModeT.SAVING && this.s.isanimating === false) {
+
+            if (this.m.type === TypeT.TOGGLE) {
+
+                this.els.animeffect?.remove()
+
+                if (this.s.val === "true") { this.els.switch!.classList.add("istrue"); } else { this.els.switch!.classList.remove("istrue"); } 
+
+                this.s.mode = ModeT.EDIT
+
+            } else if (this.m.type === TypeT.INPUT) {
+
+                this.els.input!.value = this.s.val
+
+                this.s.mode = ModeT.ERRORED
+
+                this.to_view()
+
+            } else if (this.m.type === TypeT.DSELECT) {
+
+                (this.els.dselect as any).SetValAndTerm(this.s.val, this.s.term)
+
+                this.s.mode = ModeT.ERRORED
+
+                this.to_view()
+            }
+
+            console.log("error: " + error)
+        }
+    }
+
+
+
+
+    to_view() {
+
+        if ( (this.s.mode === ModeT.SAVED || this.s.mode === ModeT.ERRORED) && this.s.isanimating === false) {
+
+            this.s.mode = ModeT.VIEW
+            this.s.isanimating = true
+
+            this.insert_view()
+
+            this.set_animation()
+
+            this.animatehandles!.edit!.reverse()
+            this.animatehandles!.view!.reverse()
+
+            this.animatehandles!.edit!.onfinish = () => {
+                this.s.isanimating = false
+                this.els.edit?.parentElement?.removeChild(this.els.edit)
+            }
+        }
+    }
+
+
+
+
+    set_animation() {
+
+        const a = this.animatehandles
+        const k = this.keyframes
+
+        k.view = new KeyframeEffect(
+            this.els.view, 
+            [{opacity: 1, transform: "perspective(300px) translate3d(0, 0, 0)"}, {transform: "perspective(300px) translate3d(0, -21px, 0)", opacity: 0}], 
+            {duration:290, easing: "cubic-bezier(.18,.24,.15,1)", fill: "both"}
+        )
+
+        k.edit = new KeyframeEffect(
+            this.els.edit, 
+            [{transform: "perspective(300px) translate3d(0, 21px, 13px) rotateX(72deg)", opacity: 0}, {transform: "perspective(300px) translate3d(0, 0, 0) rotateX(0)", opacity: 1}], 
+            {duration:290, easing: "cubic-bezier(.18,.24,.15,1.0)", fill: "both"}
+        )
+
+        a.view = new Animation(k.view, document.timeline);
+        a.edit = new Animation(k.edit, document.timeline);
+    }
+
+
+
+
+    /*
+    EditDoneClicked() {
+        if (this.s.mode === 'edit' && this.s.isanimating === false) {
+
+            const inputel = this.shadow.getElementById("input") as HTMLInputElement
+            if (inputel.value === this.s.val) {
+                this.to_view()
+            }
+
+            else {
+                this.to_saving()
+            }
+
+        }
+    }
+    */
+
+
+
+
+    sc() {   Lit_Render(this.template(), this.shadow);   }
+
+
+
+
+    template = () => { return Lit_Html`{--devservercss--}{--html--}`; }; 
 }
 
 
 
 
 customElements.define('c-in', CIn);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

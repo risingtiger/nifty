@@ -1,16 +1,19 @@
 
 
-type int = number
-type bool = boolean
-type str = string
-
+import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
 declare var LazyLoad: any;
 
 
-type State = {
+
+
+type StateT = {
+    propa: bool,
+}
+
+type ModelT = {
     propa: bool,
 }
 
@@ -19,7 +22,8 @@ type State = {
 
 class CTl extends HTMLElement {
 
-    s:State
+    s:StateT
+    m:ModelT
 
 
 
@@ -69,11 +73,11 @@ class CTl extends HTMLElement {
 
     sc(state_changes = {}) {   
         this.s = Object.assign(this.s, state_changes)
-        Lit_Render(this.template(this.s), this);   
+        Lit_Render(this.template(this.s, this.m), this);   
     }
 
 
-    template = (_s:State) => { return Lit_Html`{--htmlcss--}`; }; 
+    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--htmlcss--}`; }; 
 }
 
 
@@ -107,7 +111,9 @@ function find_all_custom_components_to_load(container_element:HTMLElement) {
 }
 
 
+
 export {  }
+
 
 
 

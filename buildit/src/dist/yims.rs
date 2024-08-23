@@ -10,7 +10,7 @@ use std::process::Command;
 
 
 #[derive(Debug, Clone, Copy)]
-enum YimTypeT { Lib, Worker }
+enum YimTypeT { Lib, Worker, Directive }
 #[derive(Debug)]
 struct YimT { 
     dir: String, 
@@ -28,8 +28,10 @@ pub fn yimit(instance:&str) -> Result<()> {
 
     let main_li = format!("{}{}", ml, "libs");
     let main_wo = format!("{}{}", ml, "workers");
+    let main_di = format!("{}{}", ml, "directives");
     let instance_li = format!("{}{}", cl, "libs");
     let instance_wo = format!("{}{}", cl, "workers");
+    let instance_di = format!("{}{}", cl, "directives");
 
     let mut yims:Vec<YimT> = vec![];
 
@@ -39,8 +41,10 @@ pub fn yimit(instance:&str) -> Result<()> {
 
     yims.extend(get_yims(&main_li, YimTypeT::Lib, &splitstr)?);
     yims.extend(get_yims(&main_wo, YimTypeT::Worker, &splitstr)?);
+    yims.extend(get_yims(&main_di, YimTypeT::Directive, &splitstr)?);
     yims.extend(get_yims(&instance_li, YimTypeT::Lib, &splitstr)?);
     yims.extend(get_yims(&instance_wo, YimTypeT::Worker, &splitstr)?);
+    yims.extend(get_yims(&instance_di, YimTypeT::Directive, &splitstr)?);
 
     yims.into_par_iter().for_each(|p| {
         processit(&p, &src_prefixpath, &output_prefixpath).unwrap();

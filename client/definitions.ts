@@ -3,9 +3,11 @@
 export type str = string; export type bool = boolean; export type int = number; export type num = number;
 
 
+export enum SSE_TriggersE { FIRESTORE, SOMETINELSE }
+
 
 export type LazyLoadT = {
-    type: "view"| "component" | "thirdparty" | "lib",
+    type: "view"| "component" | "thirdparty" | "lib" | "directive",
     urlmatch: string|null,
     name: string,
     instance: string|null,

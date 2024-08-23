@@ -7,7 +7,10 @@ declare var Lit_Render: any;
 declare var Lit_Html: any;
 declare var SetDistCSS: any;
 
-type State = {
+
+
+
+type StateT = {
     siblinglevel: "parent" | "self",
     selfactuated: bool,
     parent: HTMLElement,
@@ -20,13 +23,23 @@ type State = {
     isopen: bool
 }
 
+type ModelT = {
+    prop: str
+}
+
+
+
 
 let distcss = `{--distcss--}`;
 
 
+
+
 class CReveal extends HTMLElement {
 
-    s:State
+    s:StateT
+    m:ModelT
+
     shadow:ShadowRoot
 
 
@@ -104,7 +117,7 @@ class CReveal extends HTMLElement {
 
 
 
-    sc() {   Lit_Render(this.template(this.s), this.shadow);   }
+    sc() {   Lit_Render(this.template(this.s, this.m), this.shadow);   }
 
 
 
@@ -112,6 +125,8 @@ class CReveal extends HTMLElement {
     showit() {
 
         if (this.s.siblinglevel === "self") { console.info("will build this in at some point"); return }
+
+        this.addEventListener("transitionend", open_end)
 
         this.s.wrap = this.shadow.querySelector(".wrap") as HTMLElement,
         this.s.parent_height = this.parentElement!.offsetHeight,
@@ -121,24 +136,32 @@ class CReveal extends HTMLElement {
         this.s.parent.style.position = "relative"
         this.style.display = "block"
         this.style.top = this.s.parent_height + "px"
+
+        const lih5_el = this.s.parent.querySelector("h5")
+        lih5_el!.style.transitionProperty = "transform"
+        lih5_el!.style.transitionDuration = "0.9s"
+        lih5_el!.style.transitionTimingFunction = "cubic-bezier(0.91, 0, 0.19, 1)"
+        lih5_el!.style.transformOrigin = "13px 31px"
+
+        this.s.parent.style.boxShadow = "rgba(236, 236, 236, 0) 0px 4px 0px inset"
         
         for(const a of this.s.grandparent_children) {
-            a.style.transition = `transform 0.9s cubic-bezier(0.91, 0, 0.19, 1)`
+            a.style.transitionProperty = "transform, background-color, box-shadow, border-bottom-color"
+            a.style.transitionDuration = "0.9s"
+            a.style.transitionTimingFunction = "cubic-bezier(0.91, 0, 0.19, 1)"
         }
 
-        this.addEventListener("transitionend", open_end)
-
-        setTimeout(this.showit_after_timeout.bind(this), 10)
-
-        function open_end() {
-            delete this.s.parent.dataset._reveal_transitioning
-            this.removeEventListener("transitionend", open_end)
-        }
-    }
-    showit_after_timeout() {
 
         const height = this.offsetHeight
+
+        lih5_el!.style.transform = "scale(1.3)"
+
+        this.s.parent.style.boxShadow = "rgba(236, 236, 236,1) 0px 4px 0px inset"
+        this.s.parent.style.backgroundColor = "rgba(200, 200, 200, 0.10)"
+        this.s.parent.style.borderBottomColor = "rgba(200, 200, 200, 0.0)"
+
         this.style.clipPath = `polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)`
+
         this.s.wrap.style.opacity = '1.0';
         this.s.wrap.style.transform = `translateY(0px)`
 
@@ -148,6 +171,12 @@ class CReveal extends HTMLElement {
             const m = a.style.transform.match(/translateY\(([0-9]+)px\)/)
             const y = m ? Number(m[1]) : 0
             a.style.transform = `translateY(${y + height}px)`
+        }
+
+
+        function open_end() {
+            delete this.s.parent.dataset._reveal_transitioning
+            this.removeEventListener("transitionend", open_end)
         }
     }
 
@@ -166,6 +195,13 @@ class CReveal extends HTMLElement {
         this.style.clipPath = `polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)`
         this.s.wrap.style.transform = `translateY(-20px)`
         this.s.wrap.style.opacity = `0`
+
+        const lih5_el = this.s.parent.querySelector("h5")
+        lih5_el!.style.transform = "scale(1.0)"
+
+        this.s.parent.style.boxShadow = "rgba(236, 234, 234, 0) 0px 4px 0px inset"
+        this.s.parent.style.backgroundColor = "rgba(200, 200, 200, 0)"
+        this.s.parent.style.borderBottomColor = "var(--bordercolor)"
 
         if (!this.s.grandparent_children[this.s.parentindex + 1]) {   return   }
 
@@ -188,6 +224,8 @@ class CReveal extends HTMLElement {
         function close_end() {
             delete this.s.parent.dataset._reveal_transitioning
             this.s.parent.style.position = "inherit"
+            this.s.parent.style.boxShadow = ""
+            this.s.parent.style.backgroundColor = ""
             this.style.display = "none"
             this.removeEventListener("transitionend", close_end)
         }
@@ -196,7 +234,7 @@ class CReveal extends HTMLElement {
 
 
 
-    template = (_s:State) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
 }
 
 

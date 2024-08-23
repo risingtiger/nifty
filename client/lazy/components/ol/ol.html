@@ -1,10 +1,27 @@
 
 
+<!--
 
-<div class="wrapper" style="${'width:'+_s.width+';'} ${'height:'+_s.height+';'} ${'left:'+_s.left+';'} ${'top:'+_s.top+';'} ${_s.margin_left ? 'margin-left:' + _s.margin_left : ''}">
-  ${_s.showheader ? Lit_Html`
+<div 
+
+    class="wrapper 
+
+        ${_s.iswrapper_full_width ? 'fullwidth' : ''} 
+        ${_s.wrapper_round_bottom_corners ? 'roundbottom' : ''}" 
+
+    style="
+        ${'width:'+_s.width+';'} 
+        ${'height:'+_s.height+';'} 
+        ${'left:'+_s.left+';'} 
+        ${'top:'+_s.top+';'} 
+        ${_s.margin_left ? 'margin-left:' + _s.margin_left : ''}">
+
+-->
+
+<div class="wrapper">
+  ${_s.show_header ? Lit_Html`
     <header>
-      <div class="left">${_s.closebtn ? Lit_Html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
+      <div class="left">${_s.show_closebtn ? Lit_Html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
       <div class="middle"><h1><slot name="headermiddle"></slot></h1></div>
       <div class="right"><slot name="headerright"></slot></div>
     </header>

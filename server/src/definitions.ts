@@ -1,6 +1,8 @@
 
 
-type str = string; type bool = boolean; type int = number;
+enum SSE_TriggersE { FIRESTORE, SOMETINELSE }
+
+type str = string; type bool = boolean; type num = number;
 
 
 
@@ -16,8 +18,8 @@ type LazyLoadT = {
 
 
 
-(window as any).dumpdefenitions_to_keep_build_process_from_erasing_this_file = true;
+(process as any).dumpdefenitions_to_keep_build_process_from_erasing_this_file = true;
 
 
 
-export type { str, bool, int, LazyLoadT }
+export { str, bool, num, LazyLoadT, SSE_TriggersE }

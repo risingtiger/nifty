@@ -5,14 +5,14 @@ import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_A
 import  './thirdparty/lit-html.js';
 import  './alwaysload/fetchlassie.js';
 import  './alwaysload/firestore.js';
-import * as Firestore_Live from './alwaysload/firestore_live.js';
+import FirestoreLiveM from './alwaysload/firestore_live.js';
 import  './alwaysload/influxdb.js';
-import  LazyLoadImport from './alwaysload/lazyload.js';
-import  SSEvents from './alwaysload/sse.js';
-import  EngagementListen from './alwaysload/engagementlisten.js';
-import  IndexedDB from './alwaysload/indexeddb.js';
+import  LazyLoadM from './alwaysload/lazyload.js';
+import  SSEventsM from './alwaysload/sse.js';
+import  EngagementListenM from './alwaysload/engagementlisten.js';
+import  IndexedDBM from './alwaysload/indexeddb.js';
 
-import INSTANCE from './client_xen/main_xtend.js'; // instance is swapped out on buildit set instance 
+import INSTANCE from './client_pwt/main_xtend.js'; // instance is swapped out on buildit set instance 
 
 import  { LazyLoadT } from "./definitions.js";
 
@@ -100,7 +100,46 @@ const LAZYLOADS:LazyLoadT[] = [
     { 
         type: "component", 
         urlmatch: null, 
+        name: "dselect", 
+        instance: null,
+        dependencies:[], 
+        auth: [] 
+    },
+
+    { 
+        type: "component", 
+        urlmatch: null, 
         name: "in", 
+        instance: null,
+        dependencies:[
+            { type: "component", name: "animeffect" },
+            { type: "component", name: "dselect" }
+        ], 
+        auth: [] 
+    },
+
+    { 
+        type: "component", 
+        urlmatch: null, 
+        name: "animeffect", 
+        instance: null,
+        dependencies:[], 
+        auth: [] 
+    },
+
+    { 
+        type: "component", 
+        urlmatch: null, 
+        name: "toast", 
+        instance: null,
+        dependencies:[], 
+        auth: [] 
+    },
+
+    { 
+        type: "component", 
+        urlmatch: null, 
+        name: "btn", 
         instance: null,
         dependencies:[], 
         auth: [] 
@@ -128,8 +167,40 @@ const LAZYLOADS:LazyLoadT[] = [
         dependencies:[], 
         auth: [] 
     },
+
+
+    // DIRECTIVES
+
+    { 
+        type: "directive", 
+        urlmatch: null, 
+        name: "animeio", 
+        instance: null,
+        dependencies:[], 
+        auth: [] 
+    },
 ];
 
+
+
+/*
+const ___TEMP_TRIPPENDAISIES_TIMEOUT = 1200000 
+async function ___TEMP_trippendaisies() { // nuke and reset mode for sse, indexeddb & firestore_live -- until I do more testing on this
+
+    if(!EngagementListenM.IsDocFocused()) {
+        setTimeout(___TEMP_trippendaisies, ___TEMP_TRIPPENDAISIES_TIMEOUT)
+        return
+    }
+
+
+    await IndexedDBM.Remove()
+    await FirestoreLiveM.Remove()
+    await SSEventsM.Reset()
+
+    setTimeout(___TEMP_trippendaisies, ___TEMP_TRIPPENDAISIES_TIMEOUT)
+}
+setTimeout(___TEMP_trippendaisies, ___TEMP_TRIPPENDAISIES_TIMEOUT)
+*/
 
 
 
@@ -139,10 +210,10 @@ window.addEventListener("load", async (_e) => {
 
     const collections = INSTANCE.INFO.indexeddb_collections
 
-    IndexedDB.Init(collections, INSTANCE.INFO.firebase.project)
-    Firestore_Live.Init(collections)
-    EngagementListen.Init()
-    LazyLoadImport.Init(lazyloads)
+    IndexedDBM.Init(collections, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+    FirestoreLiveM.Init()
+    EngagementListenM.Init()
+    LazyLoadM.Init(lazyloads)
 
     serviceworker_reg = await navigator.serviceWorker.register("/sw.js", {   scope: "/"   });
 
@@ -170,12 +241,13 @@ window.addEventListener("load", async (_e) => {
         SwitchStation_InitInterval(); 
     }
 
-    //let mouseupanim:Animation|null = null 
-    document.addEventListener("mouseup", (_e:any) => {
+    /*
+    let mouseupanim:Animation|null = null 
+    document.addEventListener("mouseup", (e:any) => {
 
         console.log("remember you have this bubble animate thing on click. but I want to make it a case by case basis")
-        return false
-        /*
+        //return false
+
         const x = document.getElementById("click_visual")!
         const y = x.querySelector(".clickybubble") as HTMLElement
 
@@ -203,14 +275,16 @@ window.addEventListener("load", async (_e) => {
         }
 
         mouseupanim.play()
-        */
     })
+    */
 })
 
 
 
 
 document.querySelector("#views")!.addEventListener("view_load_done", () => {
+
+    console.log("need to put check back in lazyload and error out if not loaded. pluddy dselect being a shite on production server. needs fixed")
 
     if (_is_in_initial_view_load) {
 
@@ -220,7 +294,7 @@ document.querySelector("#views")!.addEventListener("view_load_done", () => {
 
             serviceworker_reg.active!.postMessage({ command: "load_core" })
 
-            SSEvents.Init()
+            //SSEventsM.Init()
 
         }, 5000)
     }
@@ -233,12 +307,13 @@ async function update(round:int) {
 
     const origin = window.location.origin
     const tohref = "http://www.yavada.com/bouncebacktopurewater?round="+round+"&origin="+origin
+    const wael = (document.querySelector("#updatevisual > .waiting_animate") as HTMLElement)
 
     if (round===1) {
 
         document.getElementById("updatevisual")!.classList.add("active")
-        document.getElementById("waiting_animate")!.classList.add("active")
-        document.getElementById("waiting_animate")!.style.top = "250px"
+        wael.classList.add("active");
+        wael.style.top = "250px";
 
         const cache = await caches.open(`cacheV__${(window as any).APPVERSION}__`)
 
@@ -260,8 +335,8 @@ async function update(round:int) {
     else if (round===2) {
 
         document.getElementById("updatevisual")!.classList.add("active")
-        document.getElementById("waiting_animate")!.classList.add("active")
-        document.getElementById("waiting_animate")!.style.top = "250px"
+        wael.classList.add("active")
+        wael.style.top = "250px"
 
         setTimeout(()=> {
             window.location.href = tohref
@@ -271,14 +346,35 @@ async function update(round:int) {
     else if (round===3) {
 
         document.getElementById("updatevisual")!.classList.add("active")
-        document.getElementById("waiting_animate")!.classList.add("active")
-        document.getElementById("waiting_animate")!.style.top = "250px"
+        wael.classList.add("active")
+        wael.style.top = "250px"
 
         setTimeout(()=> {
             window.location.href = "/index.html"
         }, 1500)
     }
 }
+
+
+
+
+function ToastShow(msg:string|null, level:string|null, duration:number|null) {
+
+    let toast_el = document.getElementById("maintoast")
+
+    if (!toast_el) {
+        const htmlstr = `<c-toast id="maintoast" msg="" level="" duration=""></c-toast>`
+        document.body.insertAdjacentHTML("beforeend", htmlstr)
+        toast_el = document.getElementById("maintoast") as any
+    }
+
+    toast_el!.setAttribute("msg", msg || "")
+    toast_el!.setAttribute("level", level||'0')
+    toast_el!.setAttribute("duration", duration ? duration.toString() : '4500')
+
+    toast_el!.setAttribute("clink", "run")
+}
+(window as any).ToastShow = ToastShow
 
 
 

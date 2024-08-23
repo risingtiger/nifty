@@ -1,6 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 :host {
   --tempvar:blue;
@@ -28,7 +25,7 @@ div, span, h1, h2, h3, h4, h5, h6, p, button {
     font-size: var(--textsize);
     line-height: 1.2;
     margin: 0;
-    padding: 0;
+    padding: 0 0px 0 0;
     color: var(--textcolor);
 }
 
@@ -46,6 +43,7 @@ div.content {
     overflow-x: hidden;
     overflow-y: scroll;
     z-index: 9;
+    background: white;
 }
 
 
@@ -71,6 +69,7 @@ header.viewheader {
   & .left {
     display: block;
     width: 21%;
+    overflow: hidden;
     padding-top: 1px;
 
     &
@@ -112,15 +111,14 @@ header.viewheader {
     width: 20%;
     text-align: right;
     box-sizing: border-box;
-    padding-right: 13px;
+    padding-right: 10px;
 
-    & > i {
+    & >
+    i {
       font-size: 22px;
     }
   }
 }
-
-
 
 
 
@@ -149,7 +147,10 @@ ul.items {
         flex-wrap: nowrap;
         justify-content: space-between;
         padding: 0;
-        border-bottom: 0.5px solid var(--bordercolor);
+        border-bottom-width: 0.5px;
+        border-bottom-style: solid;
+        border-bottom-color: var(--bordercolor);
+        /*transition: border 0.8s ease-in-out;*/
 
         & > .thumbnail {
             padding-top: 0px;
@@ -170,7 +171,7 @@ ul.items {
 
         & > h5:first-child {
             padding-left: 12px;
-            margin-right: 6px;
+            padding-right: 6px;
             width: 125px;
             overflow: hidden;
             text-wrap: nowrap;
@@ -190,11 +191,12 @@ ul.items {
         & > i.action {
             display: block;
             font-size: 18px;
-            padding: 16px 0 0 0;
+            padding: 16px 8px 0 11px;
             color: #c1c1c1;
-            margin-left: 11px;
-            margin-right: 11px;
             font-size: 18px;
+        }
+        & > i.action.bolder {
+            color: var(--actioncolor);
         }
 
         & > .aux {
@@ -241,7 +243,11 @@ ul.items {
 
     & li:not(.active):hover {
         cursor: pointer;
-        background-color: var(--background-highlight);
+
+        & > h5 {
+            /*text-decoration: underline;*/
+        }
+        /*background-color: var(--background-highlight);*/
     }
 }
 
@@ -284,8 +290,10 @@ dl.define {
 button {
     font-weight: 600;
     display: inline-block;
-    padding: 8px 17px 10px 17px;
-    border-radius: 18px;
+    padding: 0px 17px 2px 17px;
+    border-radius: 17px;
+    box-sizing: border-box;
+    height: 33px;
     color: gray;
     background-color: white;
     border-color: var(--actioncolor);
@@ -337,98 +345,37 @@ button.primary {
 
 
 
+c-form {
 
 
+    & ul.items > li {
 
-
-
-
-form {
-
-    & span.input {
-        position: relative;
-        box-sizing: border-box;
-
-        & > input {
-            font-size: 14px;
-            box-sizing: border-box;
-            outline: none;
-            border: 1px solid #cecece;
-            border-radius: 4px;
-            padding: 7px 5px 8px 5px;
-            color: #6d6d6d;
+        & > h5 {
+            color: rgb(190 56 151);
         }
 
-        & > i {
-            position: absolute;
-            top: 5px;
-            left: 8px;
+        & > c-in {
+            display: block;
+            flex: 1;
+        }
+
+        & > i.action {
             font-size: 20px;
+            padding: 16px 11px 0 11px;
+            color: var(--actioncolor);
         }
 
-        & > i + input {
-            padding-left: 31px;
-            /* margin-right: 10px; */
+        & > span.switch {
+            padding: 6px 9px 0 0;
         }
     }
+}
 
-    & span.switch {
 
-        & input {
 
-            position: relative;
-            -webkit-appearance: none;
-            appearance: none;
-            outline: none;
-            margin-left: auto;
-            width: 50px;
-            height: 30px;
-            background-color: #fff;
-            border: 1px solid #D9DADC;
-            border-radius: 50px;
-            box-shadow: inset -20px 0 0 0 #fff;
-        }
 
-        & input:after {
-            content: '';
-            position: absolute;
-            top: 1px;
-            left: 1px;
-            background: transparent;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            box-shadow: 2px 4px 6px rgba(0,0,0,0.2);
-        }
-
-        & input:checked {
-            box-shadow: inset 20px 0 0 0 #4ed164;
-            border-color: #4ed164;
-        }
-
-        & input:checked:after {
-            left: 20px;
-            box-shadow: -2px 4px 3px rgba(0,0,0,0.05);
-        }
-    }
-
-    & > ul.items > li > h5 {
-        color: rgb(190 56 151) !important;
-    }
-
-    & > ul.items > li > i.action {
-        color: var(--actioncolor);
-    }
-
-    & > ul.items > li > span.input {
-        display: block;
-        padding-top: 9px;
-        padding-right: 12px;
-    }
-    
-    & > ul.items > li > span.switch {
-        padding: 6px 9px 0 0;
-    }
+dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.0);
 }
 
 /*
@@ -505,6 +452,9 @@ i[class^='icon-']:before, i[class*=' icon-']:before {
 .icon-bucket:before      {   content: '\f110';   }
 .icon-piggy:before       {   content: '\f111';   }
 .icon-list:before        {   content: '\f112';   }
+.icon-automatic:before   {   content: '\f113';   }
+.icon-bank:before        {   content: '\f114';   }
+.icon-squarefoot:before  {   content: '\f115';   }
 
 
 

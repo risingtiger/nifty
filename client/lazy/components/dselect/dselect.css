@@ -1,0 +1,90 @@
+
+
+:host {
+    display: inline-block;
+    position: relative;
+}
+
+:host > #instigator {
+    display: none;
+    cursor: pointer;
+    position: relative;
+    padding: 7px 5px 8px 5px;
+    border: 1px solid #cecece;
+    border-radius: 4px;
+    color: #6d6d6d;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+    background: white;
+}
+:host > #instigator.active {
+    display: inline-block;
+}
+:host > #instigator::after {
+    content: '▼';
+    position: absolute;
+    right: 0;
+    top: 0px;
+    height: 100%;
+    padding: 9px 9px 0 9px;
+    box-sizing: border-box;
+    border-left: 1px solid #ccc;
+    font-size: 12px;
+    color: #666;
+}
+
+:host > dialog {
+    position: relative;
+    margin: 0;
+    background-color: white;
+    box-shadow: 0 2px 17px 4px rgb(0 0 0 / 10%);
+    padding: 0;
+    width: 200px;
+    height: 400px;
+    border-radius: 4px;
+    border: 1px solid #e6e6e6;
+    padding: 0;
+    inset: 0;
+    outline: none;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: 0.4s cubic-bezier(0.93, 0, 0.18, 1);
+    transition-property: opacity, transform;
+
+    &[open] {
+        opacity: 1;
+        transform: translateY(0);
+
+        @starting-style {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+    }
+
+    &.closing {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    & > #wrap {
+        width: 100%;
+        height: 100%;
+
+        & > ul.items > li {
+            & .action {
+                display: none;
+            }
+        }
+        & > ul.items > li.selected {
+
+            & .action {
+                display: block;
+                color: black;
+            }
+        }
+    }
+
+}
+
+

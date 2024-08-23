@@ -80,12 +80,14 @@ fn html_and_css(instance:&str, manifestname:&str) -> Result<()> {
 
     let index    = fs::read_to_string(index_in_path).expect("read error");
 
-    //let css_args = ["esbuild", &css_in_path, "--bundle", "--loader:.woff2=dataurl"];
-    //let css_cmd = Command::new("npx").args(css_args).output().expect("css esbuild chucked an error");
-    //let css_str = String::from_utf8(css_cmd.stdout).expect("ts stdout error");
+    let outfile_str = format!("--outfile={}", &css_index_out_path);
 
-    let _css_indexcpcmd = Command::new("cp").args([css_index_in_path, css_index_out_path]).output().expect("css esbuild chucked an error");
-    let _css_main_cpcmd = Command::new("cp").args([css_main_in_path, css_main_out_path]).output().expect("css esbuild chucked an error");
+    let css_index_args = ["esbuild", "--bundle", &css_index_in_path, "--loader:.woff2=dataurl", &outfile_str];
+    Command::new("npx").args(&css_index_args).output().expect("css index esbuild chucked an error");
+    //let css_index_str = String::from_utf8(css_index_cmd.stdout).expect("stdout error");
+
+    //let _css_indexcpcmd = Command::new("cp").args([css_index_in_path, css_index_out_path]).output().expect("css esbuild chucked an error");
+    Command::new("cp").args([css_main_in_path, css_main_out_path]).output().expect("css esbuild chucked an error");
 
     let index_updated = index.replace("<title></title>", &format!("<title>{}</title>", manifestname));
     //let index_updated = index_updated.replace("{--maincss--}", &css_str);

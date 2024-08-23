@@ -73,7 +73,7 @@ function set_all_options_from_opts(paths:str[], popts:object[]|object|null) : Op
         return {
             limit: pgo.limit ? pgo.limit : null,
             order_by: pgo.order_by ? pgo.order_by : null,
-            ts: null
+            ts: pgo.ts ? pgo.ts : null,
         }
     })
 
@@ -117,5 +117,7 @@ function redirect_from_error(errmsg:str) {
 
 
 (window as any).Firestore = { Retrieve, Add, Patch }
+
+export default { Retrieve }
 
 

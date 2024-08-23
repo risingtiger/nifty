@@ -1,13 +1,13 @@
 
+import { SSE_TriggersE, str  } from './definitions.js'
 
-type str = string; type int = number;
 
 
 
 
 type ListenerT = {
-    id:str
-    cb:(eventname:str, obj:any)=>void
+    id:str,
+    cb:(trigger:SSE_TriggersE, obj:any)=>void
 }
 
 const listeners:Map<str,ListenerT> = new Map()
@@ -27,8 +27,8 @@ function Add_Listener(req:any, res:any) {
 
     listeners.set(id, {
         id, 
-        cb: (eventname:str, data:any)=> {
-            res.write(`event: ${eventname}\n`)
+        cb: (trigger:SSE_TriggersE, data:any)=> {
+            res.write(`event: a_${trigger}\n`)
             res.write(`data: ${JSON.stringify(data)}`)
             res.write('\n\n')
         }
@@ -37,6 +37,7 @@ function Add_Listener(req:any, res:any) {
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
+        'Connection': "keep-alive"
     })
 
     res.write('event: connected\n')
@@ -51,7 +52,7 @@ function Add_Listener(req:any, res:any) {
 
 
 
-function TriggerEvent(eventname:str, data:any) {
+function TriggerEvent(eventname:SSE_TriggersE, data:any) {
 
     listeners.forEach(l => {
         l.cb(eventname, data)
@@ -81,4 +82,6 @@ function remove_listener(l:Listener) {
 
 
 export default { Add_Listener, TriggerEvent }
+
+
 

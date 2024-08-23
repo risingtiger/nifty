@@ -1,0 +1,84 @@
+
+
+:host {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.wrapper {
+    position: absolute;
+    border-radius: 8px;
+    box-shadow: 0px 0px 0px 7px rgb(108 195 223 / 22%);
+    border: 0px solid rgb(40 171 214 / 47%);
+    box-shadow: 0 9px 17px 3px rgb(0 0 0 / 15%);
+    opacity: 0;
+    box-sizing: border-box;
+    background: white;
+    z-index: 2;
+}
+.wrapper.fullscreen {
+  top: 10px;
+  left: 10px;
+  width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  margin: 0px 0 0 0px;
+}
+
+.wrapper > header {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+
+  & .left {
+    display: block;
+    width: 20%;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--actioncolor);
+  }
+
+  & .middle {
+    display: block;
+    width: 60%;
+
+    & h1 {
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      padding: 0;
+      margin: 0;
+    }
+
+  }
+
+  & .right {
+    display: block;
+    width: 20%;
+    font-size: 16px;
+    font-weight: 400;
+    text-align: right;
+    color: var(--actioncolor);
+  }
+}
+
+
+.backgroundcover {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    /*will-change: opacity; /* Prevents flicker in Safari */
+    background-color: #00000036;
+}
+
+
+
+
+

@@ -8,32 +8,16 @@ type str = string; //type int = number; type bool = boolean;
 
 
 
-async function Send(to: str, subject: str, message: str, from: str = "") {
+async function Send(messages:any[]) {
 
     const url = 'https://api.mailjet.com/v3.1/send';
-    const username = put in username to process var
-    const password = put in password to process var
+    const username = "2269ce42acdd34698b46f64ac7c66bde";
+    const password = "3623762d3547135125bddda18c859875";
 
     const auth = 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 
     const data = {
-        Messages: [
-            {
-                From: {
-                    Email: "accounts@risingtiger.com",
-                    Name: "RTM"
-                },
-                To: [
-                    {
-                        Email: to,
-                        Name: "To whom it may concern"
-                    }
-                ],
-                Subject: subject,
-                TextPart: message,
-                HTMLPart: `<p>${message}</p>`
-            }
-        ]
+        Messages: messages
     }
 
     const fetchres = await fetch(url, {
@@ -45,7 +29,7 @@ async function Send(to: str, subject: str, message: str, from: str = "") {
         body: JSON.stringify(data)
     })
 
-    const res = await fetchres.json();
+    //const res = await fetchres.json();
 
     return true;
 }

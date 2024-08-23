@@ -1,54 +1,55 @@
 
 
-type int = number
-type bool = boolean
-type str = string
+import { str, num, bool } from "../../../definitions.js";
 
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
 declare var SetDistCSS: any;
 
-type ViewT = {
-    animate: bool,
-}
 
-type BackgroundT = {
-    opacity: int,
-    blur: int,
-}
 
-type WrapperT = {
-    animation: str
-}
 
-type State = {
+enum ShapeE { NOT_APPLICABLE, PRIORITY_MOBILE_FULL, PRIORITY_MOBILE_BOTTOM_HALF, PRIORITY_MOBILE_BOTTOM_THIRD, PRIORITY_DESKTOP_MD, PRIORITY_DESKTOP_LG, PRIORITY_DESKTOP_XL, PRIORITY_DESKTOP_XXL, XS }
+
+type StateT = {
     width: str,
     height: str,
     top: str,
     left: str,
     margin_left: str,
-    pinto: str,
-    closebtn: bool,
-    showheader: bool,
-    view: ViewT,
-    background: BackgroundT,
-    wrapper: WrapperT,
+    shape: ShapeE,
+    /*pinto: str,*/
+    show_closebtn: bool,
+    show_header: bool,
+    is_mobile_centric: bool,
 }
+
+type ModelT = {
+    prop: num
+}
+
+
 
 
 let distcss = `{--distcss--}`;
 
 
+
+
 class COl extends HTMLElement {
 
-    shadow:ShadowRoot
+    s:StateT
+    m:ModelT
+
     $:any
-    s:State
+
     wrapperAnimation!:Animation|null
     backgroundAnimation!:Animation|null
     viewAnimation!:Animation|null
+    viewheaderAnimation!:Animation|null
     sheet:CSSStyleSheet
+    shadow:ShadowRoot
 
 
 
@@ -68,17 +69,17 @@ class COl extends HTMLElement {
             top: "",
             left: "",
             margin_left: "",
-            pinto: "",
-            closebtn: false,
-            showheader: false,
-            view: {animate:true},
-            background: {opacity:0.75, blur:4},
-            wrapper: {animation:"fadeup"}
+            shape: ShapeE.PRIORITY_MOBILE_FULL,
+            /*pinto: "",*/
+            show_closebtn: false,
+            show_header: false,
+            is_mobile_centric: false,
         }
 
         this.$ = this.querySelector
 
         this.shadow = this.attachShadow({mode: 'open'});
+
 
         SetDistCSS(this.shadow, distcss)
     }
@@ -88,13 +89,8 @@ class COl extends HTMLElement {
 
     connectedCallback() {   
 
-        this.s.closebtn = this.getAttribute("closebtn") === "true" ? true : false
-        this.s.showheader = this.getAttribute("showheader") === "true" ? true : false
-
-        const { view, background, wrapper } = get_params(this.s.view, this.s.background, this.s.wrapper, this.getAttribute("view")!, this.getAttribute("background")!, this.getAttribute("wrapper")!)
-        this.s.view = view
-        this.s.background = background
-        this.s.wrapper = wrapper
+        this.s.show_closebtn = this.getAttribute("closebtn") === "true" ? true : false
+        this.s.show_header = this.getAttribute("showheader") === "true" ? true : false
 
         const child = this.firstElementChild as HTMLElement
 
@@ -102,9 +98,8 @@ class COl extends HTMLElement {
             this.close()
         })
 
-        this.stateChanged()
+        this.sc()
 
-        this.setup_animations_etc(this.s.view, this.s.background, this.s.wrapper)
 
         if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
             child.addEventListener("hydrated", continue_to_open.bind(this))
@@ -112,7 +107,21 @@ class COl extends HTMLElement {
             continue_to_open.bind(this)()
         }
 
-        this.wrapperAnimation!.addEventListener("finish", ()=> {
+
+
+        function continue_to_open() {
+            this.setup_pos_size_etc()
+            this.setup_dom()
+            this.setup_animations_etc()
+
+            this.wrapperAnimation!.addEventListener("finish", animate_finished.bind(this))
+
+            this.sc()
+            this.setAttribute("opening", "true")
+            animate_in(this.backgroundAnimation, this.viewAnimation, this.viewheaderAnimation, this.wrapperAnimation)
+        }
+
+        function animate_finished() {
             if (this.wrapperAnimation!.playbackRate === -1) {
                 this.removeAttribute("closing")
                 this.removeAttribute("opened")
@@ -123,14 +132,6 @@ class COl extends HTMLElement {
                 this.removeAttribute("closed")
                 this.setAttribute("opened", "true")
             }
-        })
-
-
-        function continue_to_open() {
-            this.setup_pos_size_etc()
-            this.stateChanged()
-            this.setAttribute("opening", "true")
-            animate_in(this.backgroundAnimation, this.viewAnimation, this.wrapperAnimation, this.s.view.animate)
         }
     }
 
@@ -146,65 +147,36 @@ class COl extends HTMLElement {
 
 
 
-    stateChanged() {   Lit_Render(this.template(this.s), this.shadow);   }
+    sc() {   Lit_Render(this.template(this.s, this.m), this.shadow);   }
 
 
 
 
     close() {
         this.setAttribute("closing", "true")
-        animate_out(this.backgroundAnimation!, this.viewAnimation!, this.wrapperAnimation!, this.s.view.animate)
+        animate_out(this.backgroundAnimation!, this.viewAnimation!, this.viewheaderAnimation!, this.wrapperAnimation!)
     }
 
 
 
-    setup_animations_etc(view:ViewT, background:BackgroundT, wrapper:WrapperT) {
+    setup_animations_etc() {
 
-        let elW = this.shadow.querySelector(".wrapper")!
-        let elB = this.shadow.querySelector(".backgroundcover") as HTMLElement
-        let elC = document.querySelector("#views .view")!.shadowRoot!.querySelector(".content") as HTMLElement
+        let elW  = this.shadow.querySelector(".wrapper")!
+        let elB  = this.shadow.querySelector(".backgroundcover") as HTMLElement
+        let elC  = document.querySelector("#views .view")!.shadowRoot!.querySelector(".content") as HTMLElement
+        let elCH = document.querySelector("#views .view")!.shadowRoot!.querySelector("header") as HTMLElement
 
-        elB.style.backdropFilter = `blur(${background.blur}px)`
-        //@ts-ignore
-        elB.style.webkitBackdropFilter = `blur(${background.blur}px)`
 
-        const anim0 = [
-          {transform: "scale(1) translate3d(0, 0px, 0)"},
-          {transform: "scale(1) translate3d(0, 0px, 0)"},
-        ]
-        const timing0 = {
-          duration: 270,
-          easing: "cubic-bezier(0.69, 0, 0.29, 1)",
-          fill: "both",
-          iterations: 1,
-        }
-        const anim1 = [
-          {opacity: '0'},
-          {opacity: '1'}
-        ]
-        const timing1 = {
-          duration: 270,
-          easing: "cubic-bezier(0.69, 0, 0.29, 1)",
-          fill: "both",
-          iterations: 1,
-        }
-        const timing2 = {
-          duration: 270,
-          easing: "cubic-bezier(0.69, 0, 0.29, 1)",
-          fill: "both",
-          iterations: 1,
-
-        }
-
-        this.backgroundAnimation = elB.animate(anim1, timing1 as any)
+        this.backgroundAnimation = elB.animate(ol_animations.get("background_fade_in")!, ol_timings.get("mobile_a") as any)
         this.backgroundAnimation.pause()
 
-        if (view.animate) {
-            this.viewAnimation = elC.animate(anim0, timing0 as any)
-            this.viewAnimation.pause()
-        }
+        this.viewAnimation = elC.animate(ol_animations.get(`${this.s.is_mobile_centric ? 'mobile' : 'desktop'}_view_slide_down`)!, ol_timings.get("mobile_a") as any)
+        this.viewAnimation.pause()
 
-        this.wrapperAnimation = elW.animate(animations.get(wrapper.animation) as Keyframe[], timing2 as any)
+        this.viewheaderAnimation = elCH.animate(ol_animations.get(`${this.s.is_mobile_centric ? 'mobile' : 'desktop'}_view_slide_down`)!, ol_timings.get("mobile_a") as any)
+        this.viewheaderAnimation.pause()
+
+        this.wrapperAnimation = elW.animate(ol_animations.get(`${this.s.is_mobile_centric ? 'mobile' : 'desktop'}_wrapper_fade_up`)!, ol_timings.get("mobile_a") as any)
         this.wrapperAnimation.pause()
     }
 
@@ -212,57 +184,57 @@ class COl extends HTMLElement {
 
     setup_pos_size_etc() {
 
-        const width = this.getAttribute("width") || "md"
-        const height = this.getAttribute("height") || "md"
+        const ww = window.innerWidth
+        //const hh = window.innerHeight
+
+        const pb = this.getAttribute("shape") || "0"
+        const pw = this.getAttribute("width") || "0"
+        const ph = this.getAttribute("height") || "0"
+        const pt = this.getAttribute("top") || "0"
+        const pl = this.getAttribute("left") || "0"
+        /*
+        const pp = this.getAttribute("pinto") || ""
+        const ps = this.getAttribute("pinposition") || ""
+        const pa = this.getAttribute("pintoalign") || ""
+        */
+
+        const shape:ShapeE = Number(pb) || ShapeE.PRIORITY_MOBILE_FULL
+        let width = Number(pw)
+        let height = Number(ph)
         let width_num = 0
         let height_num = 0
-        const top = this.getAttribute("top") || "34"
-        const left = this.getAttribute("left")
-        const pinto = this.getAttribute("pinto")
-        const position = this.getAttribute("pintoposition")
-        const align = this.getAttribute("pintoalign")!
+        let top = Number(pt)
+        let left = Number(pl)
+        /*
+        let pinto_query_str = pp
+        let pinto_el:HTMLElement|null = null
+        let position = ps
+        let align = pa
+        */
 
-        if (Number(width) > 0) {
-            this.s.width = Number(width) + 'px'
-            width_num = Number(width)
-        } else {
-            switch (width) {
-                case "xxl": this.s.width = 860+'px'; width_num = 860; break;
-                case "xl":  this.s.width = 700+'px'; width_num = 700; break;
-                case "lg":  this.s.width = 600+'px'; width_num = 600; break;
-                case "md":  this.s.width = 480+'px'; width_num = 480; break;
-                case "sm":  this.s.width = 380+'px'; width_num = 380; break;
-                case "xs":  this.s.width = 280+'px'; width_num = 280; break;
+        const DESKTOP_DEFAULT_WIDTH = 480
+        const DESKTOP_TO_MOBILE_DOWNSIZE_WIDTH = 390
+        const DESKTOP_DEFAULT_HEIGHT = 800
+        const DESKTOP_DEFAULT_TOP = 34
+
+        const MOBILE_DEFAULT_HALF_HEIGHT = 400
+        const MOBILE_DEFAULT_THIRD_HEIGHT = 200
+
+        if (width > 0) {
+
+            if (ww < DESKTOP_DEFAULT_WIDTH) {
+                width = 0
+                height = 0
             }
-        }
 
-        if (Number(height) > 0) {
-            this.s.height = Number(height) + 'px'
-            height_num = Number(height)
-        } 
-        else {
-            if (Number(height) > 0) {
-                this.s.height = Number(height) + 'px'
-            } else {
-                if (height === "full") {
-                    if (window.innerHeight < 850) {
-                        this.s.height = `calc(100% - 34px - 10px)`; height_num = window.innerHeight - 44;
-                    } else {
-                        this.s.height = `800px`;
-                    }
-                } else {
-                    switch (height) {
-                        case "xl":   this.s.height = 140+'px'; height_num = 140; break;
-                        case "lg":   this.s.height = 200+'px'; height_num = 200; break;
-                        case "md":   this.s.height = 300+'px'; height_num = 300; break;
-                        case "sm":   this.s.height = 450+'px'; height_num = 450; break;
-                        case "xs":   this.s.height = 550+'px'; height_num = 550; break;
-                    }
-                }
+            else {
+                width = Number(pw)
+                height = height || DESKTOP_DEFAULT_HEIGHT
             }
-        }
 
-        if (pinto) {
+
+        /*
+        } else if (pinto_query_str) {
 
             const rn = this.getRootNode() as ShadowRoot
 
@@ -271,9 +243,8 @@ class COl extends HTMLElement {
                 return
             }
 
-            this.s.pinto = pinto
-            const pintoel = rn.querySelector(this.s.pinto) as HTMLElement
-            const rect = pintoel.getBoundingClientRect()
+            pinto_el = rn.querySelector(this.s.pinto) as HTMLElement
+            const rect = pinto_el.getBoundingClientRect()
 
             if (position) {
 
@@ -283,37 +254,121 @@ class COl extends HTMLElement {
                 const aligntopdif = a[1] === 'bottom' ? -height_num : 0
 
                 if (p[0] === "left") {
-                    this.s.left = (rect.left + alignleftdif + (Number(left) || 0)) + 'px'
+                    left = (rect.left + alignleftdif + (Number(left) || 0))
                 }
                 if (p[0] === "right") {
-                    this.s.left = (rect.right + alignleftdif + (Number(left) || 0)) + 'px'
+                    left = (rect.right + alignleftdif + (Number(left) || 0))
                 }
                 if (p[1] === "top") {
-                    this.s.top = (rect.top + aligntopdif + (Number(top) || 0)) + 'px'
+                    top = (rect.top + aligntopdif + (Number(top) || 0))
                 }
                 if (p[1] === "bottom") {
-                    this.s.top = (rect.bottom + aligntopdif + (Number(top) || 0)) + 'px'
+                    top = (rect.bottom + aligntopdif + (Number(top) || 0))
                 }
             } else {
-                this.s.left = rect.left + 'px'
-                this.s.top = rect.bottom + 'px'
+                left = rect.left
+                top = rect.bottom
             }
 
-        } 
+        }
+        */
 
-        if (!this.s.left) {
-            this.s.left = '50%'
-            this.s.margin_left = '-'+(Number(this.s.width.replace("px", ""))/2)+'px'
+        } else if (shape === ShapeE.PRIORITY_MOBILE_FULL || shape === ShapeE.PRIORITY_MOBILE_BOTTOM_HALF || shape === ShapeE.PRIORITY_MOBILE_BOTTOM_THIRD) {
+
+            if (ww < DESKTOP_DEFAULT_WIDTH) {
+
+                width = 0
+
+                if (shape === ShapeE.PRIORITY_MOBILE_FULL) {
+                    height = 0
+                } else if (shape === ShapeE.PRIORITY_MOBILE_BOTTOM_HALF) {
+                    height = MOBILE_DEFAULT_HALF_HEIGHT
+                } else if (shape === ShapeE.PRIORITY_MOBILE_BOTTOM_THIRD) {
+                    height = MOBILE_DEFAULT_THIRD_HEIGHT
+                }
+
+            } else {
+                width = DESKTOP_TO_MOBILE_DOWNSIZE_WIDTH
+                height = DESKTOP_DEFAULT_HEIGHT
+            }
         }
 
-        if (!this.s.top) {
-            this.s.top = top ? top + 'px' : '10%'
+        else if (shape === ShapeE.PRIORITY_DESKTOP_MD || shape === ShapeE.PRIORITY_DESKTOP_LG || shape === ShapeE.PRIORITY_DESKTOP_XL || shape === ShapeE.PRIORITY_DESKTOP_XXL) {
+
+            if (ww < DESKTOP_DEFAULT_WIDTH) {
+                width = 0
+                height = 0
+            } 
+
+            else {
+
+                if (shape === ShapeE.PRIORITY_DESKTOP_MD) {
+                    width = DESKTOP_DEFAULT_WIDTH
+                    height = DESKTOP_DEFAULT_HEIGHT
+                }
+
+                else if (shape === ShapeE.PRIORITY_DESKTOP_LG) {
+                    width = 640
+                    height = 1000
+                }
+
+                else if (shape === ShapeE.PRIORITY_DESKTOP_XL) {
+                    width = 800
+                    height = 1200
+                }
+
+                else if (shape === ShapeE.PRIORITY_DESKTOP_XXL) {
+                    width = 1024
+                    height = 1400
+                }
+            }
         }
+
+        else if (shape === ShapeE.XS) {
+            width = 280
+            height = 550
+        }
+
+
+        if (width === 0) {
+            this.s.width = "100%"
+            this.s.left = '0'
+        } else {
+            this.s.width = width + 'px'
+            
+            this.s.left = left ? left + 'px' : '50%'
+            this.s.margin_left = '-' + width/2 + 'px'
+        }
+
+        if (height === 0) {
+            this.s.height = "100%"
+            this.s.top = '0'
+        } else {
+            this.s.height = height + 'px'
+            this.s.top = top ? top + 'px' : DESKTOP_DEFAULT_TOP + 'px'
+        }
+
+        this.s.is_mobile_centric = ww < DESKTOP_DEFAULT_WIDTH ? true : false
     }
 
 
 
-    template = (_s:State) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+
+    setup_dom() {
+
+        const wrapper_el = this.shadow.querySelector(".wrapper") as HTMLElement
+
+        wrapper_el.style.width = this.s.width
+        wrapper_el.style.height = this.s.height
+        wrapper_el.style.top = this.s.top
+        wrapper_el.style.left = this.s.left
+        wrapper_el.style.marginLeft = this.s.margin_left
+    }
+
+
+
+
+    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
 }
 
 
@@ -324,29 +379,34 @@ customElements.define('c-ol', COl);
 
 
 
-function animate_in(backgroundAnimation:Animation, viewAnimation:Animation, wrapperAnimation:Animation, showviewAnimation:bool) {
+function animate_in(backgroundAnimation:Animation, viewAnimation:Animation, viewheaderAnimation:Animation, wrapperAnimation:Animation) {
 
     backgroundAnimation!.playbackRate = 1
     backgroundAnimation!.currentTime = 0
     backgroundAnimation!.play()
 
-    if (showviewAnimation) {
-        viewAnimation!.playbackRate = 1
-        viewAnimation!.currentTime = 0
-        viewAnimation!.play()
-    }
+    viewAnimation!.playbackRate = 1
+    viewAnimation!.currentTime = 0
+    viewAnimation!.play()
+
+    viewheaderAnimation!.playbackRate = 1
+    viewheaderAnimation!.currentTime = 0
+    viewheaderAnimation!.play()
 
     wrapperAnimation!.playbackRate = 1
     wrapperAnimation!.currentTime = 0
     wrapperAnimation!.play()
 }
 
-function animate_out(backgroundAnimation:Animation, viewAnimation:Animation, wrapperAnimation:Animation, showviewAnimation:bool) {
+
+
+
+function animate_out(backgroundAnimation:Animation, viewAnimation:Animation, viewheaderAnimation:Animation, wrapperAnimation:Animation) {
 
     backgroundAnimation!.reverse()
 
-    if (showviewAnimation)
-        viewAnimation!.reverse()
+    viewAnimation!.reverse()
+    viewheaderAnimation!.reverse()
 
     wrapperAnimation!.reverse()
 }
@@ -354,21 +414,20 @@ function animate_out(backgroundAnimation:Animation, viewAnimation:Animation, wra
 
 
 
-function get_params(view:ViewT, background:BackgroundT, wrapper:WrapperT, view_str:str, background_str:str, wrapper_str:str) : { view:ViewT, background:BackgroundT, wrapper:WrapperT } {
+/*
+function get_params(background:BackgroundT, wrapper:WrapperT, view_str:str, background_str:str, wrapper_str:str) : { background:BackgroundT, wrapper:WrapperT } {
 
     view_str = view_str || ""
     background_str = background_str || ""
     wrapper_str = wrapper_str || ""
 
-    const view_return = view
     const background_return = background
     const wrapper_return = wrapper
 
-    runit(view_str.split(","), view_return)
     runit(background_str.split(","), background_return)
     runit(wrapper_str.split(","), wrapper_return)
 
-    return { view:view_return, background:background_return, wrapper:wrapper_return } 
+    return { background:background_return, wrapper:wrapper_return } 
 
     
     function runit(s:str[], o:any) {
@@ -388,21 +447,57 @@ function get_params(view:ViewT, background:BackgroundT, wrapper:WrapperT, view_s
         })
     }
 }
+*/
 
 
 
 
-const animations = new Map<str, Array<any>>()
+const ol_animations = new Map<str, Array<any>>()
 
-animations.set("fadeup", [
-    {opacity: '0', transform: `translate3d(0, 14px, 0)`},
+ol_animations.set("mobile_wrapper_fade_up", [
+    {opacity: '0', transform: `translate3d(0, 44px, 0)`},
     {opacity: '1', transform: "translate3d(0, 0, 0)"}
 ])
 
-animations.set("faderight", [
-    {opacity: '0', transform: `translate3d(-20px, 0, 0) scale(1.10)`},
-    {opacity: '1', transform: "translate3d(0, 0, 0) scale(1)"}
+ol_animations.set("desktop_wrapper_fade_up", [
+    {opacity: '0', transform: `translate3d(0, 19px, 0)`},
+    {opacity: '1', transform: "translate3d(0, 0, 0)"}
 ])
+
+ol_animations.set("mobile_view_slide_down", [
+    {transform: `scale(1) translate3d(0, 0px, 0)`},
+    {transform: "scale(0.9) translate3d(0, 28px, 0)"}
+])
+
+ol_animations.set("desktop_view_slide_down", [
+    {transform: `scale(1) translate3d(0, 0px, 0)`},
+    {transform: "scale(0.97) translate3d(0, 15px, 0)"}
+])
+
+ol_animations.set("background_fade_in", [
+    {opacity: `0`},
+    {opacity: "1"}
+])
+
+const ol_timings = new Map<str, any>()
+
+ol_timings.set("mobile_a", {
+    duration: 500,
+    easing: "cubic-bezier(0.69, 0, 0.29, 1)",
+    fill: "both",
+    iterations: 1,
+})
+
+ol_timings.set("dekstop_a", {
+    duration: 500,
+    easing: "cubic-bezier(0.69, 0, 0.29, 1)",
+    fill: "both",
+    iterations: 1,
+})
+
+
+
+
 
 export {  }
 

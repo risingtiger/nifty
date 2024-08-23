@@ -1,6 +1,197 @@
 
 
 :host {
+    display: flex;
+    flex-direction: row;
+    position: relative;
+    box-sizing: border-box;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    text-indent: 0;
+}
+:host(.row) {
+    padding-left: 11px;
+    height: 52px;
+    border-bottom-width: 0.5px;
+    border-bottom-style: solid;
+    border-bottom-color: var(--bordercolor);
+    padding-right: 8px;
+}
+:host(.inline) {
+    height: 35px;
 }
 
 
+:host > label {
+    overflow: hidden;
+    text-wrap: nowrap;
+    margin-right: 6px;
+    font-weight: 700;
+    color: rgb(190 56 151);
+}
+:host(.row) > label {
+    padding: 18px 0 0 0px;
+}
+:host(.inline) > label {
+    padding-right: 12px;
+}
+:host > label::after {
+    content: ":";
+}
+
+
+:host > section {
+    position: relative;
+    flex: 1;
+}
+
+
+:host > section > #view {
+    display: flex;
+    width: 100%;
+    justify-content: flex-end;
+
+    & > p {
+        padding-right: 5px;
+    }
+
+    & > i {
+        font-size: 20px;
+        padding: 0px 0px 0 0;
+        color: var(--actioncolor);
+    }
+}
+:host > section > #view.initial_edit {
+    border: 1px solid #cecece;
+    border-radius: 4px;
+    padding-right: 6px;
+    width: calc(100% - 7px);
+    height: 23px;
+
+    & > i {
+        font-size: 13px;
+        display: inline-block;
+        padding-top: 1px;
+        padding-right: 3px;
+        transform: rotate(90deg);
+        transition: opacity 0.3s;
+    } 
+}
+:host(.row) > section > #view {
+    margin-top: 10px;
+    padding-top: 8px;
+}
+
+
+:host > section > #edit {
+    display: flex;
+    justify-content: flex-end;
+    position: absolute;
+    width: 100%;
+
+    & > input {
+        font-size: 14px;
+        box-sizing: border-box;
+        outline: none;
+        border: 1px solid #cecece;
+        border-radius: 4px;
+        padding: 7px 5px 8px 5px;
+        color: #6d6d6d;
+        display: inline-block;
+        margin-top: 0;
+        flex: 1;
+        width: 100%;
+    }
+
+    & > c-dselect {
+        display: block;
+        width: 100%;
+    }
+
+    & > i {
+        padding-left: 11px;
+        padding-top: 8px;
+        color: var(--actioncolor);
+        font-weight: 500;
+        transition: opacity 0.3s;
+    } & > i.hide_while_spinner {
+        opacity: 0;
+    }
+
+    & > c-animeffect {
+        position: absolute;
+        opacity: 0;
+        top: 8px;
+        right: 0;
+        width: 18px;
+        height: 18px;
+    }
+    & > c-animeffect.active {
+        opacity: 1;
+    }
+
+    & > c-dselect + c-animeffect {
+        top: 8px;
+        right: 5px;
+        width: 18px;
+        height: 18px;
+    }
+}
+:host(.row) > section > #edit {
+    top: 9px;
+}
+:host(.inline) > section > #edit {
+    top: -7px;
+}
+
+
+
+:host span.switch {
+    position: relative;
+    display: inline-block;
+    border-width: 1px;
+    border-color: rgb(0 0 0 / 16%);
+    border-style: solid;
+    border-radius: 52px;
+    background-color: #fff;
+    width: 30px;
+    height: 18px;
+    user-select: none;
+    transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
+    transition-property: background-color, border-color;
+
+    & > .inner {
+        position: relative;
+        display: block;
+        width: 14px;
+        height: 14px;
+        margin-top: 2px;
+        border-radius: 50%;
+        background-color: #D9DADC;
+        user-select: none;
+        transform: translateX(2px);
+        transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
+        transition-property: background-color, transform;
+    }
+
+    & > c-animeffect {
+        position: absolute;
+        top: 2px;
+        left: 3px;
+        width: 13px;
+        height: 13px;
+        /* padding-top: 8px; */
+    }
+}
+:host span.switch.istrue {
+    border-color: rgba(255, 255, 255, 0.0);
+    background-color: #36cf90;
+
+    & > .inner {
+        background-color: white;
+        transform: translateX(14px);
+    }
+}
+:host(.row) span.switch {
+    margin-top: 6px;
+}

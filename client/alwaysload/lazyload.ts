@@ -119,8 +119,14 @@ function get_filepath(type:str, name:str, instance:str|null) {
         case "thirdparty":
             path += `thirdparty/${name}${appversion_str}.js`
             break;
+        case "workers":
+            path += `lazy/workers/${name}${appversion_str}.js`
+            break;
         case "lib":
-            path += `lazy/lib/${name}${appversion_str}.js`
+            path += `lazy/libs/${name}${appversion_str}.js`
+            break;
+        case "directive":
+            path += `lazy/directives/${name}${appversion_str}.js`
             break;
     }
 
@@ -137,7 +143,7 @@ function throwup_and_leave(fpath:str) {
     console.info(`/?errmsg=${errmsg}`)
 
     if (!window.location.href.includes("localhost")) {
-        window.location.href = `/?errmsg=${errmsg}`
+        //window.location.href = `/?errmsg=${errmsg}`
     }
 }
 
@@ -149,12 +155,14 @@ function ticktock() {
     setTimeout(()=> {
         console.log("ticktock 50ms")
 
+        const xel = document.getElementById("lazyload_overlay")!
+
         if (loadstart_ts > 0) {
 
             const now = Date.now()
 
-            document.getElementById("loadviewoverlay")!.classList.add("active")
-            document.getElementById("waiting_animate")!.classList.add("active")
+            xel.classList.add("active")
+            xel.querySelector(".waiting_animate")!.classList.add("active")
 
             const istimedout = now - loadstart_ts > TIMEOUT_TS
 
@@ -164,10 +172,10 @@ function ticktock() {
                 ticktock()
             }
         } else {
-            document.getElementById("loadviewoverlay")!.classList.remove("active")
-            document.getElementById("waiting_animate")!.classList.remove("active")
+            xel.classList.remove("active")
+            xel.querySelector(".waiting_animate")!.classList.remove("active")
         }
-    }, 350)
+    }, 30)
 }
 
 

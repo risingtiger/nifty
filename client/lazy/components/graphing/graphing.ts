@@ -1,9 +1,6 @@
 
 
-type int = number
-type bool = boolean
-type str = string
-
+import { str, num, bool } from "../../../definitions.js";
 
 declare var Chartist_LineChart: any;
 declare var Chartist_BarChart: any;
@@ -13,7 +10,19 @@ declare var Lit_Html: any;
 declare var SetDistCSS: any;
 
 
-type State = {
+
+
+type SeriesT = { 
+    field: str,
+    tag: {name:str, val:str}
+    prior: { amount:num, unit:str }|null
+    points: {   
+        val: num, 
+        date: Date 
+    }[]
+}
+
+type StateT = {
     bucket: str, // what influxdb  measurement. ex. PSI
     msr: str, // what influxdb  measurement. ex. PSI
     fields: str, // what influxdb fields in specified measurement to show. ex. City psi and/or After Filter Psi
@@ -25,33 +34,33 @@ type State = {
     ismdn: bool, // startAtMidnight -- should graph be positioned where the left most x on the x axis is midnight of current day
     lowhigh: str, // low and high values for y axis. ex. 0,100
     unitterms: str, // ex gals or psi
-    begin: int, // point in time at which graph starts. if ismdn=true, this will be at midnight of local time
+    begin: num, // point in time at which graph starts. if ismdn=true, this will be at midnight of local time
     tmzncy: str, // time zone city , used to show time in whatever time zone chosen 
 }
 
-type Series = { 
-    field: str,
-    tag: {name:str, val:str}
-    prior: { amount:int, unit:str }|null
-    points: {   
-        val: int, 
-        date: Date 
-    }[]
+type ModelT = {
+    prop: str,
 }
+
+
 
 
 let distcss = `{--distcss--}`;
 
 
+
+
 class CGraphing extends HTMLElement {
 
-s:State
-shadow:ShadowRoot
+    s:StateT
+    m:ModelT
+
+    shadow:ShadowRoot
 
 
 
 
-static get observedAttributes() { return ['runupdate']; }
+    static get observedAttributes() { return ['runupdate']; }
 
 
 
@@ -83,27 +92,27 @@ static get observedAttributes() { return ['runupdate']; }
 
 
 
-    async attributeChangedCallback(name:str, oldValue:str|bool|int, newValue:str|bool|int) {
+    async attributeChangedCallback(name:str, oldValue:str|bool|num, newValue:str|bool|num) {
 
         if ( name === "runupdate" && newValue !== oldValue) {
             setTimeout(async ()=>{
                 this.s.bucket = this.getAttribute("bucket") as str
                 this.s.msr = this.getAttribute("measurement") as str
-                this.s.fields = this.getAttribute("fields")
-                this.s.tags = this.getAttribute("tags")
-                this.s.type = this.getAttribute("type")
+                this.s.fields = this.getAttribute("fields")!
+                this.s.tags = this.getAttribute("tags")!
+                this.s.type = this.getAttribute("type")!
                 this.s.intrv = Number(this.getAttribute("intrv"))
                 this.s.ppf = Number(this.getAttribute("ppf"))
-                this.s.priors = this.getAttribute("priors")
+                this.s.priors = this.getAttribute("priors")!
                 this.s.ismdn = this.getAttribute("ismdn") === "true" 
-                this.s.lowhigh = this.getAttribute("lowhigh") 
-                this.s.unitterms = this.getAttribute("unitterms") 
+                this.s.lowhigh = this.getAttribute("lowhigh")! 
+                this.s.unitterms = this.getAttribute("unitterms")! 
                 this.s.begin = Number(this.getAttribute("begintime")) 
                 this.s.tmzncy = this.getAttribute("tmzncy")!
 
                 const end = this.s.ismdn ? ( this.s.begin + 86400 ) : this.s.begin + (this.s.intrv * this.s.ppf)
 
-                this.stateChanged();
+                this.sc();
 
                 // lets take an example. Say, at 2:03am the machine records 10 gallons and then again at 2:46am records 20 gallons. 
                 //   The machine stores those records and then sums them at 3:00am. So now the telemetry's timestamp at 3:00am will show 30 gallons. 
@@ -134,7 +143,7 @@ static get observedAttributes() { return ['runupdate']; }
 
                 render_graph_frame(this.shadow.querySelector('.ct-chart')!, this.s.type, queries_list[0], this.s.lowhigh, this.s.unitterms)
 
-                this.stateChanged();
+                this.sc();
 
                 this.dispatchEvent(new Event('hydrated'))
             }, 10)
@@ -144,12 +153,12 @@ static get observedAttributes() { return ['runupdate']; }
 
 
 
-    stateChanged() {   Lit_Render(this.template(this.s), this.shadow);   }
+    sc() {   Lit_Render(this.template(this.s, this.m), this.shadow);   }
 
 
 
 
-    template = (_s:State) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
 }
 
 
@@ -160,16 +169,12 @@ customElements.define('c-graphing', CGraphing);
 
 
 
-
-
-
-
-function render_graph_frame(el:HTMLElement, type:str, series_list:Series[], y_lowhigh:str, unitterms:str) : any {
+function render_graph_frame(el:HTMLElement, type:str, series_list:SeriesT[], y_lowhigh:str, unitterms:str) : any {
 
     const ylow = Number(y_lowhigh.split(",")[0])
     const yhigh = Number(y_lowhigh.split(",")[1])
-    let data:{labels:int[], series:any[]} = { labels:[], series:[] }
-    let x_rangeticks:int[] = []
+    let data:{labels:num[], series:any[]} = { labels:[], series:[] }
+    let x_rangeticks:num[] = []
     let x_disp_str:str[]   = []
 
     data = render_graph_frame___series_to_chartist_data(series_list)
@@ -190,9 +195,9 @@ function render_graph_frame(el:HTMLElement, type:str, series_list:Series[], y_lo
 
 
 
-function render_graph_frame___get_x_disp_str(point_dates:Date[], _ticks_count:int) {
+function render_graph_frame___get_x_disp_str(point_dates:Date[], _ticks_count:num) {
 
-    const x_disp_str = []
+    const x_disp_str:str[] = []
 
     point_dates.forEach((d, _index)=> {
 
@@ -217,7 +222,7 @@ function render_graph_frame___get_x_disp_str(point_dates:Date[], _ticks_count:in
 
 
 
-function render_graph_frame___series_to_chartist_data(s:Series[]) {
+function render_graph_frame___series_to_chartist_data(s:SeriesT[]) {
 
     const labels = s[0].points.map((p)=> Math.floor(p.date.getTime()/1000))
 
@@ -229,7 +234,7 @@ function render_graph_frame___series_to_chartist_data(s:Series[]) {
 
 
 
-function render_graph_frame___set_common_opts(x_disp_str:str[], yl:int, yh:int, ut:str) {
+function render_graph_frame___set_common_opts(x_disp_str:str[], yl:num, yh:num, ut:str) {
 
     const short_hand_unit_term = ut.split(",")[1]
     
@@ -244,7 +249,7 @@ function render_graph_frame___set_common_opts(x_disp_str:str[], yl:int, yh:int, 
             low: yl,
             high: yh,
             divisor: 10,
-            labelInterpolationFnc: (val:int, _indx:int) => {
+            labelInterpolationFnc: (val:num, _indx:num) => {
                 return `${val}${short_hand_unit_term}`
             }
         },
