@@ -2,183 +2,183 @@
 // -- ---------------------------------------
 
 import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_AddRoute } from './alwaysload/switchstation.js';
-import  './thirdparty/lit-html.js';
-import  './alwaysload/fetchlassie.js';
-import  './alwaysload/firestore.js';
+import './thirdparty/lit-html.js';
+import './alwaysload/fetchlassie.js';
+import './alwaysload/firestore.js';
 import FirestoreLiveM from './alwaysload/firestore_live.js';
-import  './alwaysload/influxdb.js';
-import  LazyLoadM from './alwaysload/lazyload.js';
-import  SSEventsM from './alwaysload/sse.js';
-import  EngagementListenM from './alwaysload/engagementlisten.js';
-import  IndexedDBM from './alwaysload/indexeddb.js';
+import './alwaysload/influxdb.js';
+import LazyLoadM from './alwaysload/lazyload.js';
+import SSEventsM from './alwaysload/sse.js';
+import EngagementListenM from './alwaysload/engagementlisten.js';
+import IndexedDBM from './alwaysload/indexeddb.js';
 
 import INSTANCE from './client_pwt/main_xtend.js'; // instance is swapped out on buildit set instance 
 
-import  { LazyLoadT } from "./definitions.js";
+import { LazyLoadT } from "./definitions.js";
 
 
 
 let _is_in_initial_view_load = true;
-let serviceworker_reg:ServiceWorkerRegistration;
+let serviceworker_reg: ServiceWorkerRegistration;
 
 
 
 
-const LAZYLOADS:LazyLoadT[] = [
+const LAZYLOADS: LazyLoadT[] = [
 
 
-    // VIEWS
+        // VIEWS
 
-    { 
-        type: "view", 
-        urlmatch: "^auth$", 
-        name: "auth", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
+        {
+                type: "view",
+                urlmatch: "^auth$",
+                name: "auth",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
 
-    { 
-        type: "view", 
-        urlmatch: "^notifications$", 
-        name: "notifications", 
-        instance: null,
-        dependencies:[
-            {type:"component", name: "ol"},
-        ], 
-        auth: ["admin", "store_manager", "scanner"] 
-    },
-
-
-    // COMPONENTS
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "graphing", 
-        instance: null,
-        dependencies:[{ type: "thirdparty", name: "chartist" }], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "ol", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "tl", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "reveal", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "form", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "dselect", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "in", 
-        instance: null,
-        dependencies:[
-            { type: "component", name: "animeffect" },
-            { type: "component", name: "dselect" }
-        ], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "animeffect", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "toast", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    { 
-        type: "component", 
-        urlmatch: null, 
-        name: "btn", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
-
-    // THIRDPARTY
-
-    { 
-        type: "thirdparty", 
-        urlmatch: null, 
-        name: "chartist", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
+        {
+                type: "view",
+                urlmatch: "^notifications$",
+                name: "notifications",
+                instance: null,
+                dependencies: [
+                        { type: "component", name: "ol" },
+                ],
+                auth: ["admin", "store_manager", "scanner"]
+        },
 
 
-    // LIBS
+        // COMPONENTS
 
-    { 
-        type: "lib", 
-        urlmatch: null, 
-        name: "testlib", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
+        {
+                type: "component",
+                urlmatch: null,
+                name: "graphing",
+                instance: null,
+                dependencies: [{ type: "thirdparty", name: "chartist" }],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "ol",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "tl",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "reveal",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "form",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "dselect",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "in",
+                instance: null,
+                dependencies: [
+                        { type: "component", name: "animeffect" },
+                        { type: "component", name: "dselect" }
+                ],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "animeffect",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "toast",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        {
+                type: "component",
+                urlmatch: null,
+                name: "btn",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+        // THIRDPARTY
+
+        {
+                type: "thirdparty",
+                urlmatch: null,
+                name: "chartist",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
 
 
-    // DIRECTIVES
+        // LIBS
 
-    { 
-        type: "directive", 
-        urlmatch: null, 
-        name: "animeio", 
-        instance: null,
-        dependencies:[], 
-        auth: [] 
-    },
+        {
+                type: "lib",
+                urlmatch: null,
+                name: "testlib",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
+
+
+        // DIRECTIVES
+
+        {
+                type: "directive",
+                urlmatch: null,
+                name: "animeio",
+                instance: null,
+                dependencies: [],
+                auth: []
+        },
 ];
 
 
@@ -206,77 +206,77 @@ setTimeout(___TEMP_trippendaisies, ___TEMP_TRIPPENDAISIES_TIMEOUT)
 
 window.addEventListener("load", async (_e) => {
 
-    const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
+        const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
 
-    const collections = INSTANCE.INFO.indexeddb_collections
+        const collections = INSTANCE.INFO.indexeddb_collections
 
-    IndexedDBM.Init(collections, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
-    FirestoreLiveM.Init()
-    EngagementListenM.Init()
-    LazyLoadM.Init(lazyloads)
+        IndexedDBM.Init(collections, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+        FirestoreLiveM.Init()
+        EngagementListenM.Init()
+        LazyLoadM.Init(lazyloads)
 
-    serviceworker_reg = await navigator.serviceWorker.register("/sw.js", {   scope: "/"   });
+        serviceworker_reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
 
-    localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
+        localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
 
-    lazyloads.filter(l=> l.type === "view").forEach(r=> SwitchStation_AddRoute(r))
+        lazyloads.filter(l => l.type === "view").forEach(r => SwitchStation_AddRoute(r))
 
-    if (window.location.href.includes("errmsg")) {
-        const errmsg = (window.location.href.match(/errmsg=(.+)/))![1]
+        if (window.location.href.includes("errmsg")) {
+                const errmsg = (window.location.href.match(/errmsg=(.+)/))![1]
 
-        const decoded = decodeURIComponent(errmsg)
+                const decoded = decodeURIComponent(errmsg)
 
-        confirm(decoded)
+                confirm(decoded)
 
-        window.location.href = (decoded.includes("Firestore Auth Error")) ? "/#auth" : "/"
-    }
-
-    else if (window.location.search.includes("update")) {
-        const params = new URLSearchParams(window.location.search)
-        const round = Number(params.get("update"))
-        update(round)
-    }
-
-    else {
-        SwitchStation_InitInterval(); 
-    }
-
-    /*
-    let mouseupanim:Animation|null = null 
-    document.addEventListener("mouseup", (e:any) => {
-
-        console.log("remember you have this bubble animate thing on click. but I want to make it a case by case basis")
-        //return false
-
-        const x = document.getElementById("click_visual")!
-        const y = x.querySelector(".clickybubble") as HTMLElement
-
-        x.style.left = (e.clientX - 20) + "px"
-        x.style.top = (e.clientY - 20) + "px"
-
-        x.classList.add("active")
-        x.offsetWidth
-
-        if (!mouseupanim) {
-            mouseupanim = y.animate(
-                [
-                    { opacity: 0, transform: 'scale(.5)' },
-                    { opacity: 1, transform: 'scale(1)' },
-                    { opacity: 0, transform: 'scale(.5)' }
-                ],
-                { duration: 600, easing: 'ease-out', fill: 'both', iterations: 1 }
-            )
-
-            mouseupanim.pause()
-
-            mouseupanim.addEventListener("finish", ()=> {
-                x.classList.remove("active")
-            })
+                window.location.href = (decoded.includes("Firestore Auth Error")) ? "/#auth" : "/"
         }
 
-        mouseupanim.play()
-    })
-    */
+        else if (window.location.search.includes("update")) {
+                const params = new URLSearchParams(window.location.search)
+                const round = Number(params.get("update"))
+                update(round)
+        }
+
+        else {
+                SwitchStation_InitInterval();
+        }
+
+        /*
+        let mouseupanim:Animation|null = null 
+        document.addEventListener("mouseup", (e:any) => {
+    
+            console.log("remember you have this bubble animate thing on click. but I want to make it a case by case basis")
+            //return false
+    
+            const x = document.getElementById("click_visual")!
+            const y = x.querySelector(".clickybubble") as HTMLElement
+    
+            x.style.left = (e.clientX - 20) + "px"
+            x.style.top = (e.clientY - 20) + "px"
+    
+            x.classList.add("active")
+            x.offsetWidth
+    
+            if (!mouseupanim) {
+                mouseupanim = y.animate(
+                    [
+                        { opacity: 0, transform: 'scale(.5)' },
+                        { opacity: 1, transform: 'scale(1)' },
+                        { opacity: 0, transform: 'scale(.5)' }
+                    ],
+                    { duration: 600, easing: 'ease-out', fill: 'both', iterations: 1 }
+                )
+    
+                mouseupanim.pause()
+    
+                mouseupanim.addEventListener("finish", ()=> {
+                    x.classList.remove("active")
+                })
+            }
+    
+            mouseupanim.play()
+        })
+        */
 })
 
 
@@ -284,95 +284,95 @@ window.addEventListener("load", async (_e) => {
 
 document.querySelector("#views")!.addEventListener("view_load_done", () => {
 
-    console.log("need to put check back in lazyload and error out if not loaded. pluddy dselect being a shite on production server. needs fixed")
+        console.log("need to put check back in lazyload and error out if not loaded. pluddy dselect being a shite on production server. needs fixed")
 
-    if (_is_in_initial_view_load) {
+        if (_is_in_initial_view_load) {
 
-        _is_in_initial_view_load = false;
+                _is_in_initial_view_load = false;
 
-        setTimeout(()=> {
+                setTimeout(() => {
 
-            serviceworker_reg.active!.postMessage({ command: "load_core" })
+                        serviceworker_reg.active!.postMessage({ command: "load_core" })
 
-            //SSEventsM.Init()
+                        //SSEventsM.Init()
 
-        }, 5000)
-    }
+                }, 5000)
+        }
 })
 
 
 
 
-async function update(round:int) {
+async function update(round: int) {
 
-    const origin = window.location.origin
-    const tohref = "http://www.yavada.com/bouncebacktopurewater?round="+round+"&origin="+origin
-    const wael = (document.querySelector("#updatevisual > .waiting_animate") as HTMLElement)
+        const origin = window.location.origin
+        const tohref = "http://www.yavada.com/bouncebacktopurewater?round=" + round + "&origin=" + origin
+        const wael = (document.querySelector("#updatevisual > .waiting_animate") as HTMLElement)
 
-    if (round===1) {
+        if (round === 1) {
 
-        document.getElementById("updatevisual")!.classList.add("active")
-        wael.classList.add("active");
-        wael.style.top = "250px";
+                document.getElementById("updatevisual")!.classList.add("active")
+                wael.classList.add("active");
+                wael.style.top = "250px";
 
-        const cache = await caches.open(`cacheV__${(window as any).APPVERSION}__`)
+                const cache = await caches.open(`cacheV__${(window as any).APPVERSION}__`)
 
-        await cache.delete("/")
+                await cache.delete("/")
 
-        let x = await caches.keys();
+                let x = await caches.keys();
 
-        x.forEach(async (c)=> {
-            await caches.delete(c);
-        })
+                x.forEach(async (c) => {
+                        await caches.delete(c);
+                })
 
-        await serviceworker_reg.update()
+                await serviceworker_reg.update()
 
-        setTimeout(()=> {
-            window.location.href = tohref
-        }, 1500)
-    }
+                setTimeout(() => {
+                        window.location.href = tohref
+                }, 1500)
+        }
 
-    else if (round===2) {
+        else if (round === 2) {
 
-        document.getElementById("updatevisual")!.classList.add("active")
-        wael.classList.add("active")
-        wael.style.top = "250px"
+                document.getElementById("updatevisual")!.classList.add("active")
+                wael.classList.add("active")
+                wael.style.top = "250px"
 
-        setTimeout(()=> {
-            window.location.href = tohref
-        }, 1500)
-    }
+                setTimeout(() => {
+                        window.location.href = tohref
+                }, 1500)
+        }
 
-    else if (round===3) {
+        else if (round === 3) {
 
-        document.getElementById("updatevisual")!.classList.add("active")
-        wael.classList.add("active")
-        wael.style.top = "250px"
+                document.getElementById("updatevisual")!.classList.add("active")
+                wael.classList.add("active")
+                wael.style.top = "250px"
 
-        setTimeout(()=> {
-            window.location.href = "/index.html"
-        }, 1500)
-    }
+                setTimeout(() => {
+                        window.location.href = "/index.html"
+                }, 1500)
+        }
 }
 
 
 
 
-function ToastShow(msg:string|null, level:string|null, duration:number|null) {
+function ToastShow(msg: string | null, level: string | null, duration: number | null) {
 
-    let toast_el = document.getElementById("maintoast")
+        let toast_el = document.getElementById("maintoast")
 
-    if (!toast_el) {
-        const htmlstr = `<c-toast id="maintoast" msg="" level="" duration=""></c-toast>`
-        document.body.insertAdjacentHTML("beforeend", htmlstr)
-        toast_el = document.getElementById("maintoast") as any
-    }
+        if (!toast_el) {
+                const htmlstr = `<c-toast id="maintoast" msg="" level="" duration=""></c-toast>`
+                document.body.insertAdjacentHTML("beforeend", htmlstr)
+                toast_el = document.getElementById("maintoast") as any
+        }
 
-    toast_el!.setAttribute("msg", msg || "")
-    toast_el!.setAttribute("level", level||'0')
-    toast_el!.setAttribute("duration", duration ? duration.toString() : '4500')
+        toast_el!.setAttribute("msg", msg || "")
+        toast_el!.setAttribute("level", level || '0')
+        toast_el!.setAttribute("duration", duration ? duration.toString() : '4500')
 
-    toast_el!.setAttribute("clink", "run")
+        toast_el!.setAttribute("clink", "run")
 }
 (window as any).ToastShow = ToastShow
 
