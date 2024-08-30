@@ -12,7 +12,8 @@ async function Send(messages:any[]) {
 
     const url = 'https://api.mailjet.com/v3.1/send';
     const username = "2269ce42acdd34698b46f64ac7c66bde";
-    const password = "3623762d3547135125bddda18c859875";
+
+    let password = process.env["MAILJET_PASS"]
 
     const auth = 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 

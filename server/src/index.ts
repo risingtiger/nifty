@@ -21,7 +21,6 @@ import { InfluxDB } from "./influxdb.js"
 import SSE from "./sse.js"
 import Notifications from "./notifications.js"
 import FileRequest from "./filerequest.js"
-import UpdateOnChange from "./update_onchange.js"
 
 import INSTANCE from './server_pwt/index_extend.js'
 
@@ -341,8 +340,6 @@ async function init() { return new Promise(async (res, _rej)=> {
 
         initializeApp({   credential: cert(INSTANCE.KEYJSONFILE)   })
         db = getFirestore();
-
-        UpdateOnChange.init()
     } 
 
     else { 
