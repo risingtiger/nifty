@@ -2,7 +2,9 @@
 // -- ---------------------------------------
 
 import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_AddRoute } from './alwaysload/switchstation.js';
+
 import './thirdparty/lit-html.js';
+
 import './alwaysload/fetchlassie.js';
 import './alwaysload/firestore.js';
 import FirestoreLiveM from './alwaysload/firestore_live.js';
@@ -15,6 +17,7 @@ import IndexedDBM from './alwaysload/indexeddb.js';
 import INSTANCE from './client_pwt/main_xtend.js'; // instance is swapped out on buildit set instance 
 
 import { LazyLoadT } from "./definitions.js";
+
 
 
 
@@ -112,7 +115,6 @@ const LAZYLOADS: LazyLoadT[] = [
                 name: "in",
                 instance: null,
                 dependencies: [
-                        { type: "component", name: "animeffect" },
                         { type: "component", name: "dselect" }
                 ],
                 auth: []
@@ -170,15 +172,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 
         // DIRECTIVES
-
-        {
-                type: "directive",
-                urlmatch: null,
-                name: "animeio",
-                instance: null,
-                dependencies: [],
-                auth: []
-        },
 ];
 
 

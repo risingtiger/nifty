@@ -205,6 +205,14 @@ class CIn extends HTMLElement {
 
 
 
+    trigger_changed(newval:any, oldval:any) {
+
+		this.dispatchEvent(new CustomEvent("changed", {detail: {newval, oldval}}))
+	}
+
+
+
+
     clicked(e:Event) {
 
         let allow_propagation = false
@@ -290,6 +298,7 @@ class CIn extends HTMLElement {
 
             this.els.switch.addEventListener("click", () => {
                 const newval = this.s.val === "true" ? "false" : "true"
+				this.trigger_changed(newval, this.s.val)
                 if (newval === "true") { this.els.switch!.classList.add("istrue") } else { this.els.switch!.classList.remove("istrue") }
 
                 if (this.m.cansave) {  this.to_saving(newval, this.s.val) } else { this.s.val = newval }
@@ -309,7 +318,9 @@ class CIn extends HTMLElement {
 
             this.els.edit.appendChild(this.els.input)
 
-            this.els.input.addEventListener("change", () => {
+				
+            this.els.input.addEventListener("input", () => {
+				this.trigger_changed(this.els.input?.value, this.s.val)
                 this.s.val = this.els.input?.value || ""
                 this.setAttribute("val", this.s.val)
             })
@@ -344,6 +355,12 @@ class CIn extends HTMLElement {
 
 
             this.els.dselect.addEventListener("changed", (e:Event) => {
+
+				const e_newval = (e as CustomEvent).detail.newval
+				const e_oldval = (e as CustomEvent).detail.oldval
+
+				this.trigger_changed(e_newval, e_oldval)
+
                 if (this.m.cansave) {
                     this.to_saving((e as CustomEvent).detail.newval, (e as CustomEvent).detail.oldval); 
                 } else { 

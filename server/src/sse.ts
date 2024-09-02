@@ -5,6 +5,7 @@ import { SSE_TriggersE, str  } from './definitions.js'
 
 
 
+
 type ListenerT = {
     id:str,
     cb:(trigger:SSE_TriggersE, obj:any)=>void

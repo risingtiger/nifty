@@ -33,6 +33,7 @@ const APPVERSION = 0;
 
 
 
+
 const node_env = process.env.NODE_ENV === "dev" ? "dev" : "dist";
 const app = express()
 let db:any = {};

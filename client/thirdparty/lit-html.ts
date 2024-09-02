@@ -1,11 +1,11 @@
 
 
-import { render, html } from "lit-html"
-import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
-import {classMap} from 'lit/directives/class-map.js';
-import {styleMap} from 'lit/directives/style-map.js';
-import {Directive, directive} from 'lit/directive.js';
-import {noChange} from 'lit';
+import { render, html } from "lit"
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+//import {classMap} from 'lit/directives/class-map.js';
+//import {styleMap} from 'lit/directives/style-map.js';
+//import {Directive, directive} from 'lit/directive.js';
+//import {noChange} from 'lit';
 
 
 
@@ -14,8 +14,8 @@ import {noChange} from 'lit';
 (window as any).Lit_Html   = html;
 (window as any).Lit_UnsafeHtml   = unsafeHTML;
 
-(window as any).Lit_ClassMap = classMap;
-(window as any).Lit_StyleMap = styleMap;
-(window as any).Lit_Directive = Directive;
-(window as any).Lit_directive = directive;
-(window as any).Lit_noChange = noChange;
+//(window as any).Lit_ClassMap = classMap;
+//(window as any).Lit_StyleMap = styleMap;
+//(window as any).Lit_Directive = Directive;
+//(window as any).Lit_directive = directive;
+//(window as any).Lit_noChange = noChange;
