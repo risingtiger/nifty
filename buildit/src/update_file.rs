@@ -16,21 +16,25 @@ pub fn runit(instance:&str, filepath: &str) -> Result<()> {
         let instance_client_lazy_path = format!("{}{}{}{}", "client/", crate::CLIENT_PREFIX, instance, "/lazy/");
         
         let mut filetype = "";
+        let mut fpath = "";
 
-        if filepath.starts_with("server/") {
+        if filepath.starts_with("server/src/") {
             filetype = "server";
+            fpath = &filepath[11..]
 
         } else if filepath.starts_with("client/lazy/") || filepath.starts_with(&instance_client_lazy_path) {
             filetype = "lazy";
+            fpath = &filepath[7..]
 
         } else if filepath.starts_with("client/") && (filepath.contains(".ts") || filepath.contains(".css") || filepath.contains(".html")) {
             filetype = "main";
+            fpath = "dummypath/dummy.ts"
 
         } else {
             let _ = println!("invalid argument to file");
         }
 
-        let p = Path::new(filepath);
+        let p = Path::new(fpath);
         println!("p {:?}", p);
 
         let directory = p.parent().unwrap().to_str().unwrap();
@@ -142,8 +146,8 @@ pub fn server(directory:&str, stem: &str, extension: &str) -> Result<()> {
 
     let output_file_extension = if extension == "ts" { "js" } else { extension };
 
-    let server_file_path = format!("{}{}{}{}{}{}", crate::ABSOLUTE_PATH, directory, "/", stem, ".", extension);
-    let output_file_path = format!("{}{}{}{}{}{}", crate::ABSOLUTE_PATH, directory, "/", stem, ".", output_file_extension);
+    let server_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::SERVER_MAIN_SRC_PATH, directory, "/", stem, ".", extension);
+    let output_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::SERVER_BUILD_PATH, directory, "/", stem, ".", output_file_extension);
 
     println!("server_file_path {}", server_file_path);
     println!("output_file_path {}", output_file_path);
