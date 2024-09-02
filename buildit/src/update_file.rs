@@ -1,5 +1,3 @@
-
-
 use std::io::Result;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -7,7 +5,51 @@ use std::process::{Command, Stdio};
 use crate::core;
 
 
-pub fn runit(instance:&str, filetype: &str, filepath: &str) -> Result<()> {
+pub fn runit(instance:&str, filepath: &str) -> Result<()> {
+
+    if filepath == "" {
+
+        let _ = println!("missing arguments to file");   
+
+    } else { 
+        
+        let instance_client_lazy_path = format!("{}{}{}{}", "client/", crate::CLIENT_PREFIX, instance, "/lazy/");
+        
+        let mut filetype = "";
+
+        if filepath.starts_with("server/") {
+            filetype = "server";
+
+        } else if filepath.starts_with("client/lazy/") || filepath.starts_with(&instance_client_lazy_path) {
+            filetype = "lazy";
+
+        } else if filepath.starts_with("client/") && (filepath.contains(".ts") || filepath.contains(".css") || filepath.contains(".html")) {
+            filetype = "main";
+
+        } else {
+            let _ = println!("invalid argument to file");
+        }
+
+        let p = Path::new(filepath);
+        println!("p {:?}", p);
+
+        let directory = p.parent().unwrap().to_str().unwrap();
+        let stem = p.file_stem().unwrap().to_str().unwrap();
+        let extension = p.extension().unwrap().to_str().unwrap();
+
+        match filetype {
+            "main" => { let _ = core::runit(instance); },
+            "lazy" => { let _ = lazy(&directory, &stem, &extension); },
+            "server" => { let _ = server(&directory, &stem, &extension); },
+            _ => { let _ = println!("invalid argument to file"); }
+        }
+    }
+
+    Ok(())
+}
+
+/*
+pub fn _runit(instance:&str, filetype: &str, filepath: &str) -> Result<()> {
 
     if filetype == "" || filepath == "" {
 
@@ -31,7 +73,7 @@ pub fn runit(instance:&str, filetype: &str, filepath: &str) -> Result<()> {
         let extension = p.extension().unwrap().to_str().unwrap();
 
         match filetype {
-            "main" => { let _ = main(&directory, &stem, &extension, &instance); },
+            "main" => { let _ = core::runit(instance); },
             "lazy" => { let _ = lazy(&directory, &stem, &extension); },
             "server" => { let _ = server(&directory, &stem, &extension); },
             _ => { let _ = println!("invalid argument to file"); }
@@ -40,10 +82,12 @@ pub fn runit(instance:&str, filetype: &str, filepath: &str) -> Result<()> {
 
     Ok(())
 }
+*/
 
 
 
 
+/*
 pub fn main(directory:&str, stem: &str, extension: &str, instance:&str) -> Result<()> {
 
     let output_file_extension = if extension == "ts" { "js" } else { extension };
@@ -66,6 +110,7 @@ pub fn main(directory:&str, stem: &str, extension: &str, instance:&str) -> Resul
 
     Ok(())
 }
+*/
 
 
 
@@ -76,6 +121,9 @@ pub fn lazy(directory:&str, stem: &str, extension: &str) -> Result<()> {
 
     let client_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_MAIN_SRC_PATH, directory, "/", stem, ".", extension);
     let output_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, directory, "/", stem, ".", output_file_extension);
+
+    println!("client_file_path {}", client_file_path);
+    println!("output_file_path {}", output_file_path);
 
     match extension {
         "ts" => { let _ = update_file_ts(&client_file_path, &output_file_path); },
@@ -94,8 +142,8 @@ pub fn server(directory:&str, stem: &str, extension: &str) -> Result<()> {
 
     let output_file_extension = if extension == "ts" { "js" } else { extension };
 
-    let server_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::SERVER_MAIN_SRC_PATH, directory, "/", stem, ".", extension);
-    let output_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::SERVER_BUILD_PATH, directory, "/", stem, ".", output_file_extension);
+    let server_file_path = format!("{}{}{}{}{}{}", crate::ABSOLUTE_PATH, directory, "/", stem, ".", extension);
+    let output_file_path = format!("{}{}{}{}{}{}", crate::ABSOLUTE_PATH, directory, "/", stem, ".", output_file_extension);
 
     println!("server_file_path {}", server_file_path);
     println!("output_file_path {}", output_file_path);

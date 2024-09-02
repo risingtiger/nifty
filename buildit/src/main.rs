@@ -42,7 +42,6 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let primary_action = &args[1];
     let primary_action_aux  = if args.len() >= 3 { &args[2] } else { "" };
-    let primary_action_aux2 = if args.len() == 4 { &args[3] } else { "" };
 
     match primary_action.as_str() {
 
@@ -66,7 +65,7 @@ fn main() {
 
         "dist" => { let _ = dist::dist(&instance);   },
 
-        "file" => { let _ = update_file::runit(&instance, &primary_action_aux, &primary_action_aux2);   },
+        "file" => { let _ = update_file::runit(&instance, &primary_action_aux);   },
 
         _ => {   println!("Invalid argument");   }
     }
