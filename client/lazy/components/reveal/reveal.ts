@@ -143,14 +143,14 @@ class CReveal extends HTMLElement {
         lih5_el!.style.transitionTimingFunction = "cubic-bezier(0.91, 0, 0.19, 1)"
         lih5_el!.style.transformOrigin = "13px 31px"
 
-        this.s.parent.style.boxShadow = "rgba(236, 236, 236, 0) 0px 4px 0px inset"
-        
         for(const a of this.s.grandparent_children) {
-            a.style.transitionProperty = "transform, background-color, box-shadow, border-bottom-color"
+            a.style.transitionProperty = "transform"
             a.style.transitionDuration = "0.9s"
             a.style.transitionTimingFunction = "cubic-bezier(0.91, 0, 0.19, 1)"
         }
 
+        this.s.parent.style.boxShadow = "rgba(236, 236, 236, 0) 0px 4px 0px inset"
+		this.s.parent.style.transitionProperty = "transform, box-shadow, background-color, border-bottom-color"
 
         const height = this.offsetHeight
 
@@ -227,6 +227,17 @@ class CReveal extends HTMLElement {
             this.s.parent.style.boxShadow = ""
             this.s.parent.style.backgroundColor = ""
             this.style.display = "none"
+
+			this.s.parent.style.transitionProperty = "transform"
+
+			/*
+			for(const a of this.s.grandparent_children) {
+				a.style.transitionProperty = ""
+				a.style.transitionDuration = ""
+				a.style.transitionTimingFunction = ""
+			}
+			*/
+
             this.removeEventListener("transitionend", close_end)
         }
     }

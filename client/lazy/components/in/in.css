@@ -52,7 +52,7 @@
     justify-content: flex-end;
 
     & > p {
-        padding-right: 5px;
+        padding-right: 9px;
     }
 
     & > i {
@@ -194,4 +194,6 @@
 }
 :host(.row) span.switch {
     margin-top: 6px;
+
+    margin-right: 2px;
 }

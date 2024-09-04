@@ -39,6 +39,7 @@ pub fn yimit(instance:&str) -> Result<()> {
     let src_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH );
     let output_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DIST_PATH );
 
+    
     yims.extend(get_yims(&main_li, YimTypeT::Lib, &splitstr)?);
     yims.extend(get_yims(&main_wo, YimTypeT::Worker, &splitstr)?);
     yims.extend(get_yims(&main_di, YimTypeT::Directive, &splitstr)?);
@@ -46,9 +47,11 @@ pub fn yimit(instance:&str) -> Result<()> {
     yims.extend(get_yims(&instance_wo, YimTypeT::Worker, &splitstr)?);
     yims.extend(get_yims(&instance_di, YimTypeT::Directive, &splitstr)?);
 
+    
     yims.into_par_iter().for_each(|p| {
         processit(&p, &src_prefixpath, &output_prefixpath).unwrap();
     });
+    
 
     Ok(())
 }

@@ -1,6 +1,6 @@
 @font-face {
     font-family: "icons";
-    src: url("./icons.woff2?cd441c508aa92d9d2fdc70e297c080df") format("woff2");
+    src: url("./icons.woff2?203788c2fd23cbd32d79453763cc1291") format("woff2");
 }
 
 i[class^="icon-"]:before, i[class*=" icon-"]:before {
@@ -68,12 +68,6 @@ i[class^="icon-"]:before, i[class*=" icon-"]:before {
 .icon-_18_list:before {
     content: "\f112";
 }
-.icon-_19_automatic:before {
+.icon-_19_add:before {
     content: "\f113";
-}
-.icon-_20_bank:before {
-    content: "\f114";
-}
-.icon-_21_squarefoot:before {
-    content: "\f115";
 }

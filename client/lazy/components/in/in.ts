@@ -22,7 +22,6 @@ type StateT = {
     val: str,
     term: str,
     error: str,
-    attr_flg: bool
 }
 
 type ModelT = {
@@ -80,7 +79,7 @@ class CIn extends HTMLElement {
 
 
 
-    //static get observedAttributes() { return ['val']; }
+    static get observedAttributes() { return ['val']; }
 
 
 
@@ -91,7 +90,7 @@ class CIn extends HTMLElement {
 
         this.shadow = this.attachShadow({mode: 'open'});
 
-        this.s = { mode: ModeT.VIEW, val: "", term: "", error: "", isanimating: false, attr_flg: false}
+        this.s = { mode: ModeT.VIEW, val: "", term: "", error: "", isanimating: false }
         this.m = { layout: LayoutT.ROW, cansave:true, name: "", type: TypeT.INPUT, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
         this.els = { label: null, section: null, view: null, edit: null, displayval: null, action: null, editdone: null, animeffect: null, input: null, switch: null, dselect: null}
 
@@ -166,22 +165,14 @@ class CIn extends HTMLElement {
 
     async attributeChangedCallback(name:str, oldval:str, newval:str) {
 
-        /*
+
         if (name === "val" && oldval !== null) { 
 
-            this.s.attr_flg = 
+			this.s.val = newval
 
-            setTimeout(() => {
-
-                let newval = this.getAttribute("val") || null
-                let oldval:str|null = this.s.val 
-                let error = this.getAttribute("error") || null
-
-                if (error !== null) { newval = null; oldval = null;}
-
-                this.to_saved_result(newval, oldval, error)
-
-            }, 10)
+			if (this.m.type === TypeT.INPUT && this.els.input?.value !== newval) {
+				this.els.input!.value = newval
+			}
         }
 
         /*
@@ -200,7 +191,6 @@ class CIn extends HTMLElement {
 
     SaveResponse(newval:str, newterm:str|null) {   this.to_saved_result(newval, newterm);   }
     SaveResponseError(error:str)          {   this.to_error_result(error);             }
-    GetVal() {   return this.s.val;   }
 
 
 
@@ -301,7 +291,7 @@ class CIn extends HTMLElement {
 				this.trigger_changed(newval, this.s.val)
                 if (newval === "true") { this.els.switch!.classList.add("istrue") } else { this.els.switch!.classList.remove("istrue") }
 
-                if (this.m.cansave) {  this.to_saving(newval, this.s.val) } else { this.s.val = newval }
+                if (this.m.cansave) {  this.to_saving(newval, this.s.val) } else { this.setAttribute("val", newval); }
             })
 
         } else if (this.m.type === TypeT.INPUT) {
@@ -320,9 +310,12 @@ class CIn extends HTMLElement {
 
 				
             this.els.input.addEventListener("input", () => {
+
 				this.trigger_changed(this.els.input?.value, this.s.val)
-                this.s.val = this.els.input?.value || ""
-                this.setAttribute("val", this.s.val)
+
+				if (!this.m.cansave) {
+					this.setAttribute("val", this.els.input?.value || "")
+				}
             })
 
             if (this.m.cansave) {
@@ -364,11 +357,12 @@ class CIn extends HTMLElement {
                 if (this.m.cansave) {
                     this.to_saving((e as CustomEvent).detail.newval, (e as CustomEvent).detail.oldval); 
                 } else { 
-                    this.s.val = this.els.dselect!.getAttribute("val") || ""
-                    this.s.term = this.els.dselect!.getAttribute("term") || ""
 
-                    this.setAttribute("val", this.s.val)
-                    this.setAttribute("term", this.s.term)
+                    const v = this.els.dselect!.getAttribute("val") || ""
+                    const t = this.els.dselect!.getAttribute("term") || ""
+
+                    this.setAttribute("val", v)
+                    this.setAttribute("term", t)
                 }
             })
 
@@ -494,21 +488,18 @@ class CIn extends HTMLElement {
 
                 if (newval === "true") { this.els.switch!.classList.add("istrue"); } else { this.els.switch!.classList.remove("istrue"); } 
 
-                this.s.val = newval!
                 this.setAttribute("val", newval!)
 
                 this.s.mode = ModeT.EDIT
 
             } else if (this.m.type === TypeT.INPUT) {
 
-                this.s.val = newval!
                 this.setAttribute("val", newval!)
 
                 this.to_view()
 
             } else if (this.m.type === TypeT.DSELECT) {
 
-                this.s.val = newval!
                 this.s.term = term!
 
                 this.setAttribute("val", newval!)

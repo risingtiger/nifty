@@ -17,9 +17,7 @@ export type IconsId =
   | "_16_bucket"
   | "_17_piggy"
   | "_18_list"
-  | "_19_automatic"
-  | "_20_bank"
-  | "_21_squarefoot";
+  | "_19_add";
 
 export type IconsKey =
   | "i01Arrowright1"
@@ -40,9 +38,7 @@ export type IconsKey =
   | "i16Bucket"
   | "i17Piggy"
   | "i18List"
-  | "i19Automatic"
-  | "i20Bank"
-  | "i21Squarefoot";
+  | "i19Add";
 
 export enum Icons {
   i01Arrowright1 = "_01_arrowright1",
@@ -63,9 +59,7 @@ export enum Icons {
   i16Bucket = "_16_bucket",
   i17Piggy = "_17_piggy",
   i18List = "_18_list",
-  i19Automatic = "_19_automatic",
-  i20Bank = "_20_bank",
-  i21Squarefoot = "_21_squarefoot",
+  i19Add = "_19_add",
 }
 
 export const ICONS_CODEPOINTS: { [key in Icons]: string } = {
@@ -87,7 +81,5 @@ export const ICONS_CODEPOINTS: { [key in Icons]: string } = {
   [Icons.i16Bucket]: "61712",
   [Icons.i17Piggy]: "61713",
   [Icons.i18List]: "61714",
-  [Icons.i19Automatic]: "61715",
-  [Icons.i20Bank]: "61716",
-  [Icons.i21Squarefoot]: "61717",
+  [Icons.i19Add]: "61715",
 };

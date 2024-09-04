@@ -22,8 +22,8 @@
   ${_s.show_header ? Lit_Html`
     <header>
       <div class="left">${_s.show_closebtn ? Lit_Html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
-      <div class="middle"><h1><slot name="headermiddle"></slot></h1></div>
-      <div class="right"><slot name="headerright"></slot></div>
+		<div class="middle"><h1>${_s.title}</h1></div>
+      <div class="right">&nbsp;</div>
     </header>
   ` : ''}
   <slot></slot>

@@ -13,6 +13,7 @@ declare var SetDistCSS: any;
 enum ShapeE { NOT_APPLICABLE, PRIORITY_MOBILE_FULL, PRIORITY_MOBILE_BOTTOM_HALF, PRIORITY_MOBILE_BOTTOM_THIRD, PRIORITY_DESKTOP_MD, PRIORITY_DESKTOP_LG, PRIORITY_DESKTOP_XL, PRIORITY_DESKTOP_XXL, XS }
 
 type StateT = {
+	title: str,
     width: str,
     height: str,
     top: str,
@@ -64,6 +65,7 @@ class COl extends HTMLElement {
         super(); 
 
         this.s = {
+			title: "",
             width: "",
             height: "",
             top: "",
@@ -71,8 +73,8 @@ class COl extends HTMLElement {
             margin_left: "",
             shape: ShapeE.PRIORITY_MOBILE_FULL,
             /*pinto: "",*/
-            show_closebtn: false,
-            show_header: false,
+            show_closebtn: true,
+            show_header: true,
             is_mobile_centric: false,
         }
 
@@ -89,8 +91,9 @@ class COl extends HTMLElement {
 
     connectedCallback() {   
 
-        this.s.show_closebtn = this.getAttribute("closebtn") === "true" ? true : false
-        this.s.show_header = this.getAttribute("showheader") === "true" ? true : false
+		this.s.title = this.getAttribute("title") || "asdfsdf"
+        this.s.show_closebtn = this.getAttribute("closebtn") === "false" ? false : true
+        this.s.show_header = this.getAttribute("showheader") === "false" ? false : true
 
         const child = this.firstElementChild as HTMLElement
 
