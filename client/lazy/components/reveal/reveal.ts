@@ -1,5 +1,4 @@
 
-// TODO: wrapper animates at different rate than sibling list items. dont look right. fix it
 
 import { str, bool } from "../../../definitions.js";
 
@@ -17,7 +16,6 @@ type StateT = {
     grandparent: HTMLElement,
     grandparent_children: HTMLElement[],
     parentindex: number,
-    //nextsibling: HTMLElement,
     wrap: HTMLElement,
     parent_height: number,
     isopen: bool
@@ -63,7 +61,6 @@ class CReveal extends HTMLElement {
             grandparent: this.parentElement!.parentElement as HTMLElement,
             grandparent_children: Array.from(this.parentElement!.parentElement!.children) as HTMLElement[],
             parentindex: (Array.from(this.parentElement!.parentElement!.children)).indexOf(this.parentElement!),
-            //nextsibling: this,
             wrap: this, // to be attached after connectedCallback
             parent_height: 0,
             isopen: false
