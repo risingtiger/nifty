@@ -93,26 +93,47 @@ async Login() {
         }
     }
 
-    const data = await FetchLassie(url, opts) as any
+	let data:any = {}
 
-    if (data.error) {
-        this.s.error_msg = data.error.message
+	if (window.location.hostname === "localhost") {
+		data = {
+			idToken: "local_token",
+			expiresIn: 3600,
+			refreshToken: "local refresh",
+			email: els.username.value
+		}
 
-    } else {
-        localStorage.setItem('id_token', data.idToken);
-        localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
-        localStorage.setItem('refresh_token', data.refreshToken);
-        localStorage.setItem('user_email', data.email);
+		localStorage.setItem('id_token', data.idToken);
+		localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
+		localStorage.setItem('refresh_token', data.refreshToken);
+		localStorage.setItem('user_email', data.email);
+		localStorage.setItem('auth_group', 'user');
 
-        if (data.email === "accounts@risingtiger.com")
-            localStorage.setItem('auth_group', 'admin');
-        else 
-            localStorage.setItem('auth_group', 'user');
+		window.location.hash = 'home'
+	}
+	
+	else {
+		data = await FetchLassie(url, opts) as any
 
-        window.location.hash = 'home'
-    }
+		if (data.error) {
+			this.s.error_msg = data.error.message
+			this.stateChanged()
 
-    this.stateChanged()
+		} else {
+			localStorage.setItem('id_token', data.idToken);
+			localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
+			localStorage.setItem('refresh_token', data.refreshToken);
+			localStorage.setItem('user_email', data.email);
+
+			if (data.email === "accounts@risingtiger.com")
+				localStorage.setItem('auth_group', 'admin');
+			else 
+				localStorage.setItem('auth_group', 'user');
+
+			window.location.hash = 'home'
+		}
+	}
+
 
 
     /*
