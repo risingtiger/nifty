@@ -366,6 +366,10 @@ class COl extends HTMLElement {
         wrapper_el.style.top = this.s.top
         wrapper_el.style.left = this.s.left
         wrapper_el.style.marginLeft = this.s.margin_left
+
+		if (this.s.is_mobile_centric) {
+			wrapper_el.classList.add("mobile_centric")
+		}
     }
 
 
