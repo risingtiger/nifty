@@ -35,8 +35,12 @@ const APPVERSION = 0;
 
 
 const node_env = process.env.NODE_ENV === "dev" ? "dev" : "dist";
+const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
+
 const app = express()
-let db:any = {};
+
+let db:any = null;
+
 let sheets:any = {};
 //let pubsub:any;
 //let pubsub_local:any;
@@ -327,20 +331,21 @@ async function notifications_send_msg(req:any, res:any) {
 
 async function init() { return new Promise(async (res, _rej)=> {
 
-    if (process.platform === 'darwin') {
+    if (node_env === "dev") {
 
-        console.log('/Users/dave/.ssh/xenfinancesheets_key.json')
+		if (!offlinedata_dir) {
+			const googleauth = new googleapis.auth.GoogleAuth({
+				//keyFile: INSTANCE.SHEETS_KEYJSONFILE,
+				keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json',
+				scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+			})
+			let google_auth:any = await googleauth.getClient();
+			sheets = googleapis.sheets({version: 'v4', auth: google_auth});
 
-        const googleauth = new googleapis.auth.GoogleAuth({
-            //keyFile: INSTANCE.SHEETS_KEYJSONFILE,
-            keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json',
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        })
-        let google_auth:any = await googleauth.getClient();
-        sheets = googleapis.sheets({version: 'v4', auth: google_auth});
+			initializeApp({   credential: cert(INSTANCE.KEYJSONFILE)   })
 
-        initializeApp({   credential: cert(INSTANCE.KEYJSONFILE)   })
-        db = getFirestore();
+			db = getFirestore();
+		}
     } 
 
     else { 
@@ -364,18 +369,16 @@ async function init() { return new Promise(async (res, _rej)=> {
 
 async function startit() {
 
-    if (process.platform === 'darwin') {
-
-        const https_options = {
-            key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
-            cert: fs.readFileSync("/Users/dave/.ssh/localhost.pem")
-        }
-        
-        const s = https.createServer(https_options, app)
-        
-        s.listen( INSTANCE.LOCALPORT, () => {
-            console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(INSTANCE.LOCALPORT)}`);
-        })
+    if (node_env === "dev") {
+		const https_options = {
+			key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
+			cert: fs.readFileSync("/Users/dave/.ssh/localhost.pem")
+		}
+		
+		const s = https.createServer(https_options, app)
+		s.listen( INSTANCE.LOCALPORT, () => {
+			console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(INSTANCE.LOCALPORT)}`);
+		})
     } 
 
     else { 
@@ -390,29 +393,34 @@ async function startit() {
 
 function validate_request(res:any, req:any) {   return new Promise((promiseres)=> {
 
-    const appversion = Number(req.headers.appversion)
-    
-    if (appversion !== APPVERSION) {
-        res.status(410).send("appversion is not valid")
-        promiseres(false)
-        return false
-    }
-    
+	if (!offlinedata_dir) {
 
-    const id_token = req.headers.authorization?.substring(7, req.headers.authorization?.length);
+		const appversion = Number(req.headers.appversion)
+		
+		if (appversion !== APPVERSION) {
+			res.status(410).send("appversion is not valid")
+			promiseres(false)
+			return false
+		}
+		
 
-    getAuth()
+		const id_token = req.headers.authorization?.substring(7, req.headers.authorization?.length);
 
-    .verifyIdToken(id_token)
+		getAuth()
 
-    .then((_decodedToken) => {
-        promiseres(true)
-    })
+		.verifyIdToken(id_token)
 
-    .catch((_error) => {
-        res.status(401).send("id_token is not valid")
-        promiseres(false)
-    })
+		.then((_decodedToken) => {
+			promiseres(true)
+		})
+
+		.catch((_error) => {
+			res.status(401).send("id_token is not valid")
+			promiseres(false)
+		})
+	} else {
+		promiseres(true)
+	}
 })}
 
 

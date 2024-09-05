@@ -2,12 +2,14 @@
 
 type str = string; type int = number; type bool = boolean;
 
+import { readFileSync, writeFileSync } from "fs"
+const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
 
 
 
 type RetrieveOptsT = { order_by:str|null, ts:int|null, limit:int|null }
 
-function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   return new Promise(async (res, _rej) => {
+function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   return new Promise<any|any[]>(async (res, _rej) => {
 
     const promises:any = []
 
@@ -16,6 +18,13 @@ function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   retu
     if (!opts) opts = [{order_by: "", ts: null, limit: null}]
 
     for(let i = opts.length; i < pathstr.length; i++) opts.push(opts[opts.length-1])
+
+	if (!db) {
+		const r = get_jsons(pathstr, opts)
+		res(r)
+		return
+	}
+
 
     for (let i = 0; i < pathstr.length; i++) {
         let d = parse_request(db, pathstr[i], opts[i].ts)
@@ -85,6 +94,13 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
 
     for(let i = opts.length; i < pathstr.length; i++) opts.push(opts[opts.length-1])
     for(let i = data.length; i < pathstr.length; i++) data.push(data[data.length-1])
+
+	if (!db) {
+		const returns = patch_jsons(pathstr, data, opts)
+		res(returns)
+		return
+	}
+
 
     for (let i = 0; i < pathstr.length; i++) {
         let d = parse_request(db, pathstr[i], null)
@@ -220,13 +236,78 @@ function parse_request(db:any, pathstr:str, ts:int|null) : any {
 
 
 
+function get_jsons(pathstr:str[]|str, _opts:RetrieveOptsT[]|null) {
+
+	const returns:any[] = []
+
+	for (let i = 0; i < pathstr.length; i++) {
+
+		if (pathstr[i] === "machines") {
+			const f = readFileSync(offlinedata_dir + "machines.json", "utf8")	
+			returns.push(JSON.parse(f))
+
+		} else if (/^machines\/[^\s\/]+$/.test(pathstr[i])) {
+
+			const ff = readFileSync(offlinedata_dir + "machines.json", "utf8") as string
+			const fc = JSON.parse(ff) as any[];
+
+			const id = pathstr[i].split("/")[1];	
+			const machine = fc.find((m:any)=> m.id === id);
+			returns.push(machine);
+
+		} else if (/^machines\/[^\s]+\/statuses$/.test(pathstr[i])) {
+
+			const s = readFileSync(offlinedata_dir + "statuses.json", "utf8") as string
+			returns.push(JSON.parse(s))
+		}
+	}
+
+	return returns
+}
+
+function patch_jsons(pathstr:str[]|str, data:any|any[], _opts:PatchOptsT[]|null) {
+
+	for (let i = 0; i < pathstr.length; i++) {
+
+		if (/^machines\/[^\s\/]+$/.test(pathstr[i])) {
+			const f = readFileSync(offlinedata_dir + "machines.json", "utf8")	
+			const fc = JSON.parse(f) as any[];
+			const id = pathstr[i].split("/")[1];
+			const machine = fc.find((m:any)=> m.id === id);
+
+			for (const key in data[i]) {
+				if (key.includes(".")) {
+					const s = key.split(".")
+					let handle = machine
+					for(let ii = 0; ii < s.length; ii++) {
+						handle = handle[s[ii]]
+					}
+
+					if (Array.isArray(data[i][key])) {
+						for(let ii = 0; ii < data[i][key].length;ii++) {
+							handle[ii] = data[i][key][ii]
+						}
+					} else if (typeof data[i][key] === "object") {
+						for (const k in data[i][key]) {
+							handle[k] = data[i][key][k]
+						}
+					} else {
+						handle = data[i][key]
+					}
+
+				} else {
+					machine[key] = data[i][key]
+				}
+			}
+
+			const machines_str = JSON.stringify(fc)
+			writeFileSync(offlinedata_dir + "machines.json", machines_str, "utf8")
+		}
+	}
+}
 
 
-
-
-
-
-
+// what is the regular expression to match any non space character?
 
 
 
@@ -242,6 +323,7 @@ export { Firestore }
 
 
 
+/*
 
 // Move this into xen instance. And make proper place to store all database collection schemas
 
@@ -388,3 +470,9 @@ function sanitize_with_schema(db:any, schema:any, obj:object) : object|false {
 
     return sanitized
 }
+
+*/
+
+
+
+
