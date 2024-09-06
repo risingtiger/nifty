@@ -34,8 +34,10 @@ const APPVERSION = 0;
 
 
 
-const node_env = process.env.NODE_ENV === "dev" ? "dev" : "dist";
-const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
+const VAR_NODE_ENV = process.env.NODE_ENV === "dev" ? "dev" : "dist";
+const VAR_PORT = process.env.NIFTY_PORT || "3003";
+const VAR_OFFLINEDATE_DIR = process.env.NIFTY_OFFLINEDATA_DIR || ""
+const VAR_USE_HTTPS = process.env.NIFTY_USE_HTTPS || "false"
 
 const app = express()
 
@@ -110,7 +112,7 @@ app.post("/api/notifications_send_msg", notifications_send_msg)
 
 
 async function assets_general(req:any, res:any) {
-    FileRequest.runit(req.url, res, node_env, STATIC_PREFIX);
+    FileRequest.runit(req.url, res, VAR_NODE_ENV, STATIC_PREFIX);
 }
 
 
@@ -331,9 +333,9 @@ async function notifications_send_msg(req:any, res:any) {
 
 async function init() { return new Promise(async (res, _rej)=> {
 
-    if (node_env === "dev") {
+    if (VAR_NODE_ENV === "dev") {
 
-		if (!offlinedata_dir) {
+		if (!VAR_OFFLINEDATE_DIR) {
 			const googleauth = new googleapis.auth.GoogleAuth({
 				//keyFile: INSTANCE.SHEETS_KEYJSONFILE,
 				keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json',
@@ -369,16 +371,23 @@ async function init() { return new Promise(async (res, _rej)=> {
 
 async function startit() {
 
-    if (node_env === "dev") {
-		const https_options = {
-			key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
-			cert: fs.readFileSync("/Users/dave/.ssh/localhost.pem")
+    if (VAR_NODE_ENV === "dev") {
+
+		if (VAR_USE_HTTPS === "true") {
+			const https_options = {
+				key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
+				cert: fs.readFileSync("/Users/dave/.ssh/localhost.pem")
+			}
+			
+			const s = https.createServer(https_options, app)
+			s.listen( Number(VAR_PORT), () => {
+				console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
+			})
+		} else {
+			app.listen( Number(VAR_PORT), () => {
+				console.info(`HTTP App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
+			})
 		}
-		
-		const s = https.createServer(https_options, app)
-		s.listen( INSTANCE.LOCALPORT, () => {
-			console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(INSTANCE.LOCALPORT)}`);
-		})
     } 
 
     else { 
@@ -393,7 +402,7 @@ async function startit() {
 
 function validate_request(res:any, req:any) {   return new Promise((promiseres)=> {
 
-	if (!offlinedata_dir) {
+	if (!VAR_OFFLINEDATE_DIR) {
 
 		const appversion = Number(req.headers.appversion)
 		
