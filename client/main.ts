@@ -114,7 +114,8 @@ const LAZYLOADS: LazyLoadT[] = [
                 name: "in",
                 instance: null,
                 dependencies: [
-                        { type: "component", name: "dselect" }
+                        { type: "component", name: "dselect" },
+                        { type: "component", name: "animeffect" }
                 ],
                 auth: []
         },
