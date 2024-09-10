@@ -5,7 +5,6 @@ import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 
 
 
@@ -17,16 +16,12 @@ type StateT = {
 }
 
 type ModelT = {
-    c: str,
+	wait_for_confirm: bool
 }
 
 type ElsT = {
     animeffect:HTMLElement|null,
 }
-
-
-
-let distcss = `{--distcss--}`;
 
 
 
@@ -42,7 +37,7 @@ class CBtn extends HTMLElement {
 
 
 
-    //static get observedAttributes() { return ['val']; }
+    static get observedAttributes() { return ['resolved']; }
 
 
 
@@ -54,11 +49,8 @@ class CBtn extends HTMLElement {
         this.shadow = this.attachShadow({mode: 'open'});
 
         this.s = { mode: ModeT.INERT}
-        this.m = { c: "" }
+        this.m = { wait_for_confirm: true }
         this.els = { animeffect: null}
-
-
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -67,6 +59,8 @@ class CBtn extends HTMLElement {
     connectedCallback() {   
 
         this.sc()
+
+		this.m.wait_for_confirm = this.hasAttribute("nowait") ? false : true
 
         this.addEventListener("click", () => {
             this.is_clicked()
@@ -77,19 +71,18 @@ class CBtn extends HTMLElement {
 
 
     async attributeChangedCallback(name:str, oldval:str, newval:str) {
+		if (name === "resolved" && newval === "true" && !oldval) {
+			this.removeAttribute("resolved")
+			this.to_resolved()
+		}
     }
-
-
-
-
-    SetResolved() {   this.to_resolved();   }
 
 
 
 
     is_clicked() {
 
-        if (this.s.mode == ModeT.INERT) {
+        if (this.s.mode == ModeT.INERT && this.m.wait_for_confirm) {
             this.to_saving()
         }
     }
@@ -168,7 +161,7 @@ class CBtn extends HTMLElement {
 
 
 
-    template = () => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = () => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 

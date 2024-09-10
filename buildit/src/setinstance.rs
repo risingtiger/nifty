@@ -1,5 +1,6 @@
 
-use std::io::Result;
+use std::env;
+use anyhow::Result;
 use regex::Regex;
 //use std::env;
 use std::fs;
@@ -11,6 +12,7 @@ use std::process::Command;
 
 pub fn setinstance(set_instance_to:&str) -> Result<()> {
 
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
 
     // ZPROFILE ENVIRONMENT VARIABLE
 
@@ -30,7 +32,7 @@ pub fn setinstance(set_instance_to:&str) -> Result<()> {
 
     // SERVER INDEX
 
-    let serverindexpath = format!("{}{}{}", crate::ABSOLUTE_PATH, crate::SERVER_MAIN_SRC_PATH, "index.ts");
+    let serverindexpath = format!("{}{}{}", dir, crate::SERVER_MAIN_SRC_PATH, "index.ts");
 
     let x = fs::read_to_string(&serverindexpath).unwrap();
 
@@ -45,7 +47,7 @@ pub fn setinstance(set_instance_to:&str) -> Result<()> {
 
     // CLIENT MAIN
 
-    let clientmainpath = format!("{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_MAIN_SRC_PATH, "main.ts");
+    let clientmainpath = format!("{}{}{}", dir, crate::CLIENT_MAIN_SRC_PATH, "main.ts");
 
     let x = fs::read_to_string(&clientmainpath).unwrap();
 

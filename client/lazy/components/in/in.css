@@ -1,6 +1,7 @@
 
 
 :host {
+	-webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: row;
     position: relative;
@@ -26,6 +27,7 @@
     overflow: hidden;
     text-wrap: nowrap;
     margin-right: 6px;
+	font-family: var(--fontfamily);
     font-weight: 700;
     color: rgb(190 56 151);
 }
@@ -46,12 +48,14 @@
 }
 
 
+
 :host > section > #view {
     display: flex;
     width: 100%;
     justify-content: flex-end;
 
     & > p {
+		font-family: var(--fontfamily);
         padding-right: 9px;
     }
 
@@ -78,8 +82,8 @@
     } 
 }
 :host(.row) > section > #view {
-    margin-top: 10px;
-    padding-top: 8px;
+    /* margin-top: 10px; */
+    /* padding-top: 8px; */
 }
 
 
@@ -90,6 +94,7 @@
     width: 100%;
 
     & > input {
+		font-family: var(--fontfamily);
         font-size: 14px;
         box-sizing: border-box;
         outline: none;

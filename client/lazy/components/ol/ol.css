@@ -30,6 +30,7 @@
     & .left {
         display: block;
         width: 20%;
+		font-family: var(--fontfamily);
         font-size: 16px;
         font-weight: 400;
         color: var(--actioncolor);
@@ -40,6 +41,9 @@
         width: 60%;
 
         & h1 {
+			font-family: var(--fontfamily);
+			-webkit-font-smoothing: antialiased;
+			color: var(--textcolor);	
             font-size: 18px;
             font-weight: bold;
             text-align: center;

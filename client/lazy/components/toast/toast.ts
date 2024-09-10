@@ -5,7 +5,6 @@ import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 
 
 
@@ -33,9 +32,7 @@ type ElsT = {
 
 
 
-let distcss = `{--distcss--}`;
 const DUMMYEL = document.createElement("div");
-
 
 
 
@@ -66,7 +63,6 @@ class CToast extends HTMLElement {
         this.els = { msg: DUMMYEL, /*wrap: DUMMYEL*/ }
 
 
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -142,7 +138,7 @@ class CToast extends HTMLElement {
 
 
 
-    template = () => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = () => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 

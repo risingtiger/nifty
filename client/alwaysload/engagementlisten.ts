@@ -25,7 +25,7 @@ function Add_Listener(name:string, type_:'focus'|'blur', callback_:()=>void) {
     const existing_listener = elisteners.find(l=> l.type === type && l.name === name)
 
     if (existing_listener) {
-        redirect_from_error("AppFocus Listener with that name and type already exists")
+        redirect_from_error("engagementlisten_already_exists","AppFocus Listener with that name and type already exists")
         return
     }
 
@@ -45,7 +45,6 @@ function Remove_Listener(name:string, type_:'focus'|'blur') {
     const i = elisteners.findIndex(l=> l.name === name && l.type === type)
 
     if (i === -1) {
-        redirect_from_error("AppFocus Listener with that name and type does not exist")
         return
     }
 
@@ -80,11 +79,9 @@ function IsDocFocused() {
 
 
 
-function redirect_from_error(errmsg:string) {
-    console.info(`/?errmsg=SSE Error: ${errmsg}`)
-    if ((window as any).APPVERSION > 0) {
-        window.location.href = `/?errmsg=SSE Error: ${errmsg}`
-    }
+function redirect_from_error(errmsg:string, errmsg_long:string) {
+	localStorage.setItem("errmsg_long", errmsg_long)
+	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
 

@@ -1,6 +1,7 @@
 
 use rayon::prelude::*;
-use std::io::Result;
+use std::env;
+use anyhow::Result;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::fs;
@@ -23,8 +24,10 @@ struct YadT {
 
 pub fn yadit(instance:&str) -> Result<()> {
 
-    let ml = format!("{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, "lazy/");
-    let cl = format!("{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, crate::CLIENT_PREFIX, &instance, "/lazy/");
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
+    let ml = format!("{}{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH, "lazy/");
+    let cl = format!("{}{}{}{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH, crate::CLIENT_PREFIX, &instance, "/lazy/");
 
     let main_mn = format!("{}{}", ml, "views");
     let main_mp = format!("{}{}", ml, "components");
@@ -33,9 +36,9 @@ pub fn yadit(instance:&str) -> Result<()> {
 
     let mut yads:Vec<YadT> = vec![];
 
-    let splitstr = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH);
-    let src_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH );
-    let output_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DIST_PATH );
+    let splitstr = format!("{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH);
+    let src_prefixpath = format!("{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH );
+    let output_prefixpath = format!("{}{}", dir, crate::CLIENT_OUTPUT_DIST_PATH );
 
     yads.extend(get_yads(&main_mn, YadTypeT::View, &splitstr)?);
     yads.extend(get_yads(&main_mp, YadTypeT::Component, &splitstr)?);
@@ -80,6 +83,8 @@ fn get_yads(dir: &str, yadtype:YadTypeT, splitstr:&str) -> Result<Vec<YadT>> {
 
 fn processit(yad:&YadT, src_prefixpath:&str, output_prefixpath:&str) -> Result<()> {
 
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
     let abs_dir = format!("{}{}", src_prefixpath, yad.dir);
     let output_dir = format!("{}{}", output_prefixpath, yad.dir);
     let output_file = format!("{}{}{}", &output_dir, yad.name, ".js");
@@ -92,27 +97,36 @@ fn processit(yad:&YadT, src_prefixpath:&str, output_prefixpath:&str) -> Result<(
     let cts = Command::new("npx").args(["esbuild", &t, "--bundle"]).output().expect("cat chucked an error");
     let ccss = Command::new("npx").args(["esbuild", &c, "--bundle", "--minify"]).output().expect("cat chucked an error");
 
+    let cssmainlink_or_empty = {
+        if matches!(yad._yadtype, YadTypeT::View) { 
+            String::from("<link rel='stylesheet' href='/assets/main.css'>")
+        } else {
+            String::from(" ")
+        }
+    };
+
     let mut jsstr = String::from_utf8(cts.stdout).expect("ts stdout error");
-    let cssstr = String::from_utf8(ccss.stdout).expect("ts stdout error");
+    let css_contents_str = String::from_utf8(ccss.stdout).expect("css stdout error");
+    let cssstr = format!("{}<style>{}</style>", cssmainlink_or_empty, css_contents_str);
 
     let htmlstr = fs::read_to_string(&h).expect("read error");
 
-    processit_parts(&abs_dir, &mut jsstr)?;
+    processit_parts(&cssmainlink_or_empty, &abs_dir, &mut jsstr)?;
 
-    let re = regex::Regex::new(r#"<link rel="stylesheet" href="/assets/.*">"#).unwrap();
-    jsstr = re.replace_all(&jsstr, "").to_string();
+    //let re = regex::Regex::new(r#"<link rel="stylesheet" href="/assets/.*">"#).unwrap();
+    //jsstr = re.replace_all(&jsstr, "").to_string();
 
-    jsstr = jsstr.replace("{--distcss--}", &cssstr);
+    jsstr = jsstr.replace("{--css--}", &cssstr);
 
     jsstr = jsstr.replace("{--html--}", &htmlstr);
 
-    jsstr = jsstr.replace("{--devservercss--}", "");
+    //jsstr = jsstr.replace("{--devservercss--}", "");
 
     fs::create_dir_all(output_dir).expect("create dir error");
 
     fs::write(&output_file, &jsstr).expect("write error");
 
-    let _jsmin_cmd = Command::new("npx").args(["uglify-js", &output_file, "-o", &output_min_file]).current_dir(crate::ABSOLUTE_PATH).output().expect("uglifyjs chucked an error");
+    let _jsmin_cmd = Command::new("npx").args(["uglify-js", &output_file, "-o", &output_min_file]).current_dir(dir).output().expect("uglifyjs chucked an error");
 
     let m = Path::new(&output_min_file);
     let metadata = m.metadata().expect("metadata error");
@@ -129,7 +143,7 @@ fn processit(yad:&YadT, src_prefixpath:&str, output_prefixpath:&str) -> Result<(
 
 
 
-fn processit_parts(abs_dir:&str, jsstr:&mut String) -> Result<()> {
+fn processit_parts(cssmainlink_or_empty:&str, abs_dir:&str, jsstr:&mut String) -> Result<()> {
 
     let partspath_str = format!("{}{}", abs_dir, "parts");
 
@@ -150,7 +164,7 @@ fn processit_parts(abs_dir:&str, jsstr:&mut String) -> Result<()> {
 
         if parts.len() > 0 {
             for p in parts.iter() {
-                processit_parts_runit(&p, jsstr)?;
+                processit_parts_runit(cssmainlink_or_empty, &p, jsstr)?;
             }
         }
 
@@ -162,7 +176,7 @@ fn processit_parts(abs_dir:&str, jsstr:&mut String) -> Result<()> {
 
 
 
-fn processit_parts_runit(p:&Path, parent_jsstr:&mut String) -> Result<()> {
+fn processit_parts_runit(cssmainlink_or_empty:&str, p:&Path, parent_jsstr:&mut String) -> Result<()> {
 
     let filename = p.file_name().unwrap().to_str().unwrap();
     let pp = p.to_str().unwrap();
@@ -176,12 +190,14 @@ fn processit_parts_runit(p:&Path, parent_jsstr:&mut String) -> Result<()> {
     let css = String::from_utf8(css.stdout).expect("ts stdout error");
     let html = String::from_utf8(html.stdout).expect("ts stdout error");
 
+    let css = format!("{}<style>{}</style>", cssmainlink_or_empty, css);
+
     let ifs = format!("{}{}{}{}", filename, "/", filename, ".js");
     let index = parent_jsstr.find(&ifs).unwrap_or(0);
 
     let sbn = parent_jsstr.split_off(index);
     let sbn = sbn.replacen("{--html--}", format!("{}", html).as_str(), 1);
-    let sbn = sbn.replacen("{--distcss--}", format!("{}", css).as_str(), 1);
+    let sbn = sbn.replacen("{--css--}", format!("{}", css).as_str(), 1);
     parent_jsstr.push_str(&sbn);
 
     Ok(())

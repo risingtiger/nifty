@@ -66,32 +66,27 @@ let   inmemory_data:InMemoryDataT[] = []
 
 function Init() {
 
-    /*
     EngagementListen.Add_Listener("firestorelive", "focus", ()=> {
 
-        if ((window as any).APPVERSION > 0) {
-            if (fcollections.length) {
-                for(const fc of fcollections)   fc.status = CollectionStatusE.Stale
-                update_triggered()
-            }
-        }
+		console.log("firestorelive focus")
+
+		if (fcollections.length) {
+			for(const fc of fcollections)   fc.status = CollectionStatusE.Stale
+			update_triggered()
+		}
 
 
         // probably need to listen to DIS engagement from SSE and disable SSE listen feed coming in.
         // but i'll see if browser automaticlly takes care of that
     })
-    */
 
-    /*
     SSEvents.Add_Listener("firestorelive", [SSE_TriggersE.FIRESTORE], (data:any)=> {
 
-        if (!EngagementListen.IsDocFocused()) {
-            return
-        }
+        const updated_collections:str[] = (data.paths as str[]).map(p=> {
+			return p.split("/")[0]
+		})
 
-        const paths = data.paths as str[]
-
-        const cc = fcollections.filter(c=> paths.includes(c.url))
+        const cc = fcollections.filter(c=> updated_collections.includes(c.url))
 
         if (cc.length) {
 
@@ -101,7 +96,6 @@ function Init() {
             update_triggered()
         }
     })
-    */
 }
 
 
@@ -214,7 +208,7 @@ function update_collections_from_fetch(fetch_results:FetchCollectionResultT[])  
         if (tx) {
             tx.oncomplete = (_event:any) => {
 
-                if (are_there_any_put_errors) {   redirect_from_error("Error putting data into IndexedDB");  return;   }
+                if (are_there_any_put_errors) {   redirect_from_error("firestorelive_indexeddb_put","Firestorelive Error putting data into IndexedDB");  return;   }
 
                 set_collections_update()
 
@@ -223,7 +217,7 @@ function update_collections_from_fetch(fetch_results:FetchCollectionResultT[])  
             }
 
             tx.onerror = (_event:any) => {
-                redirect_from_error("Error getting data from IndexedDB TX at populate_to_refs_from_indexeddb_if_needed")
+                redirect_from_error("firestorelive_indexeddb_put","Firestorelive Error putting data from IndexedDB")
             }
         } else {
             // no set_collections_update because inmemory could be volatile. just pull fresh every time on it
@@ -322,14 +316,14 @@ function get_indexeddb_resources(resources:ResourceRefT[])  {
 
         tx.oncomplete = (_event:any) => {
 
-            if (are_there_any_read_errors) {   redirect_from_error("Error reading data from IndexedDB");  return;   }
+            if (are_there_any_read_errors) {   redirect_from_error("firestorelive_indexeddb_get","Firestorelive Error reading data from IndexedDB");  return;   }
 
             res(returns)
             return
         }
 
         tx.onerror = (_event:any) => {
-            redirect_from_error("Error getting data from IndexedDB TX at populate_to_refs_from_indexeddb_if_needed")
+            redirect_from_error("firestorelive_indexeddb_get","Firestorelive Error reading data from IndexedDB")
         }
     })
 }
@@ -360,13 +354,9 @@ function get_inmemory_resources(resources:ResourceRefT[])  {
 
 
 
-function redirect_from_error(errmsg:str) {
-
-    console.info(`/?errmsg=Firestore Error: ${errmsg}`)
-
-    if ((window as any).APPVERSION > 0) {
-        window.location.href = `/?errmsg=Firestore Error: ${errmsg}`
-    }
+function redirect_from_error(errmsg:str, errmsg_long:str) {
+	localStorage.setItem("errmsg_long", errmsg_long)
+	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
 
@@ -430,7 +420,7 @@ async function Subscribe(htmlel:HTMLElement, p_resources:str[]|str, cb:()=>void)
         const is_already_listener = listeners.find(l=> htmlel === l.htmlel) ? true : false
 
         if (is_already_listener) {
-            redirect_from_error("Firestore Listener with that name already exists or not attached to a view")
+            redirect_from_error("firestorelive_listener","Firestore Listener with that name already exists or not attached to a view")
             return
         }
 

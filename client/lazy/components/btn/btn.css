@@ -19,12 +19,14 @@
     transition-timing-function: ease-in-out;
 }
 :host(:hover) {
-    /*background-color: #e6f5ff;*/
+    background-color: #f2f5f6;
 }
+
 :host(.primary) {
     border: none;
     background-color: var(--actioncolor);
 }
+
 
 :host(.primary) #slotwrap {
     color: white;

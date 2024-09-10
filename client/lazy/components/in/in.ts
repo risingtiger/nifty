@@ -5,7 +5,6 @@ import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 
 
 
@@ -61,7 +60,6 @@ type KeyframesT = {
 
 
 
-let distcss = `{--distcss--}`;
 
 
 
@@ -98,7 +96,6 @@ class CIn extends HTMLElement {
         this.keyframes = { view: null, edit: null, }// label: null}
 
 
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -622,7 +619,7 @@ class CIn extends HTMLElement {
 
 
 
-    template = () => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = () => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 

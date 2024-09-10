@@ -100,22 +100,6 @@ function firestore_fetch_paths(paths:str[], firestoreopts:Opt[]) {   return new 
 
 
 
-function redirect_from_error(errmsg:str) {
-    console.info(`/?errmsg=Firestore Error: ${errmsg}`)
-
-    if ((window as any).APPVERSION > 0) {
-        window.location.href = `/?errmsg=Firestore Error: ${errmsg}`
-    }
-}
-
-
-
-
-
-
-
-
-
 (window as any).Firestore = { Retrieve, Add, Patch }
 
 export default { Retrieve }

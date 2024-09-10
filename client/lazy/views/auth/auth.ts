@@ -7,7 +7,6 @@ type str = string
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 declare var FetchLassie: any;
 
 
@@ -17,8 +16,6 @@ type State = {
     error_msg: str,
 }
 
-
-let distcss = `{--distcss--}`;
 
 
 class VAuth extends HTMLElement {
@@ -43,8 +40,6 @@ constructor() {
     }
 
     this.shadow = this.attachShadow({mode: 'open'});
-
-    SetDistCSS(this.shadow, distcss)
 }
 
 
@@ -95,7 +90,7 @@ async Login() {
 
 	let data:any = {}
 
-	if (window.location.hostname === "localhost") {
+	if (window.location.protocol === "http:") {
 		data = {
 			idToken: "local_token",
 			expiresIn: 3600,
@@ -159,7 +154,7 @@ async Login() {
 
 
 
-template = (_s:State) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+template = (_s:State) => { return Lit_Html`{--css--}{--html--}`; }; 
 
 }
 

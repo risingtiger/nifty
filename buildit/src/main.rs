@@ -1,6 +1,7 @@
 
-use std::io::Result;
+use anyhow::Result;
 use std::env;
+use std::fs;
 
 
 mod setinstance;
@@ -19,8 +20,6 @@ mod helperutils;
 const CLIENT_PREFIX: &str = "client_";
 const SERVER_PREFIX: &str = "server_";
 
-const ABSOLUTE_PATH: &str = "/Users/dave/Code/nifty/";
-
 const CLIENT_MAIN_SRC_PATH: &str = "client/";
 const CLIENT_INSTANCE_SRC_PREFIX: &str = "client/client_";
 const CLIENT_OUTPUT_DEV_PATH: &str = "server/static_dev/";
@@ -31,6 +30,7 @@ const SERVER_MAIN_SRC_PATH: &str = "server/src/";
 const SERVER_BUILD_PATH: &str = "server/build/";
 
 //const IGNORE_ON_RSYNC_MAIN:[&str; 8] = [".*", "**/*.ts", "**/CHANGELOG.md", "**/alwaysload", "app_xtend.webmanifest", "app.webmanifest", "**/media", "index.html"];
+
 
 
 
@@ -76,9 +76,10 @@ fn main() {
 
 fn all(instance:&str) -> Result<()> {
 
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
 
-    let x = format!("{}{}", ABSOLUTE_PATH, CLIENT_OUTPUT_DEV_PATH);
-    let y = format!("{}{}", ABSOLUTE_PATH, SERVER_BUILD_PATH);
+    let x = format!("{}{}", dir, CLIENT_OUTPUT_DEV_PATH);
+    let y = format!("{}{}", dir, SERVER_BUILD_PATH);
 
     let xx = std::fs::remove_dir_all(&x);
     if xx.is_err() {   println!("output dev folder is already removed.");   }
@@ -99,12 +100,4 @@ fn all(instance:&str) -> Result<()> {
 
     Ok(())
 }
-
-
-
-
-
-
-
-
 

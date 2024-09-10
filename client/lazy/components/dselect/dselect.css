@@ -22,7 +22,7 @@
     display: inline-block;
 }
 :host > #instigator::after {
-    content: '▼';
+    content: '+';
     position: absolute;
     right: 0;
     top: 0px;

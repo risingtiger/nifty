@@ -1,8 +1,10 @@
 
 
+import { SSE_TriggersE  } from './definitions.js'
 type str = string; type int = number; type bool = boolean;
 
 import { readFileSync, writeFileSync } from "fs"
+
 const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
 
 
@@ -61,7 +63,7 @@ function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   retu
 
 
 
-function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res, _rej)=> {
+function Add(db:any, SSE:any, path:str, newdocs:any[]) {   return new Promise(async (res, _rej)=> {
 
     const batch        = db.batch()
 
@@ -75,6 +77,8 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
 
     await batch.commit().catch((_err:any)=> { res({err:"batch commit failed"}) })
 
+	SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: [path]})
+
     res({ok: true})
 })}
 
@@ -83,7 +87,7 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
 
 type PatchOptsT = { notenyet:str|null }
 
-function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null) {   return new Promise(async (res, _rej)=> {
+function Patch(db:any, SSE:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null) {   return new Promise(async (res, _rej)=> {
 
     const promises:any[] = []
 
@@ -97,6 +101,7 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
 
 	if (!db) {
 		const returns = patch_jsons(pathstr, data, opts)
+		SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: pathstr})
 		res(returns)
 		return
 	}
@@ -113,6 +118,10 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
         for (let i = 0; i < results.length; i++) {
             returns.push({ok: true})
         }
+
+		console.log(pathstr)
+		SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: pathstr})
+
         res(returns)
     })
 })}

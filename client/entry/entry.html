@@ -1,0 +1,77 @@
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <title></title>
+
+    <meta charset="utf-8">
+    <meta name="description" content="App">
+
+    <meta name="theme-color" content="#fff">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<meta name="mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-title" content="PWTApp">
+    <meta name="mobile-web-app-status-bar-style" content="default">
+
+    <script>
+        //APPINSTANCE=''; APPVERSION=0; APPUPDATE_TS=0;
+    </script>
+
+    <link rel="icon" type="image/svg+xml" href="/assets/media/logo-icon.svg">
+        
+    <link rel="manifest" href="/app.webmanifest">
+
+	<script type="module">{--js--}</script>
+	<script type="module">{--instance_js--}</script>
+
+	<style>{--css--}</style>
+	<style>{--instance_css--}</style>
+</head>
+
+	<body>
+
+		<div id="update">
+
+			<div id="update_progress">Updating ...</div>		
+			<div id="update_done">Update Done</div>
+		</div>
+
+		<div id="login">
+			<h1>Authenticate</h1>
+
+			<ul class="items">
+				<li>
+					<h5>Email</h5>
+					<input type="text" name="username" id="email" value="">
+				</li>
+
+				<li>
+					<h5>Password</h5>
+					<input type="password" name="password" id="password" value="">
+				</li>
+			</ul>
+
+			<a class="btn" id="login_button">login</a>
+
+
+			<div id="login_errormsg"></div>
+
+
+		</div>
+
+		&nbsp; -- &nbsp;
+		<a id="show_login_button">Show Login</a>
+
+		&nbsp; -- &nbsp;
+		<a href="/v#home">View Home</a>
+
+		{--instance_html--}
+
+	</body>
+
+</html>

@@ -1,9 +1,10 @@
 
 use rayon::prelude::*;
-use std::io::Result;
 use std::path::Path;
 use std::os::unix::fs::MetadataExt;
 use std::fs;
+use std::env;
+use anyhow::Result;
 use std::process::Command;
 
 
@@ -23,8 +24,10 @@ struct YimT {
 
 pub fn yimit(instance:&str) -> Result<()> {
 
-    let ml = format!("{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, "lazy/");
-    let cl = format!("{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, crate::CLIENT_PREFIX, &instance, "/lazy/");
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
+    let ml = format!("{}{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH, "lazy/");
+    let cl = format!("{}{}{}{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH, crate::CLIENT_PREFIX, &instance, "/lazy/");
 
     let main_li = format!("{}{}", ml, "libs");
     let main_wo = format!("{}{}", ml, "workers");
@@ -35,9 +38,9 @@ pub fn yimit(instance:&str) -> Result<()> {
 
     let mut yims:Vec<YimT> = vec![];
 
-    let splitstr = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH);
-    let src_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH );
-    let output_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DIST_PATH );
+    let splitstr = format!("{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH);
+    let src_prefixpath = format!("{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH );
+    let output_prefixpath = format!("{}{}", dir, crate::CLIENT_OUTPUT_DIST_PATH );
 
     
     yims.extend(get_yims(&main_li, YimTypeT::Lib, &splitstr)?);

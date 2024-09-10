@@ -15,20 +15,17 @@ import * as path_util from "path";
 
 
 
-function runit(url:str, res:any, env:str, static_prefix:str)  {   return new Promise(async (resolve, _reject) => {
+function runit(fileurl:str, res:any, env:str, static_prefix:str)  {   return new Promise(async (resolve, _reject) => {
 
-    res.set('Cache-Control', 'private, max-age=300');
+	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
 
-    let path = url.replace("/assets/", "")
 
-    if (env === "dist") path = path.replace(/_v\d+/g, "")
+    let path = fileurl.replace("/assets/", "");
 
-    path = path.split("?")[0]
+    let absolute_prefix = process.cwd() + "/" + static_prefix + (env === "dev" ? "dev/" : "dist/");
 
-    let absolute_prefix = process.cwd() + `/${static_prefix}${env}/`
-
-    let extension = path_util.extname(path)
-    extension = extension === "" ? ".html" : extension
+    let extension = path_util.extname(path);
+    extension = extension === "" ? ".html" : extension;
 
     if (extension === "" || extension === ".html") {
         extension = ".html"
@@ -58,7 +55,7 @@ function runit(url:str, res:any, env:str, static_prefix:str)  {   return new Pro
             break;
 
         case ".css": 
-            css(absolute_prefix, path, res)
+            css(absolute_prefix, path, extension, env, res)
             break;
 
         case ".png":
@@ -117,12 +114,14 @@ async function js(absolute_path:str, jspath:str, jsextension:str, env:str, res:a
             const jspromise = fs.promises.readFile(absolute_path + path_without_extension + ".js", 'utf8')
 
             const linkcsspath = "/assets/" + path_without_extension + ".css"
-            const linkmaincsspath = "/assets/main.css"
 
             let [htmlstr, jsstr] = await Promise.all([htmlpromise, jspromise])
 
+			const css_replace = jspath.includes("views/") ? `<link rel="stylesheet" href="/assets/main.css"><link rel="stylesheet" href="${linkcsspath}">` : `<link rel="stylesheet" href="${linkcsspath}">`
+
             jsstr = jsstr.replace("{--html--}", `${htmlstr}`)
-            jsstr = jsstr.replace("{--devservercss--}", `<link rel="stylesheet" href="${linkmaincsspath}"><link rel="stylesheet" href="${linkcsspath}">`)
+            //jsstr = jsstr.replace("{--devservercss--}", `<link rel="stylesheet" href="${linkmaincsspath}"><link rel="stylesheet" href="${linkcsspath}">`)
+            jsstr = jsstr.replace("{--css--}", css_replace)
 
             res.send(jsstr)
 
@@ -130,7 +129,7 @@ async function js(absolute_path:str, jspath:str, jsextension:str, env:str, res:a
             res.sendFile(absolute_path + jspath);
         }
 
-    } else if (env === 'dist') {   
+    } else if (env === 'dist' || env === 'gcloud') {   
 
         let is_br_file = await fs.promises.access(absolute_path + path_without_extension + `.min${jsextension}.br`).then(()=> true).catch(()=> false)
 
@@ -149,11 +148,30 @@ async function js(absolute_path:str, jspath:str, jsextension:str, env:str, res:a
 
 
 
-async function css(absolute_path:str, csspath:str, res:any) {
+async function css(absolute_path:str, csspath:str, cssextension:str, env:str, res:any) {
 
-    csspath = absolute_path + csspath
+	res.set('Content-Type', 'text/css; charset=UTF-8');
 
-    res.sendFile(csspath)
+	if (env === "dev") {
+		csspath = absolute_path + csspath
+		res.sendFile(csspath)
+	}
+
+	else if(env === "dist" || env === "gcloud") { 
+
+		const path_without_extension = csspath.substring(0, csspath.length - cssextension.length)
+
+        let is_br_file = await fs.promises.access(absolute_path + path_without_extension + `.min${cssextension}.br`).then(()=> true).catch(()=> false)
+
+		if (is_br_file) {
+			csspath = absolute_path + path_without_extension + `.min${cssextension}.br`
+			res.set('Content-Encoding', 'br');
+		} else {
+			csspath = absolute_path + path_without_extension + `.min${cssextension}`
+		}
+
+		res.sendFile(csspath);
+	}
 }
 
 

@@ -15,7 +15,6 @@ type bool = boolean;  //type str = string; type int = number;
 declare var Lit_Render: any;
 declare var Lit_Html: any;
 declare var FetchLassie: any;
-declare var SetDistCSS: any;
 
 
 
@@ -49,8 +48,6 @@ type State = {
 }
 
 
-let distcss = `{--distcss--}`;
-
 
 class VNotifications extends HTMLElement {
 
@@ -70,8 +67,6 @@ class VNotifications extends HTMLElement {
         }
 
         this.shadow = this.attachShadow({mode: 'open'});
-
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -107,7 +102,7 @@ class VNotifications extends HTMLElement {
 
 
 
-    async Subscribe() {
+    async Subscribe(btnel:any) {
 
         navigator.serviceWorker.ready
 
@@ -144,6 +139,8 @@ class VNotifications extends HTMLElement {
                 this.s.is_subscribed = true
                 this.sc()
 
+				btnel.setAttribute('resolved', true)
+
                 await reg.showNotification('Notification with ServiceWorker', {
                     body: 'Notification with ServiceWorker',
                 })
@@ -154,7 +151,7 @@ class VNotifications extends HTMLElement {
 
 
 
-    async Unsubscribe() {
+    async Unsubscribe(btnel:any) {
 
         navigator.serviceWorker.ready
 
@@ -175,6 +172,8 @@ class VNotifications extends HTMLElement {
 
                     this.s.is_subscribed = false
                     this.sc()
+
+					btnel.setAttribute('resolved', true)
 
                   })
                   .catch((_e) => {
@@ -246,7 +245,7 @@ class VNotifications extends HTMLElement {
 
 
 
-    template = (_s:State) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = (_s:State) => { return Lit_Html`{--css--}{--html--}`; }; 
 
 }
 

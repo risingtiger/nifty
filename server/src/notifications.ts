@@ -39,26 +39,31 @@ async function Remove_Subscription(db:Firestore, user_email:str) {
 
 async function Send_Msg(db:Firestore, title:str, body:str, tags:str[]) {
 
-    try {
-        const all_user_docs = await db.collection("users").get()
-        const all_users = all_user_docs.docs.map((d:any)=> d.data())
+	return new Promise<number>(async (promise_res, _rej)=> {
 
-        const all_subscriptions:any[] = []
+		try {
+			const all_user_docs = await db.collection("users").get()
+			const all_users = all_user_docs.docs.map((d:any)=> d.data())
 
-        all_users.forEach((u:any)=> {
-            if (u.notifications.fcm_token && u.notifications.tags.some((t:any)=> tags.includes(t))) {
-                all_subscriptions.push(u.notifications.fcm_token)
-            }
-        })
+			const all_subscriptions:any[] = []
 
-        const all_messages = all_subscriptions.map((t:any)=> ( { token:t, data: { title, body } } ) )
+			all_users.forEach((u:any)=> {
+				if (u.notifications.fcm_token && u.notifications.tags.some((t:any)=> tags.includes(t))) {
+					all_subscriptions.push(u.notifications.fcm_token)
+				}
+			})
 
-        if (all_messages.length === 0) { return new Promise((res, _rej)=> res("No users found to send messages to")) }
+			const all_messages = all_subscriptions.map((t:any)=> ( { token:t, data: { title, body } } ) )
 
-        return getMessaging().sendEach(all_messages)
-    } 
+			if (all_messages.length === 0) { return new Promise<number>((res, _rej)=> res(0)) }
 
-    catch (err) { throw err }
+			await getMessaging().sendEach(all_messages)
+			 
+			promise_res(1)
+		} 
+
+		catch (err) { promise_res(0) }
+	})
 }
 
 

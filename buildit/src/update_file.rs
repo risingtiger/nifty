@@ -1,4 +1,6 @@
-use std::io::Result;
+
+use anyhow::Result;
+use std::env;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -121,10 +123,12 @@ pub fn main(directory:&str, stem: &str, extension: &str, instance:&str) -> Resul
 
 pub fn lazy(directory:&str, stem: &str, extension: &str) -> Result<()> {
 
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
     let output_file_extension = if extension == "ts" { "js" } else { extension };
 
-    let client_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_MAIN_SRC_PATH, directory, "/", stem, ".", extension);
-    let output_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH, directory, "/", stem, ".", output_file_extension);
+    let client_file_path = format!("{}{}{}{}{}{}{}", dir, crate::CLIENT_MAIN_SRC_PATH, directory, "/", stem, ".", extension);
+    let output_file_path = format!("{}{}{}{}{}{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH, directory, "/", stem, ".", output_file_extension);
 
     println!("client_file_path {}", client_file_path);
     println!("output_file_path {}", output_file_path);
@@ -144,10 +148,12 @@ pub fn lazy(directory:&str, stem: &str, extension: &str) -> Result<()> {
 
 pub fn server(directory:&str, stem: &str, extension: &str) -> Result<()> {
 
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
     let output_file_extension = if extension == "ts" { "js" } else { extension };
 
-    let server_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::SERVER_MAIN_SRC_PATH, directory, "/", stem, ".", extension);
-    let output_file_path = format!("{}{}{}{}{}{}{}", crate::ABSOLUTE_PATH, crate::SERVER_BUILD_PATH, directory, "/", stem, ".", output_file_extension);
+    let server_file_path = format!("{}{}{}{}{}{}{}", dir, crate::SERVER_MAIN_SRC_PATH, directory, "/", stem, ".", extension);
+    let output_file_path = format!("{}{}{}{}{}{}{}", dir, crate::SERVER_BUILD_PATH, directory, "/", stem, ".", output_file_extension);
 
     println!("server_file_path {}", server_file_path);
     println!("output_file_path {}", output_file_path);
@@ -169,7 +175,10 @@ pub fn server(directory:&str, stem: &str, extension: &str) -> Result<()> {
 
 
 fn update_file_ts(cp: &str, op: &str) -> Result<()> {
-    let _swc = Command::new("npx").arg("swc").args([&cp, "-o", &op]).current_dir(crate::ABSOLUTE_PATH).stdout(Stdio::piped()).output().expect("swc chucked an error");
+
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
+    let _swc = Command::new("npx").arg("swc").args([&cp, "-o", &op]).current_dir(dir).stdout(Stdio::piped()).output().expect("swc chucked an error");
     Ok(())
 }
 
@@ -177,7 +186,10 @@ fn update_file_ts(cp: &str, op: &str) -> Result<()> {
 
 
 fn update_file_css(cp: &str, op: &str) -> Result<()> {
-    let _swc = Command::new("cp").arg(&cp).arg(&op).current_dir(crate::ABSOLUTE_PATH).output().expect("cp on css chucked an error");
+
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
+    let _swc = Command::new("cp").arg(&cp).arg(&op).current_dir(dir).output().expect("cp on css chucked an error");
     Ok(())
 }
 
@@ -185,7 +197,10 @@ fn update_file_css(cp: &str, op: &str) -> Result<()> {
 
 
 fn update_file_html(cp: &str, op: &str) -> Result<()> {
-    let _swc = Command::new("cp").arg(&cp).arg(&op).current_dir(crate::ABSOLUTE_PATH).output().expect("cp on html chucked an error");
+
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
+    let _swc = Command::new("cp").arg(&cp).arg(&op).current_dir(dir).output().expect("cp on html chucked an error");
     Ok(())
 }
 

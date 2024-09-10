@@ -4,7 +4,6 @@ import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 
 
 
@@ -46,7 +45,6 @@ const DUMMY_EL = document.createElement("div")
 
 
 
-let distcss = `{--distcss--}`;
 
 
 
@@ -83,7 +81,6 @@ class CDselect extends HTMLElement {
         this.keyframes = { view: null, instigator: null, }// label: null}
 
 
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -331,7 +328,7 @@ class CDselect extends HTMLElement {
 
 
 
-    template = () => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = () => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 

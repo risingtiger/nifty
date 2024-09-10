@@ -1,5 +1,5 @@
 
-import { int, bool, num } from "../definitions.js"
+import { num, bool, str } from "../definitions.js"
 
 
 type OptsT = {
@@ -17,7 +17,7 @@ enum QueRequestStateE { INACTIVE, ACTIVE, SUCCESS }
 
 type QueRequestT = {
     url: str,
-    ts: int,
+    ts: num,
     http_opts: HttpOptsT,
     opts: OptsT,
     state: QueRequestStateE,
@@ -84,11 +84,11 @@ function execute(que:QueRequestT) {
         .then(async (server_response:any)=> {
 
             if (server_response.status === 401) {
-                error_out("Not Authorized")
+                error_out("fetchlassie_not_authorized", "Fetchlassie- " + que.url + ":" + "401. Not Authorized")
             }
 
             else if (server_response.status === 410) {
-                window.location.href = "/index.html?update=1"
+                window.location.href = "/index.html?update_init=1"
             }
 
             else if (server_response.ok) {
@@ -98,30 +98,22 @@ function execute(que:QueRequestT) {
             }
 
             else {
-                error_out(server_response.statusText)
+                error_out("fetchlassie_server_error", "Fetchlassie Server Error - " + que.url + ": " + server_response.statusText)
             }
         })
 
         .catch((error:any)=> {
-            error_out(error.message + " " + que.url)
+			error_out("fetchlassie_network_error", "Fetchlassie Network Error - " + que.url + ": " + error.message)
         })
 }
 
 
 
 
-function error_out(server_response:any = {}) {
+function error_out(errmsg:string, errmsg_long:string="") {
 
-    const errmsg = server_response.msg || server_response
-
-    if ((window as any).APPVERSION !== 0) { 
-        window.location.href = `/?errmsg=${encodeURIComponent('Unable to Fetch')}`; 
-    }   
-
-    console.log(server_response.status)
-    console.log(server_response.statusText)
-    console.error("Fetch Error: ")
-    console.error(errmsg)
+	localStorage.setItem("errmsg_long", errmsg_long)
+	window.location.href = `/index.html?errmsg=${errmsg}`; 
 }
 
 
@@ -145,7 +137,7 @@ function authrequest() { return new Promise<string>(async (res,_rej)=> {
     let token_expires_at = localStorage.getItem('token_expires_at')!
 
     if (!id_token) {
-        error_out("Not Signed In")
+        error_out("fetchlassie_id_token_missing", "Fetchlassie - ID token missing in browser storage")
         return
     }
 
@@ -167,7 +159,7 @@ function authrequest() { return new Promise<string>(async (res,_rej)=> {
             let data = await r.json()
 
             if (data.error) {
-                error_out(data.error.message)
+                error_out("fetchlassie_refresh_auth_failed", "Fetchlassie Refresh Auth Failed - " + data.error.message)
             }
 
             else {
@@ -179,7 +171,7 @@ function authrequest() { return new Promise<string>(async (res,_rej)=> {
             }
 
         }).catch(err=> {
-            error_out(err.message)
+			error_out("fetchlassie_network_refresh_auth_failed", "Fetchlassie Network Refresh Auth Failed - " + err.message)
         })
     }
 
@@ -202,7 +194,7 @@ function fetch_lassie_ticktock() {
     const que_timedout = ques.find(x=> now - x.ts > 9000)
 
     if (que_timedout) {
-        error_out("FetchLassie timed out")
+        error_out("fetchlassie_timeout", "Fetch Lassie Timeout - " + que_timedout.url)
         return
     }
 

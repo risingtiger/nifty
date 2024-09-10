@@ -4,7 +4,6 @@ import { str, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 
 
 
@@ -28,7 +27,6 @@ type ModelT = {
 
 
 
-let distcss = `{--distcss--}`;
 
 
 
@@ -66,7 +64,6 @@ class CReveal extends HTMLElement {
             isopen: false
         }
 
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -242,7 +239,7 @@ class CReveal extends HTMLElement {
 
 
 
-    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 

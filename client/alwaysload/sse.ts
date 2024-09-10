@@ -1,7 +1,8 @@
 
+import { num, str, bool } from "../definitions.js";
 import { SSE_TriggersE } from '../definitions.js'
 
-//declare var EngagementListen:any;
+declare var EngagementListen:any;
 
 
 
@@ -34,7 +35,7 @@ function Add_Listener(name:str, triggers:SSE_TriggersE[], callback_:(obj:any)=>v
     const is_already_listener = sse_listeners.find(l=> l.name === name) ? true : false
 
     if (is_already_listener) {
-        redirect_from_error("SSE Listener with that name already exists")
+        redirect_from_error("sse_listner_already_exists","SSE Listener with that name already exists")
         return
     }
 
@@ -89,8 +90,12 @@ function boot_up() {
     })
 
     evt.addEventListener("a_"+SSE_TriggersE.FIRESTORE, (e) => {
-        const data = JSON.parse(e.data)
-        sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
+		console.log("SSE Event")
+		if (EngagementListen.IsDocFocused()) {
+			console.log("SSE Event - Focused")
+			const data = JSON.parse(e.data)
+			sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
+		}
     }) 
 
     // lets just see if the browser will take care of when user goes in and out of focus on window / app
@@ -216,12 +221,9 @@ function sse_ticktock_run() : int {
 
 
 
-function redirect_from_error(errmsg:str) {
-    console.info(`/?errmsg=SSE Error: ${errmsg}`)
-
-    if ((window as any).APPVERSION > 0) {
-        window.location.href = `/?errmsg=SSE Error: ${errmsg}`
-    }
+function redirect_from_error(errmsg:str, errmsg_long:str) {
+	localStorage.setItem("errmsg_long", errmsg_long)
+	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
 

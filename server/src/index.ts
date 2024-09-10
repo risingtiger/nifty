@@ -21,8 +21,10 @@ import { InfluxDB } from "./influxdb.js"
 import SSE from "./sse.js"
 import Notifications from "./notifications.js"
 import FileRequest from "./filerequest.js"
+import Entry from "./entry.js"
+import HTMLStr from "./htmlstr.js"
 
-import INSTANCE from './server_pwt/index_extend.js'
+import INSTANCE from './server_xen/index_extend.js'
 
 
 
@@ -34,10 +36,9 @@ const APPVERSION = 0;
 
 
 
-const VAR_NODE_ENV = process.env.NODE_ENV === "dev" ? "dev" : "dist";
-const VAR_PORT = process.env.NIFTY_PORT || "3003";
-const VAR_OFFLINEDATE_DIR = process.env.NIFTY_OFFLINEDATA_DIR || ""
-const VAR_USE_HTTPS = process.env.NIFTY_USE_HTTPS || "false"
+const VAR_NODE_ENV = process.env.NODE_ENV || 'dev';
+const VAR_PORT = process.env.NIFTY_PORT || process.env.PORT;
+const VAR_OFFLINEDATE_DIR = process.env.NIFTY_OFFLINEDATA_DIR
 
 const app = express()
 
@@ -54,17 +55,8 @@ app.use(bodyParser.json())
 
 
 
-app.get('/tada', (_req:any, res:any) => {
-    console.log("tada")
-    res.setHeader('Appversion', APPVERSION);
-    res.status(200).send("tada")
-})
-
-
 
 app.get([
-    '/',
-    '/index.html',
     '/app*.webmanifest$', 
     '/assets/*\.js$',
     '/assets/*\.css$', 
@@ -79,6 +71,8 @@ app.get([
 
 
 
+
+app.get('/api/latest_app_version', latest_app_version)
 
 app.post('/api/refresh_auth', refresh_auth)
 
@@ -111,8 +105,31 @@ app.post("/api/notifications_send_msg", notifications_send_msg)
 
 
 
+app.get(['/index.html','/'], entry)
+
+
+
+
+app.get('/v', htmlstr)
+
+
+
+
+
+
+
+
+
 async function assets_general(req:any, res:any) {
-    FileRequest.runit(req.url, res, VAR_NODE_ENV, STATIC_PREFIX);
+	const fileurl = req.url
+    FileRequest.runit(fileurl, res, VAR_NODE_ENV, STATIC_PREFIX);
+}
+
+
+
+
+async function latest_app_version(_req:any, res:any) {
+	res.status(200).send(APPVERSION.toString())
 }
 
 
@@ -169,7 +186,7 @@ async function firestore_add(req:any, res:any) {
 
     const return_data = { result: "", err: "" }
 
-    const result:any = await Firestore.Add(db, req.body.path, req.body.newdocs)
+    const result:any = await Firestore.Add(db, SSE, req.body.path, req.body.newdocs)
 
     if (result.err) {
         return_data.err = "not ok"
@@ -188,7 +205,7 @@ async function firestore_patch(req:any, res:any) {
 
     const return_data = { result: "", err: "" }
 
-    await Firestore.Patch(db, req.body.paths, req.body.data, req.body.opts)
+    await Firestore.Patch(db, SSE, req.body.paths, req.body.data, req.body.opts)
 
     return_data.result = "ok"
     res.status(200).send(JSON.stringify(return_data))
@@ -280,6 +297,7 @@ async function notifications_add_subscription(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
+
     const user_email:str = req.query.user_email as string
     const fcm_token:str = req.query.fcm_token as string
 
@@ -317,6 +335,33 @@ async function notifications_send_msg(req:any, res:any) {
 
 
 
+async function entry(req:any, res:any) {
+
+	//res.set('Cache-Control', 'private, max-age=300');
+	res.set('Content-Type', 'text/html; charset=UTF-8');
+	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
+
+    const htmlstr = await Entry.runit(INSTANCE.INSTANCEID, STATIC_PREFIX, VAR_NODE_ENV)
+
+    res.status(200).send(htmlstr)
+}
+
+
+
+
+async function htmlstr(req:any, res:any) {
+
+	//res.set('Cache-Control', 'private, max-age=300');
+	res.set('Content-Type', 'text/html; charset=UTF-8');
+	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
+
+    const htmlstr = await HTMLStr.runit(STATIC_PREFIX, VAR_NODE_ENV)
+    res.status(200).send(htmlstr)
+}
+
+
+
+
 
 // END ROUTES
 
@@ -333,24 +378,23 @@ async function notifications_send_msg(req:any, res:any) {
 
 async function init() { return new Promise(async (res, _rej)=> {
 
-    if (VAR_NODE_ENV === "dev") {
+    if ( (VAR_NODE_ENV === "dev" || VAR_NODE_ENV === "dist") && !VAR_OFFLINEDATE_DIR)  {
 
-		if (!VAR_OFFLINEDATE_DIR) {
-			const googleauth = new googleapis.auth.GoogleAuth({
-				//keyFile: INSTANCE.SHEETS_KEYJSONFILE,
-				keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json',
-				scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-			})
-			let google_auth:any = await googleauth.getClient();
-			sheets = googleapis.sheets({version: 'v4', auth: google_auth});
+		/*
+		const googleauth = new googleapis.auth.GoogleAuth({
+			//keyFile: INSTANCE.SHEETS_KEYJSONFILE,
+			keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json',
+			scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+		})
+		let google_auth:any = await googleauth.getClient();
+		sheets = googleapis.sheets({version: 'v4', auth: google_auth});
+		*/
 
-			initializeApp({   credential: cert(INSTANCE.KEYJSONFILE)   })
-
-			db = getFirestore();
-		}
+		initializeApp({   credential: cert(INSTANCE.KEYJSONFILE)   })
+		db = getFirestore();
     } 
 
-    else { 
+    else if (VAR_NODE_ENV === 'gcloud') { 
 
         /*
         const googleauth = new googleapis.auth.GoogleAuth({
@@ -371,29 +415,29 @@ async function init() { return new Promise(async (res, _rej)=> {
 
 async function startit() {
 
-    if (VAR_NODE_ENV === "dev") {
+    if ( (VAR_NODE_ENV === "dev" || VAR_NODE_ENV === "dist") && !VAR_OFFLINEDATE_DIR)  {
 
-		if (VAR_USE_HTTPS === "true") {
-			const https_options = {
-				key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
-				cert: fs.readFileSync("/Users/dave/.ssh/localhost.pem")
-			}
-			
-			const s = https.createServer(https_options, app)
-			s.listen( Number(VAR_PORT), () => {
-				console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
-			})
-		} else {
-			app.listen( Number(VAR_PORT), () => {
-				console.info(`HTTP App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
-			})
+		const https_options = {
+			key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
+			cert: fs.readFileSync("/Users/dave/.ssh/localhost.pem")
 		}
+		
+		https.createServer(https_options, app).listen( Number(VAR_PORT), () => {
+			console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
+		})
+	}
+
+    if ( (VAR_NODE_ENV === "dev" || VAR_NODE_ENV === "dist") && VAR_OFFLINEDATE_DIR)  {
+
+		app.listen( Number(VAR_PORT), () => {
+			console.info(`HTTP App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
+		})
     } 
 
-    else { 
+    else if (VAR_NODE_ENV === 'gcloud') {
 
-        app.listen( Number(process.env.PORT), () => {
-            console.info(`App listening on port ${(process.env.PORT)}`);
+        app.listen( Number(VAR_PORT), () => {
+            console.info(`App listening on port ${(VAR_PORT)}`);
         })
     }
 }

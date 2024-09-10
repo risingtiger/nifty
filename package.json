@@ -4,8 +4,10 @@
   "scripts": {
     "build": "./buildit/buildit",
     "dev": "cd server && NODE_ENV=dev nodemon --watch ./build ./build/index.js",
+    "devhttps": "cd server && NODE_ENV=dev USE_HTTPS=true nodemon --watch ./build ./build/index.js",
     "devdebug": "cd server && NODE_ENV=dev nodemon --inspect --watch ./build ./build/index.js",
-    "dist": "cd server && NODE_ENV=dist node ./build/index.js"
+    "dist": "cd server && NODE_ENV=dist node ./build/index.js",
+    "distdebug": "cd server && NODE_ENV=dist node --inspect ./build/index.js"
   },
   "nodemonConfig": {
     "delay": 2500

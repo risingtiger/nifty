@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./build/index.js",
   "scripts": {
-    "start": "node ./build/index.js"
+    "start": "NODE_ENV=gcloud node ./build/index.js"
   },
   "engines": {
     "node": ">=20.17.0 <21.0.0"

@@ -93,7 +93,7 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<bool>(async
     const filepaths = loadque.map(l=> get_filepath(l.type, l.name, l.instance))
 
     for(const f of filepaths) {
-        promises.push(import(f).catch((_e)=> throwup_and_leave(f)))
+        promises.push(import(f).catch((_e)=> throwup_and_leave("lazyload_server_error", `Failed to lazyload ${f}`)))
     }
 
     await Promise.all(promises)
@@ -107,26 +107,25 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<bool>(async
 function get_filepath(type:str, name:str, instance:str|null) {
 
     let path = instance ? `/assets/client_${instance}/` : "/assets/"
-    let appversion_str = (window as any).APPVERSION > 0 ? `_v${(window as any).APPVERSION}` : "" 
 
     switch (type) {
         case "view": 
-            path += `lazy/views/${name}/${name}${appversion_str}.js`
+            path += `lazy/views/${name}/${name}.js`
             break;
         case "component":
-            path += `lazy/components/${name}/${name}${appversion_str}.js`
+            path += `lazy/components/${name}/${name}.js`
             break;
         case "thirdparty":
-            path += `thirdparty/${name}${appversion_str}.js`
+            path += `thirdparty/${name}.js`
             break;
         case "workers":
-            path += `lazy/workers/${name}${appversion_str}.js`
+            path += `lazy/workers/${name}.js`
             break;
         case "lib":
-            path += `lazy/libs/${name}${appversion_str}.js`
+            path += `lazy/libs/${name}.js`
             break;
         case "directive":
-            path += `lazy/directives/${name}${appversion_str}.js`
+            path += `lazy/directives/${name}.js`
             break;
     }
 
@@ -136,15 +135,9 @@ function get_filepath(type:str, name:str, instance:str|null) {
 
 
 
-function throwup_and_leave(fpath:str) {
-
-    const errmsg = encodeURIComponent(`Unable to Lazy Load Js: ${fpath}`)
-
-    console.info(`/?errmsg=${errmsg}`)
-
-    if (!window.location.href.includes("localhost")) {
-        //window.location.href = `/?errmsg=${errmsg}`
-    }
+function throwup_and_leave(errmsg:str, errmsg_long:str="") {
+	localStorage.setItem("errmsg_long", errmsg_long)
+	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
 
@@ -167,7 +160,7 @@ function ticktock() {
             const istimedout = now - loadstart_ts > TIMEOUT_TS
 
             if (istimedout) {
-                throwup_and_leave("")
+                throwup_and_leave("lazyload_timeout", "Lazyload took too long to load.")
             } else {
                 ticktock()
             }

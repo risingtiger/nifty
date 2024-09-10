@@ -4,7 +4,6 @@ import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 
 
 
@@ -20,7 +19,6 @@ type ModelT = {
 
 
 
-let distcss = `{--distcss--}`;
 
 
 
@@ -47,7 +45,6 @@ class CForm extends HTMLElement {
         }
 
 
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -76,7 +73,7 @@ class CForm extends HTMLElement {
 
 
 
-    template = (_s:StateT) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = (_s:StateT) => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 

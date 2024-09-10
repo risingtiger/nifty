@@ -56,13 +56,9 @@ function Remove() {
 
 
 
-function redirect_from_error(errmsg:str) {
-    
-    console.info(`/?errmsg=InfluxDB Error: ${errmsg}`)
-
-    if ((window as any).APPVERSION > 0) {
-        window.location.href = `/?errmsg=InfluxDB Error: ${errmsg}`
-    }
+function redirect_from_error(errmsg:str, errmsg_long:str) {
+	localStorage.setItem("errmsg_long", errmsg_long)
+	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
 
@@ -76,14 +72,14 @@ function bootup_if_not_already() {
             INDEXEDDB_DBRequest = indexedDB.open(INDEXEDDB_DBNAME, INDEXEDDB_DBVERSION)
 
             INDEXEDDB_DBRequest.onerror = (event:any) => { 
-                redirect_from_error("Error creating/accessing IndexedDB database" + event.target.errorCode)
+                redirect_from_error("indexeddb_access","IndexedDB - creating/accessing IndexedDB database" + event.target.errorCode)
             }
 
             INDEXEDDB_DBRequest.onsuccess = async (event: any) => {
                 INDEXEDDB_DB = event.target.result
 
                 INDEXEDDB_DB!.onerror = (event:any) => {
-                    redirect_from_error("Database error: " + event.target.errorCode)
+                    redirect_from_error("indexeddb_database","IndexedDB Error - " + event.target.errorCode)
                 }
 
                 res(true)

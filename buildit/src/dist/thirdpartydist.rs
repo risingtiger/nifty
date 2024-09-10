@@ -1,5 +1,6 @@
 use rayon::prelude::*;
-use std::io::Result;
+use std::env;
+use anyhow::Result;
 use std::process::Command;
 use std::fs;
 use std::path::Path;
@@ -19,10 +20,11 @@ struct ThirdPartyT {
 
 pub fn distthirdparty(instance:&str) -> Result<()> {
 
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
     
-    let splitstr = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH);
-    let src_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DEV_PATH );
-    let output_prefixpath = format!("{}{}", crate::ABSOLUTE_PATH, crate::CLIENT_OUTPUT_DIST_PATH );
+    let splitstr = format!("{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH);
+    let src_prefixpath = format!("{}{}", dir, crate::CLIENT_OUTPUT_DEV_PATH );
+    let output_prefixpath = format!("{}{}", dir, crate::CLIENT_OUTPUT_DIST_PATH );
 
     let hb = format!("{}{}", src_prefixpath, "thirdparty/");
     let hn = format!("{}{}{}{}", src_prefixpath, crate::CLIENT_PREFIX, &instance, "/thirdparty/");
@@ -70,6 +72,8 @@ fn getfiles(dir:&str, splitstr:&str) -> Result<Vec<ThirdPartyT>> {
 
 fn procf(file:&ThirdPartyT, src_prefixpath:&str, output_prefixpath:&str) -> Result<()> {
 
+    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+
     let abs_dir = format!("{}{}", src_prefixpath, file.dir);
     let output_dir = format!("{}{}", output_prefixpath, file.dir);
     let output_min_file = format!("{}{}{}", &output_dir, file.stem, ".min.js");
@@ -77,7 +81,7 @@ fn procf(file:&ThirdPartyT, src_prefixpath:&str, output_prefixpath:&str) -> Resu
     let t = format!("{}{}{}", abs_dir, file.stem, ".js");
 
     let _ = fs::create_dir_all(&output_dir);
-    let _ = Command::new("npx").args(["uglify-js", &t, "-o", &output_min_file]).current_dir(crate::ABSOLUTE_PATH).output().expect("uglifyjs chucked an error");
+    let _ = Command::new("npx").args(["uglify-js", &t, "-o", &output_min_file]).current_dir(&dir).output().expect("uglifyjs chucked an error");
 
     let m = Path::new(&output_min_file);
     let metadata = m.metadata().expect("metadata error");

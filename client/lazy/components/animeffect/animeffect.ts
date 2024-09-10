@@ -4,7 +4,6 @@ import { str, num, bool } from "../../../definitions.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var SetDistCSS: any;
 
 
 
@@ -22,7 +21,6 @@ type ModelT = {
 
 
 
-let distcss = `{--distcss--}`;
 
 
 
@@ -51,7 +49,6 @@ class CAnimeffect extends HTMLElement {
         this.s = { what: WhatE.INIT } 
 
 
-        SetDistCSS(this.shadow, distcss)
     }
 
 
@@ -87,7 +84,7 @@ class CAnimeffect extends HTMLElement {
 
 
 
-    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--devservercss--}{--html--}`; }; 
+    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 

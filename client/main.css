@@ -1,3 +1,4 @@
+/*
 :host {
     --textcolor: #565656;
     --textcolor-fade: #818181;
@@ -7,9 +8,9 @@
     --background-highlight: #f9f9f9;
     --bordercolor: lightgray;
 
-    /* layout and spacing */
     --padding-container: 10px;
 }
+*/
 
 div,
 span,
@@ -21,7 +22,7 @@ h5,
 h6,
 p,
 button {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--fontfamily);
     -webkit-font-smoothing: antialiased;
     font-size: var(--textsize);
     line-height: 1.2;

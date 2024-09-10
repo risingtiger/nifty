@@ -32,16 +32,6 @@ class Route {
 
         return new Promise<any>( async (res, _rej) => {
 
-            if ( this.lazyload_view.auth.length > 0 && !this.lazyload_view.auth.includes(localStorage.getItem('auth_group')!)) {
-                const errmsg = "not_authorized_to_view_page"
-                if ((window as any).APPVERSION !== 0) { 
-                    window.location.href = `/?errmsg=${encodeURIComponent(errmsg)}`; 
-                }   
-                console.error(errmsg)
-
-                return;
-            }
-
             await LazyLoad([this.lazyload_view])
 
             const parentEl = document.querySelector("#views")!;
