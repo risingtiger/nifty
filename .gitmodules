@@ -7,6 +7,3 @@
 [submodule "client/client_xen"]
 	path = client/client_xen
 	url = git@github.com:risingtiger/client_xen.git
-[submodule "server/src/server_xen"]
-	path = server/src/server_xen
-	url = git@github.com:risingtiger/server_xen.git
