@@ -1,48 +1,30 @@
 
 
 :host {
-    position: relative;
-    font-weight: 600;
-    display: inline-block;
-    padding: 9px 15px 0px 15px;
-    border-radius: 22px;
-    box-sizing: border-box;
-    height: 36px;
-    color: gray;
-    background-color: white;
-    border-color: var(--actioncolor);
-    border-width: 1px;
-    border-style: solid;
-    cursor: pointer;
-    transition-property: background-color;
-    transition-duration: 0.1s;
-    transition-timing-function: ease-in-out;
-}
-:host(:hover) {
-    background-color: #f2f5f6;
+    display: inline-flex;
 }
 
-:host(.primary) {
-    border: none;
-    background-color: var(--actioncolor);
+.btn-group {
+    display: inline-flex;
+    border-radius: 4px;
+    overflow: hidden;
 }
 
-
-:host(.primary) #slotwrap {
-    color: white;
-    transition: opacity 0.4s ease-in;
+::slotted(*) {
+    margin: 0;
+    border-radius: 0;
+    border-right-width: 0;
 }
 
-:host #slotwrap.subdued {
-    opacity: 0.4;
+::slotted(*:first-child) {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
 }
 
-:host c-animeffect {
-    position: absolute;
-    top: 7px;
-    left: calc(50% - 10px);
-    width: 20px;
-    height: 20px;
+::slotted(*:last-child) {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-right-width: 1px;
 }
 
 
