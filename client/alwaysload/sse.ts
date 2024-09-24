@@ -90,9 +90,7 @@ function boot_up() {
     })
 
     evt.addEventListener("a_"+SSE_TriggersE.FIRESTORE, (e) => {
-		console.log("SSE Event")
-		if (EngagementListen.IsDocFocused()) {
-			console.log("SSE Event - Focused")
+		if (document.hasFocus()) {
 			const data = JSON.parse(e.data)
 			sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
 		}

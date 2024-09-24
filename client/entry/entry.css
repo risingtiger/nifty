@@ -95,20 +95,12 @@ button {
 		}
 	}
 
-	& button {
-		appearance: none;
-		border-radius: 0;
-		text-align: inherit;
-		background: none;
-		box-shadow: none;
-		padding: 0;
-		cursor: pointer;
-		border: none;
-		color: inherit;
-		font: inherit;
+	& #submit_login_button {
+		margin-bottom: 20px;
 	}
 
 	& #login_errormsg {
+		display: none;
 		margin-top: 10px;
 		padding: 10px;
 		border: 1px solid #dc3545;
@@ -117,7 +109,62 @@ button {
 		color: #721c24;
 		font-size: 14px;
 	}
+	& #login_errormsg.active {
+		display: block;
+	}
 }
 #login.active {
 	display: block;
 } 
+
+
+#logged_out {
+	display: none;
+
+	& #login_button {
+		width: 200px;
+        margin: 0 auto;
+        text-align: center;
+        font-size: 19px;
+        padding-bottom: 13px;
+	}
+
+}
+#logged_out.active {
+	display: block;
+}
+
+
+#logged_in {
+	display: none;
+    width: 283px;
+    margin: 0 auto;
+
+	& #logout_button {
+		
+	}
+
+	& #home_button {
+		margin-bottom: 12px;
+        text-decoration: none;
+
+		& a {
+			color: var(--textcolor);
+			text-decoration: none;
+		}
+	}
+
+}
+#logged_in.active {
+	display: block;
+}
+
+
+.btn {
+	cursor: pointer;
+	padding: 10px 20px;
+	border-radius: 5px;
+	border: 1px solid var(--actioncolor);
+	text-align: center;
+	font-size: 17px;
+}

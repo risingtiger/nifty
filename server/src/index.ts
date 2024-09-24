@@ -186,7 +186,7 @@ async function firestore_add(req:any, res:any) {
 
     const return_data = { result: "", err: "" }
 
-    const result:any = await Firestore.Add(db, SSE, req.body.path, req.body.newdocs)
+    const result:any = await Firestore.Add(db, req.body.path, req.body.newdocs)
 
     if (result.err) {
         return_data.err = "not ok"
@@ -205,7 +205,7 @@ async function firestore_patch(req:any, res:any) {
 
     const return_data = { result: "", err: "" }
 
-    await Firestore.Patch(db, SSE, req.body.paths, req.body.data, req.body.opts)
+    await Firestore.Patch(db, req.body.paths, req.body.data, req.body.opts)
 
     return_data.result = "ok"
     res.status(200).send(JSON.stringify(return_data))
@@ -483,7 +483,7 @@ async function bootstrapit() {
 
     await init()
 
-    INSTANCE.Set_Server_Mains(app, db, Firestore, sheets, Notifications, SSE, APPVERSION, validate_request)
+    INSTANCE.Set_Server_Mains(app, db, sheets, Notifications, APPVERSION, validate_request)
     INSTANCE.Set_Routes()
 
     startit()

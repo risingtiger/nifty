@@ -1,12 +1,40 @@
 
+let els:any = {}
 
 
 window.addEventListener("load", async (_e) => {
 
-	setup_service_worker()
+	if (localStorage.getItem("disable_service_worker") !== "true") {
+		setup_service_worker()
+	}
 
-	document.getElementById("show_login_button")!.addEventListener("click", () => { show_login() });
+	document.getElementById("login_button")!.addEventListener("click", () => { show_login() });
 
+	const id_token = localStorage.getItem('id_token');
+	
+	els = {
+		logged_in: document.getElementById("logged_in") as HTMLElement,
+		logged_out: document.getElementById("logged_out") as HTMLElement,
+		update: document.getElementById("update") as HTMLElement,
+		update_progress: document.getElementById("update_progress") as HTMLElement,
+		update_done: document.getElementById("update_done") as HTMLElement,
+		login: document.getElementById("login") as HTMLElement,
+		login_button: document.getElementById("login_button") as HTMLElement,
+		logout_btn: document.getElementById("logout_button") as HTMLElement,
+		submit_login_button: document.getElementById("submit_login_button") as HTMLElement,
+		home_btn: document.getElementById("home_button") as HTMLElement,
+		login_errormsg: document.getElementById("login_errormsg") as HTMLElement,
+	}
+
+	if (id_token) {
+		els.logged_out.classList.remove("active");
+		els.logged_in.classList.add("active");
+	} else {
+		els.logged_out.classList.add("active");
+		els.logged_in.classList.remove("active");
+	}
+
+	els.login_button.addEventListener("click", () => { show_login() });
 
     if (window.location.search.includes("errmsg")) {
 
@@ -132,16 +160,13 @@ function setup_service_worker() {
 
 
 function show_login() {
-	document.getElementById("login")!.classList.add("active");
+	els.login.classList.add("active");
+	els.login_button.style.display = "none";
 
-	const btn = document.getElementById("login_button") as HTMLElement;
 
-	btn.addEventListener("click", async () => {
+	els.submit_login_button.addEventListener("click", async () => {
 
-		const identity_platform_key = 'AIzaSyCdBd4FDBCZbL03_M4k2mLPaIdkUo32giI'
-
-		//const identity_platform_key = localStorage.getItem('identity_platform_key')
-		const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + identity_platform_key
+		const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + (window as any).identity_platform_key
 
 		const email = (document.getElementById("email") as HTMLInputElement).value;
 		const password = (document.getElementById("password") as HTMLInputElement).value;
@@ -160,6 +185,7 @@ function show_login() {
 		const data = await r.json();
 
 		if (data.error) {
+			document.getElementById("login_errormsg")!.classList.add("active");
 			document.getElementById("login_errormsg")!.innerText = data.error.message
 
 		} else {

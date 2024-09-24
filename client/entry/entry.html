@@ -35,14 +35,15 @@
 
 	<body>
 
-		<div id="update">
+		{--instance_html--}
 
-			<div id="update_progress">Updating ...</div>		
-			<div id="update_done">Update Done</div>
+		<div id="update">
+			<div id="update_progress">&nbsp;</div>		
+			<div id="update_done">&nbsp;</div>
 		</div>
 
 		<div id="login">
-			<h1>Authenticate</h1>
+			<h1>Pure Water Login</h1>
 
 			<ul class="items">
 				<li>
@@ -56,7 +57,7 @@
 				</li>
 			</ul>
 
-			<a class="btn" id="login_button">login</a>
+			<div class="btn" id="submit_login_button">login</div>
 
 
 			<div id="login_errormsg"></div>
@@ -64,13 +65,14 @@
 
 		</div>
 
-		&nbsp; -- &nbsp;
-		<a id="show_login_button">Show Login</a>
+		<div id="logged_out">
+			<div id="login_button" class="btn"><a>Pure Water Login</a></div>
+		</div>
 
-		&nbsp; -- &nbsp;
-		<a href="/v#home">View Home</a>
-
-		{--instance_html--}
+		<div id="logged_in">
+			<div id="home_button" class="btn"><a href="/v#home">Pure Water Dashboard Home</a></div>
+			<!--<div id="logout_button" class="btn"><a>Log out</a></div>-->
+		</div>
 
 	</body>
 

@@ -1,5 +1,6 @@
 
-// -- ---------------------------------------
+import { LazyLoadT, IndexedDBStoreMetaT } from "./definitions.js";
+
 
 import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_AddRoute } from './alwaysload/switchstation.js';
 
@@ -12,16 +13,16 @@ import LazyLoadM from './alwaysload/lazyload.js';
 import SSEventsM from './alwaysload/sse.js';
 import EngagementListenM from './alwaysload/engagementlisten.js';
 import IndexedDBM from './alwaysload/indexeddb.js';
+import DataSync_Init  from './alwaysload/datasync.js';
 
 import INSTANCE from './client_xen/main_xtend.js'; // instance is swapped out on buildit set instance 
 
-import { LazyLoadT } from "./definitions.js";
 
 
 
 
 let _is_in_initial_view_load = true;
-let serviceworker_reg: ServiceWorkerRegistration;
+let serviceworker_reg: ServiceWorkerRegistration|null;
 
 
 
@@ -181,14 +182,38 @@ const LAZYLOADS: LazyLoadT[] = [
 
 window.addEventListener("load", async (_e) => {
 
+	console.log("reload entire app if over such adn such seconds")
+
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
 
-	const collections = INSTANCE.INFO.indexeddb_collections
 
-	setup_service_worker()
 
-	IndexedDBM.Init(collections, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
-	FirestoreLiveM.Init()
+
+	/*
+	const saved_indexeddb_stores = JSON.parse(localStorage.getItem("indexeddb_stores") || "[]") as IndexedDBStoreMetaT[]
+
+	for(const s of INSTANCE.INFO.indexeddb_stores) {
+		const found = saved_indexeddb_stores.find(ss => ss.name === s.name)
+		s.ts = found ? found.ts : 0
+	}
+
+	localStorage.setItem("indexeddb_stores", JSON.stringify(INSTANCE.INFO.indexeddb_stores))
+	*/
+
+	await IndexedDBM.Init  (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+	DataSync_Init          (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion, (window as any).APPVERSION)
+
+	/*
+	setTimeout(() => {
+		DataSyncM.Subscribe(["cats", "sources", "tags", "transactions"], document.body)
+	}, 2000)
+	*/
+
+	if (localStorage.getItem("disable_service_worker") !== "true") {
+		setup_service_worker()
+	}
+
+	//FirestoreLiveM.Init()
 	EngagementListenM.Init()
 	LazyLoadM.Init(lazyloads)
 
@@ -204,8 +229,6 @@ window.addEventListener("load", async (_e) => {
 
 
 document.querySelector("#views")!.addEventListener("view_load_done", () => {
-
-	console.log("need to put check back in lazyload and error out if not loaded. pluddy dselect being a shite on production server. needs fixed")
 
 	if (_is_in_initial_view_load) {
 
@@ -245,7 +268,10 @@ function ToastShow(msg: string | null, level: string | null, duration: number | 
 
 function setup_service_worker() {
 
-	navigator.serviceWorker.register('sw.js').then(regitration => {
+	 navigator.serviceWorker.register('sw.js').then(regitration => {
+
+		serviceworker_reg = regitration;
+
 		regitration.addEventListener("updatefound", () => {
 			const worker = regitration.installing;
 			worker!.addEventListener('statechange', () => {
@@ -259,7 +285,6 @@ function setup_service_worker() {
 		window.location.href = "/index.html"
 	});
 }
-
 
 
 

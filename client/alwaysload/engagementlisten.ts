@@ -80,7 +80,7 @@ function IsDocFocused() {
 
 
 function redirect_from_error(errmsg:string, errmsg_long:string) {
-	localStorage.setItem("errmsg_long", errmsg_long)
+	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
 	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 

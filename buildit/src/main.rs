@@ -10,6 +10,7 @@ mod thirdpartyfiles;
 mod mediafiles;
 mod serverfiles;
 mod dist;
+mod dist2;
 mod update_file;
 mod core;
 mod helperutils;

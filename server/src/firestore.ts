@@ -1,6 +1,8 @@
 
 
 import { SSE_TriggersE  } from './definitions.js'
+import SSE from './sse.js'
+
 type str = string; type int = number; type bool = boolean;
 
 import { readFileSync, writeFileSync } from "fs"
@@ -63,7 +65,7 @@ function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   retu
 
 
 
-function Add(db:any, SSE:any, path:str, newdocs:any[]) {   return new Promise(async (res, _rej)=> {
+function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res, _rej)=> {
 
     const batch        = db.batch()
 
@@ -77,7 +79,7 @@ function Add(db:any, SSE:any, path:str, newdocs:any[]) {   return new Promise(as
 
     await batch.commit().catch((_err:any)=> { res({err:"batch commit failed"}) })
 
-	SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: [path]})
+	SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: [path].map(p=> p.split("/")[0]) } )
 
     res({ok: true})
 })}
@@ -87,7 +89,7 @@ function Add(db:any, SSE:any, path:str, newdocs:any[]) {   return new Promise(as
 
 type PatchOptsT = { notenyet:str|null }
 
-function Patch(db:any, SSE:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null) {   return new Promise(async (res, _rej)=> {
+function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null) {   return new Promise(async (res, _rej)=> {
 
     const promises:any[] = []
 
@@ -120,7 +122,7 @@ function Patch(db:any, SSE:any, pathstr:str[]|str, data:any|any[], opts:PatchOpt
         }
 
 		console.log(pathstr)
-		SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: pathstr})
+		SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: (pathstr as str[]).map(p=> p.split("/")[0]) } )
 
         res(returns)
     })

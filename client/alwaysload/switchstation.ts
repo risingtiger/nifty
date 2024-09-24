@@ -44,7 +44,15 @@ class Route {
             const els = parentEl.querySelectorAll(`v-${viewname}`) as NodeListOf<HTMLElement>
             const el = els[els.length-1]
 
-            el.addEventListener("hydrated", ()=> {
+            el.addEventListener("hydrated", hydrated)
+
+            el.addEventListener("touchstart", SwitchStationDragBack.TouchDown)
+            el.addEventListener("touchend", SwitchStationDragBack.TouchUp)
+            el.addEventListener("touchmove", SwitchStationDragBack.TouchMove)
+            el.addEventListener("touchcancel", SwitchStationDragBack.TouchCancel)
+
+			function hydrated() {
+				console.log("view hydrated")
 
                 // !! HACK !! - Making an exemption for machinetelemetry because chartist needs display to block in order to figure out offsets widths etc
                 // TODO: - Need to have display set to block from the get go and use visibility hidden instead
@@ -56,12 +64,9 @@ class Route {
                         res(1)
                     }, 10)
                 }
-            })
 
-            el.addEventListener("touchstart", SwitchStationDragBack.TouchDown)
-            el.addEventListener("touchend", SwitchStationDragBack.TouchUp)
-            el.addEventListener("touchmove", SwitchStationDragBack.TouchMove)
-            el.addEventListener("touchcancel", SwitchStationDragBack.TouchCancel)
+				el.removeEventListener("hydrated", hydrated)
+			}
         })
     }
 }

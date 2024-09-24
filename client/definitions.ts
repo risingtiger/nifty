@@ -16,6 +16,14 @@ export type LazyLoadT = {
 }
 
 
+export type IndexedDBStoreMetaT = {
+	name: string,
+	url: string
+}
+
+
+
+
 (window as any).dumpdefenitions_to_keep_build_process_from_erasing_this_file = true;
 
 

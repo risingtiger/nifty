@@ -22,8 +22,7 @@ function Add_Listener(req:any, res:any) {
     const l = listeners.get(id)
 
     if (l) {
-        res.status(400).send("user already has a listener")
-        return
+		listeners.delete(id)
     }
 
     listeners.set(id, {

@@ -103,6 +103,8 @@ function Init() {
 
 async function update_triggered() { 
 
+	console.log("update_triggered")
+
     const outdated_collections = fcollections.filter(c=> c.status === CollectionStatusE.Stale || c.status === CollectionStatusE.Old)
 
     const fetch_results = await fetch_collections_since_ts(outdated_collections)
@@ -355,7 +357,7 @@ function get_inmemory_resources(resources:ResourceRefT[])  {
 
 
 function redirect_from_error(errmsg:str, errmsg_long:str) {
-	localStorage.setItem("errmsg_long", errmsg_long)
+	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
 	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
@@ -400,7 +402,7 @@ async function Remove() {
 
 function Unsubscribe(htmlel:HTMLElement) {
 
-    const listener = listeners.find(l=> l.htmlel === htmlel)
+    const listener = listeners.find(l=> l.htmlel ===  htmlel)
 
     if (!listener) {
         return
@@ -501,7 +503,7 @@ function subscribe___add_collection_if_not_exists(collection_name:str, url:str, 
 
 
 
-(window as any).FirestoreLive = { Unsubscribe, Subscribe }
+(window as any).FirestoreLive = { Subscribe, Unsubscribe }
 
 export default { Init, Remove  }
 

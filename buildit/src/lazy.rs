@@ -18,7 +18,6 @@ pub fn runit(instance:&str) -> Result<()> {
     let out_path_str = format!("{}", crate::CLIENT_OUTPUT_DEV_PATH);
 
     std::fs::create_dir_all(format!("{}{}", dir, out_path_str))?;
-    std::fs::create_dir_all(format!("{}{}", dir, out_path_str))?;
 
     let swc_a_commandargs = swc_args(&instance, &main_in_path_str, &out_path_str)?;
     let swc_b_commandargs = swc_args(&instance, &instance_in_path_str, &out_path_str)?;

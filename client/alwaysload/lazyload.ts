@@ -34,7 +34,6 @@ function LazyLoad(loads:LazyLoadT[]) {   return new Promise<bool>(async (res, _r
     }
 
     if (loadque.length > 0) {
-        console.log("LazyLoad loadque.length > 0, starting load.")
 
         loadstart_ts = Date.now()
 
@@ -69,7 +68,6 @@ function conditionally_addtoque(load:LazyLoadT, loadque:LazyLoadT[]) {
     }
 
     if (loadque.find(l=> l.type === load.type && l.name === load.name && l.instance === load.instance)) {
-        console.log("already in que", load)
         return;
     }
 
@@ -136,7 +134,7 @@ function get_filepath(type:str, name:str, instance:str|null) {
 
 
 function throwup_and_leave(errmsg:str, errmsg_long:str="") {
-	localStorage.setItem("errmsg_long", errmsg_long)
+	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
 	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
@@ -146,7 +144,6 @@ function throwup_and_leave(errmsg:str, errmsg_long:str="") {
 function ticktock() {
 
     setTimeout(()=> {
-        console.log("ticktock 50ms")
 
         const xel = document.getElementById("lazyload_overlay")!
 

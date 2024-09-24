@@ -1,109 +1,110 @@
 
-type str = string;
+import { int, str, IndexedDBStoreMetaT } from "../definitions.js";
 
-let   INDEXEDDB_DBNAME = "";
-let   INDEXEDDB_DBVERSION = 0;
-let   INDEXEDDB_DBRequest: IDBOpenDBRequest|null;
-let   INDEXEDDB_DB: IDBDatabase|null;
 
-let INDEXEDDB_STORES:str[] = []
+let DBNAME:str = ""
+let DBVERSION:int = 0
+let STORE_METAS:IndexedDBStoreMetaT[] = []
 
 
 
-
-function Init(store_names: str[], firebasename: str, dbversion: int) {   
-    INDEXEDDB_STORES = store_names   
-    INDEXEDDB_DBNAME = firebasename
-    INDEXEDDB_DBVERSION = dbversion
-}
-
-
-
-
-function New_Tx(store_names: str[], mode: "readwrite"|"readonly") {
-
-    return new Promise<IDBTransaction>(async (res, _rej) => {
-
-        await bootup_if_not_already()
-
-        const transaction = INDEXEDDB_DB!.transaction(store_names, mode, { durability: "relaxed" })
-
-        res(transaction)
-    })
-}
-
-
-
-
-function Remove() {
+function Init(store_metas: IndexedDBStoreMetaT[], db_name: str, db_version: int) {   
 
     return new Promise(async (res, _rej) => {
 
-        if (INDEXEDDB_DB)
-            INDEXEDDB_DB.close()
+		DBNAME = db_name
+		DBVERSION = db_version
+		STORE_METAS = store_metas
 
-        INDEXEDDB_DB = null
-        INDEXEDDB_DBRequest = null
+		const db = indexedDB.open(DBNAME, DBVERSION)
 
-        indexedDB.deleteDatabase(INDEXEDDB_DBNAME)
+		db.onerror = (event:any) => { 
+			redirect_from_error("indexeddb_access","IndexedDB - creating/accessing IndexedDB database" + event.target.errorCode)
+		}
 
-        setTimeout(() => {
-            res(true)
-        }, 1000)
-    })
+		db.onsuccess = async (event: any) => {
+			event.target.result.onerror = (event:any) => {
+				redirect_from_error("indexeddb_database","IndexedDB Error - " + event.target.errorCode)
+			}
+			event.target.result.close()
+			res(true)
+		}
+
+		db.onupgradeneeded = (event: any) => {
+			for (const store_name of store_metas.map((s) => s.name)) {
+				event.target.result.createObjectStore(store_name, { keyPath: "id" })
+			}
+		}
+	})
+}
+
+
+
+
+function GetAll(store_names: str[]) {   
+
+    return new Promise<Map<string, any[]>>(async (res, _rej) => {
+
+		const store_metas = STORE_METAS.filter((s) => store_names.includes(s.name))
+
+		const store_datas:Map<string, any[]> = new Map()
+
+		const openRequest = indexedDB.open(DBNAME, DBVERSION);
+
+		openRequest.onerror = (event:any) => {
+			redirect_from_error("indexeddb_open","IndexedDB - opening" + event.target.errorCode)
+		};
+
+		openRequest.onsuccess = async (event:any) => {
+
+			event.target.result.onerror = (event_s:any) => {
+				redirect_from_error("indexeddb_request","IndexedDB Request - " + event_s.target.errorCode)
+			}
+
+			const db = openRequest.result;
+
+			const store_names = store_metas.map((s) => s.name)
+			const transaction = db.transaction(store_names, 'readonly');
+
+			for (const s of store_names) {
+				const store = transaction.objectStore(s);
+				const getAllRequest = store.getAll();
+
+				getAllRequest.onerror = (event_s:any) => {
+					redirect_from_error("indexeddb_getallrequest","IndexedDB getAll - " + event_s.target.errorCode)
+				};
+
+				getAllRequest.onsuccess = (_event) => {
+					const data = getAllRequest.result;
+					store_datas.set(s, data)
+				};
+
+			}
+
+			transaction.oncomplete = () => {
+				db.close()
+				res(store_datas)	
+			}
+
+			transaction.onerror = (event_s:any) => {
+				redirect_from_error("indexeddb_transaction","IndexedDB Transaction - " + event_s.target.errorCode)
+			}
+		};
+	})
 }
 
 
 
 
 function redirect_from_error(errmsg:str, errmsg_long:str) {
-	localStorage.setItem("errmsg_long", errmsg_long)
+	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
 	window.location.href = `/index.html?errmsg=${errmsg}`
 }
 
 
 
+(window as any).IndexedDB = { GetAll }
 
-function bootup_if_not_already() {
+export default { Init, GetAll }
 
-    return new Promise(async (res, _rej) => {
-
-        if (!INDEXEDDB_DB) {
-            INDEXEDDB_DBRequest = indexedDB.open(INDEXEDDB_DBNAME, INDEXEDDB_DBVERSION)
-
-            INDEXEDDB_DBRequest.onerror = (event:any) => { 
-                redirect_from_error("indexeddb_access","IndexedDB - creating/accessing IndexedDB database" + event.target.errorCode)
-            }
-
-            INDEXEDDB_DBRequest.onsuccess = async (event: any) => {
-                INDEXEDDB_DB = event.target.result
-
-                INDEXEDDB_DB!.onerror = (event:any) => {
-                    redirect_from_error("indexeddb_database","IndexedDB Error - " + event.target.errorCode)
-                }
-
-                res(true)
-            }
-
-            INDEXEDDB_DBRequest.onupgradeneeded = (event: any) => {
-                console.log("Upgrading IndexedDB database")
-                const db = event.target.result
-
-                for (const store_name of INDEXEDDB_STORES) {
-                    db.createObjectStore(store_name, { keyPath: "id" })
-                }
-            }
-        }
-
-        else {
-            res(true)
-        }
-    })
-}
-
-
-
-
-
-export default { New_Tx, Remove, Init }
 

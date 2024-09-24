@@ -62,7 +62,7 @@ function TouchDown(e:TouchEvent) {
     s.x = e.changedTouches[0].clientX; 
     s.y = e.changedTouches[0].clientY;
 
-    s.overlay = document.getElementById("loadviewoverlay") as HTMLElement
+    s.overlay = document.getElementById("switchstation_overlay") as HTMLElement
 
     if (s.mode !== ModeE.UP || s.x >=40 || s.y < 60 || s.overlay.style.display === "block") {
         return;

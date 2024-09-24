@@ -7,3 +7,4 @@ buildit/target/
 
 
 **/.DS_Store
+.aider*
