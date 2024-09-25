@@ -14,20 +14,6 @@ pub fn setinstance(set_instance_to:&str) -> Result<()> {
 
     let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
 
-    // ZPROFILE ENVIRONMENT VARIABLE
-
-    let zprofilepath = "/Users/dave/.zprofile";
-
-    let x = fs::read_to_string(&zprofilepath).unwrap();
-
-    let re = Regex::new(r#"NIFTY_INSTANCE="[a-z]+""#).unwrap();
-    let y = re.replace(&x, format!("NIFTY_INSTANCE=\"{}\"", set_instance_to).as_str()).to_string();
-
-    fs::write(&zprofilepath, y).unwrap();
-
-
-    // END ZPROFILE ENVIRONMENT VARIABLE
-
 
 
     // SERVER INDEX
@@ -57,9 +43,6 @@ pub fn setinstance(set_instance_to:&str) -> Result<()> {
     fs::write(&clientmainpath, y).unwrap();
 
     // END SERVER INDEX
-
-
-    println!("Remember to run 'source ~/.zprofile' to update the environment variable.");
 
 
     Ok(())

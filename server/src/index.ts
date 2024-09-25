@@ -24,7 +24,7 @@ import FileRequest from "./filerequest.js"
 import Entry from "./entry.js"
 import HTMLStr from "./htmlstr.js"
 
-import INSTANCE from './server_xen/index_extend.js'
+import INSTANCE from './server_pwt/index_extend.js'
 
 
 
