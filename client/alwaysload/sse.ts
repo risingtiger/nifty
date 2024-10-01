@@ -90,11 +90,11 @@ function boot_up() {
     })
 
     evt.addEventListener("a_"+SSE_TriggersE.FIRESTORE, (e) => {
-		if (document.hasFocus()) {
-			const data = JSON.parse(e.data)
-			sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
-		}
-    }) 
+        // if (document.hasFocus()) {
+            const data = JSON.parse(e.data)
+            sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
+        // }
+    })
 
     // lets just see if the browser will take care of when user goes in and out of focus on window / app
 
