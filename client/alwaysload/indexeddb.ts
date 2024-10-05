@@ -98,7 +98,11 @@ function GetAll(store_names: str[]) {
 
 function redirect_from_error(errmsg:str, errmsg_long:str) {
 	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	window.location.href = `/index.html?errmsg=${errmsg}`
+	if (window.location.protocol === "https:") {
+		window.location.href = `/index.html?errmsg=${errmsg}`; 
+	} else {
+		throw new Error(errmsg + " -- " + errmsg_long)
+	}
 }
 
 

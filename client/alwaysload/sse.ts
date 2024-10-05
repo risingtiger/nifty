@@ -220,8 +220,12 @@ function sse_ticktock_run() : int {
 
 
 function redirect_from_error(errmsg:str, errmsg_long:str) {
-	localStorage.setItem("errmsg_long", errmsg_long)
-	window.location.href = `/index.html?errmsg=${errmsg}`
+	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
+	if (window.location.protocol === "https:") {
+		window.location.href = `/index.html?errmsg=${errmsg}`
+	} else {
+		throw new Error(errmsg + " -- " + errmsg_long)
+	}
 }
 
 

@@ -38,7 +38,8 @@ const APPVERSION = 0;
 
 const VAR_NODE_ENV = process.env.NODE_ENV || 'dev';
 const VAR_PORT = process.env.NIFTY_PORT || process.env.PORT;
-const VAR_OFFLINEDATE_DIR = process.env.NIFTY_OFFLINEDATA_DIR
+const VAR_OFFLINEDATE_DIR = VAR_NODE_ENV === "dev" && process.env.NIFTY_OFFLINEDATA_DIR
+const VAR_USE_LOCAL_HTTPS = VAR_NODE_ENV !== "dev" ? true : process.env.NIFTY_USE_LOCAL_HTTPS ? true : false;
 
 const app = express()
 
@@ -407,7 +408,10 @@ async function init() { return new Promise(async (res, _rej)=> {
 
         initializeApp()
         db = getFirestore();
-    }
+
+    } else {
+		//
+	}
 
     res(1)
 })}
@@ -415,7 +419,14 @@ async function init() { return new Promise(async (res, _rej)=> {
 
 async function startit() {
 
-    if ( (VAR_NODE_ENV === "dev" || VAR_NODE_ENV === "dist") && !VAR_OFFLINEDATE_DIR)  {
+    if (VAR_NODE_ENV === 'gcloud') {
+
+        app.listen( Number(VAR_PORT), () => {
+            console.info(`HTTPS App listening on port ${(VAR_PORT)}`);
+        })
+    }
+
+	else if ( VAR_USE_LOCAL_HTTPS )  {
 
 		const https_options = {
 			key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
@@ -427,27 +438,24 @@ async function startit() {
 		})
 	}
 
-    if ( (VAR_NODE_ENV === "dev" || VAR_NODE_ENV === "dist") && VAR_OFFLINEDATE_DIR)  {
+	else {
 
 		app.listen( Number(VAR_PORT), () => {
 			console.info(`HTTP App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
 		})
     } 
 
-    else if (VAR_NODE_ENV === 'gcloud') {
-
-        app.listen( Number(VAR_PORT), () => {
-            console.info(`App listening on port ${(VAR_PORT)}`);
-        })
-    }
 }
 
 
 
 function validate_request(res:any, req:any) {   return new Promise((promiseres)=> {
 
-	if (!VAR_OFFLINEDATE_DIR) {
+	if (VAR_NODE_ENV === "dev" && VAR_OFFLINEDATE_DIR) {
+		promiseres(true)
+	}
 
+	else {
 		const appversion = Number(req.headers.appversion)
 		
 		if (appversion !== APPVERSION) {
@@ -471,9 +479,8 @@ function validate_request(res:any, req:any) {   return new Promise((promiseres)=
 			res.status(401).send("id_token is not valid")
 			promiseres(false)
 		})
-	} else {
-		promiseres(true)
 	}
+
 })}
 
 
@@ -488,6 +495,8 @@ async function bootstrapit() {
 
     startit()
 }
+
+//setTimeout(()=> bootstrapit(),5000)
 bootstrapit()
 
 

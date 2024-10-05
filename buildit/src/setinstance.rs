@@ -10,8 +10,9 @@ use std::process::Command;
 
 
 
-pub fn setinstance(set_instance_to:&str) -> Result<()> {
+pub fn setinstance() -> Result<()> {
 
+    let set_instance_to = env::var("NIFTY_INSTANCE").expect("Unable to get NIFTY_INSTANCE environment variable");
     let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
 
 

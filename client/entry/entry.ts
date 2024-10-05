@@ -4,7 +4,7 @@ let els:any = {}
 
 window.addEventListener("load", async (_e) => {
 
-	if (localStorage.getItem("disable_service_worker") !== "true") {
+	if (window.location.protocol === "https:") {
 		setup_service_worker()
 	}
 

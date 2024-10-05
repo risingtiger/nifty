@@ -46,7 +46,7 @@ fn main() {
 
     match primary_action.as_str() {
 
-        "instance" => { let _ = setinstance::setinstance(&primary_action_aux);   },
+        "instance" => { let _ = setinstance::setinstance();   },
 
         "alldev" => {    let _ = all(&instance);   },
 

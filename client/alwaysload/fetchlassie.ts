@@ -5,6 +5,7 @@ import { num, bool, str } from "../definitions.js"
 type OptsT = {
     disable_auth: bool,
     isbackground: bool,
+	timeout:      num
 }
 
 type HttpOptsT = {
@@ -34,7 +35,7 @@ function FetchLassie(url:string, http_optsP:HttpOptsT|undefined, opts:OptsT|null
     //const i = que_i++
 
     http_optsP = http_optsP || { method: "GET", headers: {}, body: null }
-    opts = opts || { disable_auth: false, isbackground: false }
+    opts = opts || { disable_auth: false, isbackground: false, timeout: 9000 }
 
     opts.disable_auth = typeof opts.disable_auth !== "undefined" ? opts.disable_auth : false
 
@@ -113,7 +114,11 @@ function execute(que:QueRequestT) {
 function error_out(errmsg:string, errmsg_long:string="") {
 
 	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	window.location.href = `/index.html?errmsg=${errmsg}`; 
+	if (window.location.protocol === "https:") {
+		window.location.href = `/index.html?errmsg=${errmsg}`; 
+	} else {
+		throw new Error(errmsg + " -- " + errmsg_long)
+	}
 }
 
 
@@ -191,7 +196,7 @@ function fetch_lassie_ticktock() {
 
     const now = Date.now()
 
-    const que_timedout = ques.find(x=> now - x.ts > 9000)
+    const que_timedout = ques.find(x=> now - x.ts > x.opts.timeout)
 
     if (que_timedout) {
         error_out("fetchlassie_timeout", "Fetch Lassie Timeout - " + que_timedout.url)

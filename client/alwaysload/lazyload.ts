@@ -91,7 +91,11 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<bool>(async
     const filepaths = loadque.map(l=> get_filepath(l.type, l.name, l.instance))
 
     for(const f of filepaths) {
-        promises.push(import(f).catch((_e)=> throwup_and_leave("lazyload_server_error", `Failed to lazyload ${f}`)))
+        promises.push(import(f).catch((_e)=> { 
+			console.log("lazyload dynamic import error: ");
+			console.log(_e); 
+			throwup_and_leave("lazyload_server_error", `Failed to lazyload ${f}`); 
+		}))
     }
 
     await Promise.all(promises)
@@ -134,8 +138,13 @@ function get_filepath(type:str, name:str, instance:str|null) {
 
 
 function throwup_and_leave(errmsg:str, errmsg_long:str="") {
+
 	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	window.location.href = `/index.html?errmsg=${errmsg}`
+	if (window.location.protocol === "https:") {
+		window.location.href = `/index.html?errmsg=${errmsg}`
+	} else {
+		throw new Error(errmsg + " -- " + errmsg_long)
+	}
 }
 
 

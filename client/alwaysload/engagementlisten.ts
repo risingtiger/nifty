@@ -81,7 +81,11 @@ function IsDocFocused() {
 
 function redirect_from_error(errmsg:string, errmsg_long:string) {
 	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	window.location.href = `/index.html?errmsg=${errmsg}`
+	if (window.location.protocol === "https:") {
+		window.location.href = `/index.html?errmsg=${errmsg}`
+	} else {
+		throw new Error(errmsg + " -- " + errmsg_long)
+	}
 }
 
 
