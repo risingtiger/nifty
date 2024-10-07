@@ -7,21 +7,25 @@ declare var Lit_Html: any;
 
 
 
-enum ModeT { CLOSED = 0, OPEN = 1 }
+enum ModeE { CLOSED = 0, OPEN = 1 }
+enum TypeE { OPTIONS = 0, GENERAL = 1 }
 
 type OptionT = { val: str, label: str }
 
 
 type StateT = {
-    mode: ModeT,
+    mode: ModeE,
     isanimating: bool,
     instigator_term: str,
-    options_str: str
+    options_str: str,
+    options: OptionT[],
     val: str,
+    term: str,
+	did_first_run: bool
 }
 
 type ModelT = {
-    is_options: bool
+    type: TypeE
     /*
     width: str,
     height: str,
@@ -32,7 +36,8 @@ type ModelT = {
 
 type ElsT = {
     instigator: HTMLElement,
-    view: HTMLDialogElement,
+    instigator_cnt: HTMLElement,
+    dialog_view: HTMLDialogElement,
 }
 
 
@@ -62,23 +67,23 @@ class CDselect extends HTMLElement {
 
 
 
-    static get observedAttributes() { return ['term']; }
+    static get observedAttributes() { return ['term','val','open']; }
 
 
 
 
     constructor() {   
 
-        super(); 
+		super(); 
 
-        this.shadow = this.attachShadow({mode: 'open'});
+		this.shadow = this.attachShadow({mode: 'open'});
 
-        this.s = { mode: ModeT.CLOSED, isanimating: false, instigator_term: "", options_str: "", val: ""}
-        this.m = { is_options: false }
-        this.els = { instigator: DUMMY_EL, view: (DUMMY_EL as any)}
+		this.s = { mode: ModeE.CLOSED, isanimating: false, instigator_term: "", options: [], options_str: "", val: "", term: "", did_first_run:false }
+		this.m = { type: TypeE.OPTIONS }
+		this.els = { instigator: DUMMY_EL, instigator_cnt: DUMMY_EL, dialog_view: (DUMMY_EL as any)}
 
-        this.animatehandles = { view: null, instigator: null, }// label: null}
-        this.keyframes = { view: null, instigator: null, }// label: null}
+		this.animatehandles = { view: null, instigator: null, }// label: null}
+		this.keyframes = { view: null, instigator: null, }// label: null}
 
 
     }
@@ -88,26 +93,28 @@ class CDselect extends HTMLElement {
 
     connectedCallback() {   
 
+		this.s.options_str = this.getAttribute("options") || ""
+		this.s.val = this.getAttribute("val") || ""
+        this.m.type = this.s.options_str ? TypeE.OPTIONS : TypeE.GENERAL
+
+		if (this.s.options_str)   this.s.options = parse_options(this.s.options_str)
+
+        this.s.term = set_term(this.getAttribute("term"), this.m.type, this.s.options, this.s.val)
+
         this.sc()
 
-        const instigator_term = this.getAttribute("term") || ""
-
         this.els.instigator = this.shadow.getElementById("instigator") as HTMLElement
-        this.m.is_options = this.hasAttribute("options")
-        this.els.view = this.shadow.getElementById("view") as HTMLDialogElement
+        this.els.instigator_cnt = this.els.instigator.querySelector(".cnt") as HTMLElement
+        this.els.dialog_view = this.shadow.getElementById("dialog_view") as HTMLDialogElement
 
-        if (instigator_term) {
+		this.els.instigator.addEventListener("click", () => this.instigator_clicked())
+		this.els.dialog_view.addEventListener("click", (e) => this.dialog_clicked(e))
 
-            this.els.instigator.textContent = instigator_term
-            this.els.instigator.classList.add("active")
+		this.s.did_first_run = true
 
-            this.els.instigator.addEventListener("click", () => this.instigatorclicked())
-            this.els.view.addEventListener("click", (e) => this.viewclicked(e))
-
-        } else {
-
-            this.to_open()
-        }
+		if (this.hasAttribute("open")) {
+			setTimeout(()=>this.to_open(),20)
+		}
     }
 
 
@@ -115,9 +122,31 @@ class CDselect extends HTMLElement {
 
     async attributeChangedCallback(name:str, old_val:str, new_val:str) {
 
-        if (name === "term" && old_val !== null) { 
-            this.els.instigator.textContent = new_val
+		if (this.s.did_first_run === false) return
+
+
+        if (name === "term") { 
+			this.s.term = set_term(new_val, this.m.type, this.s.options, this.s.val)
+			this.sc()
         }
+
+		else if (name === "val") { 
+			this.s.val = new_val
+			this.sc()
+
+			if (this.s.mode === ModeE.OPEN) {
+				set_active_option(this.els.dialog_view, new_val)
+			}
+        }
+
+		else if (name === "open" && new_val === "" && old_val === null && this.s.mode === ModeE.CLOSED) { 
+			this.to_open()
+		}
+
+		else if (name === "open" && new_val === null && old_val === "" && this.s.mode === ModeE.OPEN) { 
+			this.to_closed()
+		} 
+
 
         /*
         if (name === "val" && this.s.mode === 'saving' && this.s.isanimating === false) { 
@@ -153,82 +182,71 @@ class CDselect extends HTMLElement {
 
 
 
-    sc() {   Lit_Render(this.template(), this.shadow);   }
+    sc() {   Lit_Render(this.template(this.s), this.shadow);   }
 
 
 
 
-    OpenIt() {
-        this.to_open()
+    dialog_clicked(e:MouseEvent) {
+		if (e.target === this.els.dialog_view && this.s.mode === ModeE.OPEN) {
+			this.removeAttribute("open")
+			this.dispatchEvent(new CustomEvent("cancelled", {}))
+		}
     }
 
 
 
 
-    GetMode() {   return this.s.mode;   }
-
-
-
-
-    SetValAndTerm(val:str, term:str) {
-
-        if (this.s.mode === ModeT.CLOSED) {
-            this.s.val = val
-            this.els.instigator.textContent = term
-
-            this.setAttribute("term", term)
-            this.setAttribute("val", val)
-        }
+    instigator_clicked() {
+		this.setAttribute("open", "")
     }
 
 
 
 
-    viewclicked(e:Event) {
+    async option_clicked(e:MouseEvent) { // only when is of type options, vs general
 
-        if (e.target === this.els.view) {
-            this.dispatchEvent(new CustomEvent("closed", {detail:{}}))
-            this.to_closed()
-        }
+        const el = e.currentTarget as HTMLElement
+
+        const detail:any = {}
+
+		const val = el.getAttribute("val")!
+		const term = el.querySelector("h5")!.textContent!
+
+		detail.newval = val
+		detail.oldval = this.s.val
+
+		this.setAttribute("val", val)
+		this.setAttribute("term", term)
+
+		this.removeAttribute("open")
+
+        this.dispatchEvent(new CustomEvent("changed", {detail}))
     }
 
 
 
+    to_open = () => {
 
-    instigatorclicked() {
+        if (this.s.mode === ModeE.CLOSED && this.s.isanimating === false) {
 
-        this.to_open()
-    }
+			const xy = this.els.instigator.getBoundingClientRect()
 
-
-
-
-    to_open() {
-
-        const xy = this.els.instigator.getBoundingClientRect()
-
-        const width = "200px"
-        const top = (xy.top - 100).toString() + "px"
-        const left = (xy.left + (xy.width - 243)).toString() + "px"
-
-        if (this.s.mode === ModeT.CLOSED && this.s.isanimating === false) {
+			const width = "200px"
+			const top = (xy.top - 100).toString() + "px"
+			const left = (xy.left + (xy.width - 243)).toString() + "px"
 
             const height = "300px"
 
-            this.els.view.style.width = width
-            this.els.view.style.height = height
+            this.els.dialog_view.style.width = width
+            this.els.dialog_view.style.height = height
             
-            this.els.view.style.top   = top
-            this.els.view.style.left  = left
+            this.els.dialog_view.style.top   = top
+            this.els.dialog_view.style.left  = left
 
-            if (this.m.is_options) {
+            if (this.m.type === TypeE.OPTIONS) {
 
-                const options_str = this.getAttribute("options") || ""
-                const option_val = this.getAttribute("val") || ""
-
-                const options = parse_options(options_str)
-
-                const option_items_ul = render_options(options, option_val, this.optionclicked.bind(this))
+                const option_items_ul = render_options(this.s.options, this.s.val, this.option_clicked.bind(this))
 
                 const existing_ul = this.shadow.getElementById("option_items") as HTMLUListElement
 
@@ -236,67 +254,38 @@ class CDselect extends HTMLElement {
                     existing_ul.remove()
                 }
 
-                this.els.view.querySelector("#wrap")!.prepend(option_items_ul)
+                this.els.dialog_view.querySelector("#dialog_wrap")!.prepend(option_items_ul)
             }
 
-            (this.els.view as HTMLDialogElement).showModal()
+            (this.els.dialog_view as HTMLDialogElement).showModal()
 
-            this.s.mode = ModeT.OPEN
+            this.s.mode = ModeE.OPEN
+
+			this.sc()
         }
     }
 
 
 
 
-    to_closed() {
+    to_closed = () => new Promise<void>((resolve) => {
 
-        if (this.s.mode === ModeT.OPEN && this.s.isanimating === false) {
-            this.s.mode = ModeT.CLOSED;
-            (this.els.view as HTMLDialogElement).classList.add("closing")
+        if (this.s.mode === ModeE.OPEN && this.s.isanimating === false) {
+			this.sc()
+            this.s.mode = ModeE.CLOSED;
+            this.els.dialog_view.classList.add("closing")
 
             setTimeout(() => {
-                (this.els.view as HTMLDialogElement).classList.remove("closing");
-                (this.els.view as HTMLDialogElement).close();
+                this.els.dialog_view.classList.remove("closing");
+                this.els.dialog_view.close();
+				resolve()
             }, 400)
         }
-    }
+    })
 
 
 
 
-    optionclicked(e:MouseEvent) {
-
-        const el = e.currentTarget as HTMLElement
-
-        this.els.view.querySelectorAll("#option_items > li").forEach((x,_i) => {
-            x.classList.remove("selected")
-        })
-
-        el.classList.add("selected")
-
-        const detail:any = {}
-
-        if (this.m.is_options) {
-
-            const val = el.querySelector("h5")!.getAttribute("val")!
-            const term = el.querySelector("h5")!.textContent!
-
-            detail.newval = val
-            detail.oldval = this.s.val
-
-            this.s.val = val
-            this.els.instigator.textContent = term
-
-            this.setAttribute("term", term)
-            this.setAttribute("val", val)
-
-            this.els.instigator.textContent = term
-        }
-
-        this.dispatchEvent(new CustomEvent("changed", {detail}))
-
-        this.to_closed()
-    }
 
 
 
@@ -305,7 +294,7 @@ class CDselect extends HTMLElement {
         if (this.animatehandles.view!.currentTime === 0) {
 
         } else {
-            //this.els.view.style.display = "none";
+            //this.els.dialog_view.style.display = "none";
         }
 
         this.s.isanimating = false
@@ -328,7 +317,7 @@ class CDselect extends HTMLElement {
 
 
 
-    template = () => { return Lit_Html`{--css--}{--html--}`; }; 
+    template = (_s:StateT) => { return Lit_Html`{--css--}{--html--}`; }; 
 }
 
 
@@ -339,10 +328,10 @@ customElements.define('c-dselect', CDselect);
 
 
 
-function render_options(options:OptionT[], options_val:str, optionclicked:(e:MouseEvent) => void) : HTMLUListElement {
+function render_options(options:OptionT[], options_val:str, option_clicked:(e:MouseEvent) => void) : HTMLUListElement {
 
     const ulitemsel = document.createElement("ul")
-    ulitemsel.classList.add("items")
+    ulitemsel.classList.add("options")
     ulitemsel.id = "option_items"
 
     ulitemsel.classList.add("items")
@@ -353,20 +342,18 @@ function render_options(options:OptionT[], options_val:str, optionclicked:(e:Mou
 
         const h5el = document.createElement("h5")
         h5el.textContent = x.label
-        h5el.setAttribute("val",x.val)
+        liel.setAttribute("val",x.val)
 
         liel.appendChild(h5el)
 
-        const iel = document.createElement("i")
-        iel.classList.add("icon-checkcircle")
-        iel.classList.add("action")
-        liel.appendChild(iel)
+		if (x.val === options_val) {
+			liel.classList.add("selected")
+			liel.insertAdjacentHTML("beforeend", `<span class='postpend'></span>`)
+		} else {
+			liel.insertAdjacentHTML("beforeend", `<span class='postpend'>&nbsp;</span>`)
+		}
 
-        if (x.val === options_val) {
-            liel.classList.add("selected")
-        }
-
-        liel.addEventListener("click", (e:MouseEvent) => optionclicked(e))
+        liel.addEventListener("click", (e:MouseEvent) => option_clicked(e))
 
         ulitemsel.appendChild(liel)
     })
@@ -384,13 +371,43 @@ function parse_options(options_str:str) : OptionT[] {
         const parts = x.trim().split(":")
 
         return {
-            label: parts[0], val: parts[1] 
+            label: parts[0], val: parts[1] ?? parts[0] 
         }
     })
 
     return options
 }
 
+
+
+
+function set_term(term:str|null, type:TypeE, options:OptionT[]|null, val:str) : str {
+
+	if (term) {
+		return term
+
+	} else if (!term && type === TypeE.OPTIONS) {
+
+		const option = options ? options.find(o => o.val === val) : null
+		return option ? option.label : val
+
+	} else {
+		return val
+	}
+}
+
+
+
+
+function set_active_option(dialog_view_el:HTMLElement, val:str) {
+
+	const option_els = dialog_view_el.querySelectorAll("#option_items > li")
+
+	option_els.forEach((x,_i) => {   x.classList.remove("selected")   })
+
+	const active_li_el = dialog_view_el.querySelector(`#option_items > li[val='${val}']`) as HTMLElement
+	active_li_el.classList.add("selected")
+}
 
 
 export {  }
