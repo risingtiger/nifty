@@ -230,19 +230,33 @@ class CDselect extends HTMLElement {
 
         if (this.s.mode === ModeE.CLOSED && this.s.isanimating === false) {
 
-			const xy = this.els.instigator.getBoundingClientRect()
+            const xy = this.els.instigator.getBoundingClientRect()
+            const viewportHeight = window.innerHeight
+            const dialogHeight = 300 // Assuming a fixed height for the dialog
+            const margin = 10 // Margin between instigator and dialog
 
-			const width = "200px"
-			const top = (xy.top - 100).toString() + "px"
-			const left = (xy.left + (xy.width - 243)).toString() + "px"
+            const width = "200px"
+            const height = dialogHeight + "px"
 
-            const height = "300px"
+            let top: number
+            if (xy.bottom + dialogHeight + margin <= viewportHeight) {
+                // Enough space below the instigator
+                top = xy.bottom + margin
+            } else if (xy.top - dialogHeight - margin >= 0) {
+                // Not enough space below, but enough space above
+                top = xy.top - dialogHeight - margin
+            } else {
+                // Not enough space above or below, center it on the screen
+                top = Math.max(0, (viewportHeight - dialogHeight) / 2)
+            }
+
+            const left = Math.max(0, xy.left + (xy.width - 243))
 
             this.els.dialog_view.style.width = width
             this.els.dialog_view.style.height = height
             
-            this.els.dialog_view.style.top   = top
-            this.els.dialog_view.style.left  = left
+            this.els.dialog_view.style.top = `${top}px`
+            this.els.dialog_view.style.left = `${left}px`
 
             if (this.m.type === TypeE.OPTIONS) {
 
