@@ -232,11 +232,34 @@ class CDselect extends HTMLElement {
 
             const xy = this.els.instigator.getBoundingClientRect()
             const viewportHeight = window.innerHeight
-            const dialogHeight = 300 // Assuming a fixed height for the dialog
             const margin = 3 // Margin between instigator and dialog
 
             const width = "200px"
-            const height = dialogHeight + "px"
+
+            if (this.m.type === TypeE.OPTIONS) {
+                const option_items_ul = render_options(this.s.options, this.s.val, this.option_clicked.bind(this))
+
+                const existing_ul = this.shadow.getElementById("option_items") as HTMLUListElement
+
+                if (existing_ul) {
+                    existing_ul.remove()
+                }
+
+                this.els.dialog_view.querySelector("#dialog_wrap")!.prepend(option_items_ul)
+            }
+
+            // Show the dialog temporarily to calculate its content height
+            this.els.dialog_view.style.visibility = 'hidden'
+            this.els.dialog_view.style.display = 'block'
+            
+            const dialogContent = this.els.dialog_view.querySelector("#dialog_wrap") as HTMLElement
+            const contentHeight = dialogContent.offsetHeight
+            const dialogHeight = contentHeight + 20 // Add 20 pixels as requested
+
+            this.els.dialog_view.style.display = ''
+            this.els.dialog_view.style.visibility = ''
+
+            const height = `${dialogHeight}px`
 
             let top: number
             if (xy.bottom + dialogHeight + margin <= viewportHeight) {
@@ -258,24 +281,11 @@ class CDselect extends HTMLElement {
             this.els.dialog_view.style.top = `${top}px`
             this.els.dialog_view.style.left = `${left}px`
 
-            if (this.m.type === TypeE.OPTIONS) {
-
-                const option_items_ul = render_options(this.s.options, this.s.val, this.option_clicked.bind(this))
-
-                const existing_ul = this.shadow.getElementById("option_items") as HTMLUListElement
-
-                if (existing_ul) {
-                    existing_ul.remove()
-                }
-
-                this.els.dialog_view.querySelector("#dialog_wrap")!.prepend(option_items_ul)
-            }
-
             (this.els.dialog_view as HTMLDialogElement).showModal()
 
             this.s.mode = ModeE.OPEN
 
-			this.sc()
+            this.sc()
         }
     }
 
