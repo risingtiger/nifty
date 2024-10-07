@@ -233,7 +233,7 @@ class CDselect extends HTMLElement {
             const xy = this.els.instigator.getBoundingClientRect()
             const viewportHeight = window.innerHeight
             const dialogHeight = 300 // Assuming a fixed height for the dialog
-            const margin = 10 // Margin between instigator and dialog
+            const margin = 3 // Margin between instigator and dialog
 
             const width = "200px"
             const height = dialogHeight + "px"
@@ -250,7 +250,7 @@ class CDselect extends HTMLElement {
                 top = Math.max(0, (viewportHeight - dialogHeight) / 2)
             }
 
-            const left = Math.max(0, xy.left + (xy.width - 243))
+            const left = xy.left
 
             this.els.dialog_view.style.width = width
             this.els.dialog_view.style.height = height
