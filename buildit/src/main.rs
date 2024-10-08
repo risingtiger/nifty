@@ -2,6 +2,7 @@
 use anyhow::Result;
 use std::env;
 use std::fs;
+use lazy_static::lazy_static;
 
 
 mod setinstance;
@@ -16,7 +17,10 @@ mod core;
 mod helperutils;
 
 
-
+lazy_static! {
+    static ref CLIENT_PREFIX: String = env::var("CLIENT_PREFIX").unwrap_or_else(|_| "client_".to_string());
+    static ref SERVER_PREFIX: String = env::var("SERVER_PREFIX").unwrap_or_else(|_| "server_".to_string());
+}
 
 const CLIENT_PREFIX: &str = "client_";
 const SERVER_PREFIX: &str = "server_";

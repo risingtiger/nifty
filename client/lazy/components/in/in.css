@@ -1,9 +1,9 @@
 
 
 :host {
-	-webkit-font-smoothing: antialiased;
+    -webkit-font-smoothing: antialiased;
     display: flex;
-    flex-direction: row;
+    -webkit-font-smoothing: antialiased;
     position: relative;
     box-sizing: border-box;
     justify-content: space-between;
@@ -22,17 +22,16 @@
     height: 35px;
 }
 
-
 :host > label {
     overflow: hidden;
     text-wrap: nowrap;
     margin-right: 6px;
-	font-family: var(--fontfamily);
+    font-family: var(--fontfamily);
     font-weight: 700;
     color: rgb(190 56 151);
 }
 :host(.row) > label {
-    padding: 18px 0 0 0px;
+    padding: 17px 0 0 0px;
 }
 :host(.inline) > label {
     padding-right: 12px;
@@ -41,28 +40,52 @@
     content: ":";
 }
 
-
 :host > section {
     position: relative;
     flex: 1;
 }
 
-
-
 :host > section > #view {
     display: flex;
     width: 100%;
     justify-content: flex-end;
+    cursor: pointer;
+    position: relative;
 
     & > p {
-		font-family: var(--fontfamily);
-        padding-right: 9px;
+        font-family: var(--fontfamily);
+        color: var(--textcolor);
+        padding: 17px 0 0 0;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    & > span#err_msg {
+        position: absolute;
+        top: 33px;
+        right: 33px;
+        font-size: 12px;
+        color: var(--errorcolor);
     }
 
     & > i {
-        font-size: 20px;
-        padding: 0px 0px 0 0;
+        font-size: 18px;
+        padding: 20px 0px 0 13px;
         color: var(--actioncolor);
+        width: 20px;
+        height: 20px;
+        display: inline-block;
+        cursor: pointer;
+    }
+    & > i::before {
+        font-family: icons !important;
+        font-style: normal;
+        font-weight: normal !important;
+        font-variant: normal;
+        text-transform: none;
+        vertical-align: top;
+        -webkit-font-smoothing: antialiased;
+        content: "\f105";
     }
 }
 :host > section > #view.initial_edit {
@@ -79,13 +102,12 @@
         padding-right: 3px;
         transform: rotate(90deg);
         transition: opacity 0.3s;
-    } 
+    }
 }
 :host(.row) > section > #view {
     /* margin-top: 10px; */
     /* padding-top: 8px; */
 }
-
 
 :host > section > #edit {
     display: flex;
@@ -94,13 +116,13 @@
     width: 100%;
 
     & > input {
-		font-family: var(--fontfamily);
+        font-family: var(--fontfamily);
         font-size: 14px;
         box-sizing: border-box;
         outline: none;
         border: 1px solid #cecece;
         border-radius: 4px;
-        padding: 7px 5px 8px 5px;
+        padding: 6px 5px 8px 5px;
         color: #6d6d6d;
         display: inline-block;
         margin-top: 0;
@@ -114,20 +136,32 @@
     }
 
     & > i {
-        padding-left: 11px;
-        padding-top: 8px;
+        padding: 8px 3px 0px 9px;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
         color: var(--actioncolor);
-        font-weight: 500;
-        transition: opacity 0.3s;
-    } & > i.hide_while_spinner {
+    }
+    & > i::before {
+        font-family: icons !important;
+        font-style: normal;
+        font-weight: normal !important;
+        font-variant: normal;
+        text-transform: none;
+        vertical-align: top;
+        -webkit-font-smoothing: antialiased;
+
+        content: "\f104";
+    }
+    & > i.hide_while_spinner {
         opacity: 0;
     }
 
     & > c-animeffect {
         position: absolute;
         opacity: 0;
-        top: 8px;
-        right: 0;
+        top: 9px;
+        right: 4px;
         width: 18px;
         height: 18px;
     }
@@ -138,8 +172,11 @@
     & > c-dselect + c-animeffect {
         top: 8px;
         right: 5px;
-        width: 18px;
-        height: 18px;
+    }
+
+    & > .switch + c-animeffect {
+        top: 7px;
+        right: 3px;
     }
 }
 :host(.row) > section > #edit {
@@ -148,8 +185,6 @@
 :host(.inline) > section > #edit {
     top: -7px;
 }
-
-
 
 :host span.switch {
     position: relative;
@@ -172,7 +207,7 @@
         height: 14px;
         margin-top: 2px;
         border-radius: 50%;
-        background-color: #D9DADC;
+        background-color: #d9dadc;
         user-select: none;
         transform: translateX(2px);
         transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
@@ -189,7 +224,7 @@
     }
 }
 :host span.switch.istrue {
-    border-color: rgba(255, 255, 255, 0.0);
+    border-color: rgba(255, 255, 255, 0);
     background-color: #36cf90;
 
     & > .inner {

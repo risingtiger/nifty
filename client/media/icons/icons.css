@@ -1,6 +1,6 @@
 @font-face {
     font-family: "icons";
-    src: url("./icons.woff2?203788c2fd23cbd32d79453763cc1291") format("woff2");
+    src: url("./icons.woff2?ea7dc4da4028b3a355ad1539e9cf3377") format("woff2");
 }
 
 i[class^="icon-"]:before, i[class*=" icon-"]:before {
@@ -70,4 +70,7 @@ i[class^="icon-"]:before, i[class*=" icon-"]:before {
 }
 .icon-_19_add:before {
     content: "\f113";
+}
+.icon-_20_burger:before {
+    content: "\f114";
 }

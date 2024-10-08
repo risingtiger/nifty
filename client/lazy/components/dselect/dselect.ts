@@ -8,7 +8,7 @@ declare var Lit_Html: any;
 
 
 enum ModeE { CLOSED = 0, OPEN = 1 }
-enum TypeE { OPTIONS = 0, GENERAL = 1 }
+enum TypeE { SELECTBOX = 0, MENU = 1, GENERAL = 1 }
 
 type OptionT = { val: str, label: str }
 
@@ -79,7 +79,7 @@ class CDselect extends HTMLElement {
 		this.shadow = this.attachShadow({mode: 'open'});
 
 		this.s = { mode: ModeE.CLOSED, isanimating: false, instigator_term: "", options: [], options_str: "", val: "", term: "", did_first_run:false }
-		this.m = { type: TypeE.OPTIONS }
+		this.m = { type: TypeE.SELECTBOX }
 		this.els = { instigator: DUMMY_EL, instigator_cnt: DUMMY_EL, dialog_view: (DUMMY_EL as any)}
 
 		this.animatehandles = { view: null, instigator: null, }// label: null}
@@ -93,9 +93,16 @@ class CDselect extends HTMLElement {
 
     connectedCallback() {   
 
-		this.s.options_str = this.getAttribute("options") || ""
-		this.s.val = this.getAttribute("val") || ""
-        this.m.type = this.s.options_str ? TypeE.OPTIONS : TypeE.GENERAL
+		this.s.options_str = this.getAttribute("options") || "";
+		this.s.val = this.getAttribute("val") || "";
+
+		const typestr:str = this.getAttribute("type") || (this.s.options_str ? "selectbox" : "general");
+
+		switch (typestr) {
+			case "selectbox": this.m.type = TypeE.SELECTBOX; break;
+			case "menu": this.m.type = TypeE.MENU; break;
+			default: this.m.type = TypeE.GENERAL; break;
+		}
 
 		if (this.s.options_str)   this.s.options = parse_options(this.s.options_str)
 
@@ -134,7 +141,7 @@ class CDselect extends HTMLElement {
 			this.s.val = new_val
 			this.sc()
 
-			if (this.s.mode === ModeE.OPEN) {
+			if (this.s.mode === ModeE.OPEN && this.m.type === TypeE.SELECTBOX) {
 				set_active_option(this.els.dialog_view, new_val)
 			}
         }
@@ -146,38 +153,7 @@ class CDselect extends HTMLElement {
 		else if (name === "open" && new_val === null && old_val === "" && this.s.mode === ModeE.OPEN) { 
 			this.to_closed()
 		} 
-
-
-        /*
-        if (name === "val" && this.s.mode === 'saving' && this.s.isanimating === false) { 
-            this.to_saved(new_val)
-        }
-
-        else if (name === "gomodeedit" && old_val !== null && this.s.mode === 'view' && this.s.isanimating === false) {
-            this.to_edit()
-        }
-        */
     }
-
-
-
-
-    /*
-    EditDoneClicked() {
-        if (this.s.mode === 'edit' && this.s.isanimating === false) {
-
-            const inputel = this.shadow.getElementById("input") as HTMLInputElement
-            if (inputel.value === this.s.val) {
-                this.to_view()
-            }
-
-            else {
-                this.to_saving()
-            }
-
-        }
-    }
-    */
 
 
 
@@ -219,9 +195,10 @@ class CDselect extends HTMLElement {
 		this.setAttribute("val", val)
 		this.setAttribute("term", term)
 
-		this.removeAttribute("open")
-
-        this.dispatchEvent(new CustomEvent("changed", {detail}))
+		setTimeout(()=> {
+			this.removeAttribute("open")
+			this.dispatchEvent(new CustomEvent("changed", {detail}))
+		}, 200)
     }
 
 
@@ -232,12 +209,12 @@ class CDselect extends HTMLElement {
 
             const xy = this.els.instigator.getBoundingClientRect()
             const viewportHeight = window.innerHeight
-            const margin = 3 // Margin between instigator and dialog
+            const viewportWidth = window.innerWidth
+            const margin = 3 
 
-            const width = "200px"
 
-            if (this.m.type === TypeE.OPTIONS) {
-                const option_items_ul = render_options(this.s.options, this.s.val, this.option_clicked.bind(this))
+            if (this.m.type === TypeE.SELECTBOX || this.m.type === TypeE.MENU) {
+                const option_items_ul = render_options(this.s.options, this.s.val, this.m.type, this.option_clicked.bind(this))
 
                 const existing_ul = this.shadow.getElementById("option_items") as HTMLUListElement
 
@@ -248,13 +225,16 @@ class CDselect extends HTMLElement {
                 this.els.dialog_view.querySelector("#dialog_wrap")!.prepend(option_items_ul)
             }
 
-            // Show the dialog temporarily to calculate its content height
             this.els.dialog_view.style.visibility = 'hidden'
             this.els.dialog_view.style.display = 'block'
             
             const dialogContent = this.els.dialog_view.querySelector("#dialog_wrap") as HTMLElement
             const contentHeight = dialogContent.offsetHeight
-            const dialogHeight = contentHeight + 20 // Add 20 pixels as requested
+            const contentWidth  = dialogContent.offsetWidth
+            const dialogHeight  = contentHeight + 7 
+            const dialogWidth   = contentWidth 
+
+            const width = `${dialogWidth}px`
 
             this.els.dialog_view.style.display = ''
             this.els.dialog_view.style.visibility = ''
@@ -273,13 +253,23 @@ class CDselect extends HTMLElement {
                 top = Math.max(0, (viewportHeight - dialogHeight) / 2)
             }
 
-            const left = xy.left
+            let left: number
+            if (xy.left + dialogWidth + margin <= viewportWidth) {
+                // Enough space to the right of the instigator
+                left = xy.left
+            } else if (xy.right - dialogWidth - margin >= 0) {
+                // Not enough space to the right, but enough space to the left
+                left = xy.right - dialogWidth
+            } else {
+                // Not enough space on either side, center it horizontally
+                left = Math.max(0, (viewportWidth - dialogWidth) / 2)
+            }
 
             this.els.dialog_view.style.width = width
             this.els.dialog_view.style.height = height
             
-            this.els.dialog_view.style.top = `${top}px`
-            this.els.dialog_view.style.left = `${left}px`
+            this.els.dialog_view.style.top = `${top}px`;
+            this.els.dialog_view.style.left = `${left}px`;
 
             (this.els.dialog_view as HTMLDialogElement).showModal()
 
@@ -352,7 +342,7 @@ customElements.define('c-dselect', CDselect);
 
 
 
-function render_options(options:OptionT[], options_val:str, option_clicked:(e:MouseEvent) => void) : HTMLUListElement {
+function render_options(options:OptionT[], options_val:str, type:TypeE, option_clicked:(e:MouseEvent) => void) : HTMLUListElement {
 
     const ulitemsel = document.createElement("ul")
     ulitemsel.classList.add("options")
@@ -370,12 +360,13 @@ function render_options(options:OptionT[], options_val:str, option_clicked:(e:Mo
 
         liel.appendChild(h5el)
 
-		if (x.val === options_val) {
+		if (x.val === options_val && type === TypeE.SELECTBOX) {
 			liel.classList.add("selected")
-			liel.insertAdjacentHTML("beforeend", `<span class='postpend'></span>`)
 		} else {
-			liel.insertAdjacentHTML("beforeend", `<span class='postpend'>&nbsp;</span>`)
+			liel.insertAdjacentHTML("beforeend", `<span class='postpend'></span>`)
 		}
+
+		liel.insertAdjacentHTML("beforeend", `<span class='postpend'></span>`)
 
         liel.addEventListener("click", (e:MouseEvent) => option_clicked(e))
 
@@ -410,7 +401,7 @@ function set_term(term:str|null, type:TypeE, options:OptionT[]|null, val:str) : 
 	if (term) {
 		return term
 
-	} else if (!term && type === TypeE.OPTIONS) {
+	} else if (!term && (type === TypeE.SELECTBOX || type === TypeE.MENU)) {
 
 		const option = options ? options.find(o => o.val === val) : null
 		return option ? option.label : val

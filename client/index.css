@@ -5,6 +5,7 @@
     --textcolor-fade: #818181;
     --textsize: 14px;
     --actioncolor: #0091e8;
+    --errorcolor: red;
     --background: white;
     --background-highlight: #f9f9f9;
     --bordercolor: lightgray;
@@ -49,6 +50,12 @@ body {
 body {
   margin: 0;
   padding: 0;
+}
+
+body, td {
+  font-family: var(--fontfamily);
+  font-size: var(--textsize);
+  color: var(--textcolor);
 }
 
 

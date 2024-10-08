@@ -143,14 +143,14 @@ class CReveal extends HTMLElement {
             a.style.transitionTimingFunction = "cubic-bezier(0.91, 0, 0.19, 1)"
         }
 
-        this.s.parent.style.boxShadow = "rgba(236, 236, 236, 0) 0px 4px 0px inset"
+        this.s.parent.style.boxShadow = "rgba(236, 236, 236, 0) 0px 0px 0px inset"
 		this.s.parent.style.transitionProperty = "transform, box-shadow, background-color, border-bottom-color"
 
         const height = this.offsetHeight
 
         lih5_el!.style.transform = "scale(1.3)"
 
-        this.s.parent.style.boxShadow = "rgba(236, 236, 236,1) 0px 4px 0px inset"
+        this.s.parent.style.boxShadow = "rgba(236, 236, 236,1) 0px 1px 0px inset"
         this.s.parent.style.backgroundColor = "rgba(200, 200, 200, 0.10)"
         this.s.parent.style.borderBottomColor = "rgba(200, 200, 200, 0.0)"
 
@@ -193,7 +193,7 @@ class CReveal extends HTMLElement {
         const lih5_el = this.s.parent.querySelector("h5")
         lih5_el!.style.transform = "scale(1.0)"
 
-        this.s.parent.style.boxShadow = "rgba(236, 234, 234, 0) 0px 4px 0px inset"
+        this.s.parent.style.boxShadow = "rgba(236, 234, 234, 0) 0px 1px 0px inset"
         this.s.parent.style.backgroundColor = "rgba(200, 200, 200, 0)"
         this.s.parent.style.borderBottomColor = "var(--bordercolor)"
 

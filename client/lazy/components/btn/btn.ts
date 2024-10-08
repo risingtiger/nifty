@@ -37,7 +37,6 @@ class CBtn extends HTMLElement {
 
 
 
-    static get observedAttributes() { return ['resolved']; }
 
 
 
@@ -71,11 +70,12 @@ class CBtn extends HTMLElement {
 
 
     async attributeChangedCallback(name:str, oldval:str, newval:str) {
-		if (name === "resolved" && newval === "true" && !oldval) {
-			this.removeAttribute("resolved")
-			this.to_resolved()
-		}
     }
+
+
+
+
+    public set_resolved()         {   this.to_resolved();            }
 
 
 
@@ -84,6 +84,9 @@ class CBtn extends HTMLElement {
 
         if (this.s.mode == ModeT.INERT && this.m.wait_for_confirm) {
             this.to_saving()
+			this.dispatchEvent(new CustomEvent("submit", {detail: { 
+				set_resolved: this.set_resolved.bind(this), 
+			}}))
         }
     }
 

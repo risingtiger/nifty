@@ -157,7 +157,7 @@ ul.items {
 
         & > p {
             font-weight: 400;
-            padding: 17px 0 0 0;
+            padding: 18px 0 0 0;
             color: var(--textcolor);
             flex-grow: 1;
             text-align: right;
@@ -169,10 +169,11 @@ ul.items {
 
         & > i.action {
             display: block;
-            font-size: 18px;
-            padding: 16px 8px 0 10px;
+            padding: 20px 8px 0 13px;
             color: #c1c1c1;
             font-size: 18px;
+            width: 20px;
+            height: 20px;
         }
 
         & > i.action.bolder {
@@ -221,7 +222,6 @@ ul.items {
         cursor: pointer;
         background-color: #f9f9f9;
         background-color: var(--background-highlight);
-
 
         & > h5 {
             /*text-decoration: underline;*/
@@ -320,10 +320,10 @@ span.justinput.search {
     }
     & > i {
         color: #a1a1a1;
-    }    
-	& input::placeholder {
-		color: #8b8989;
-	}
+    }
+    & input::placeholder {
+        color: #8b8989;
+    }
 }
 
 dialog::backdrop {
@@ -447,6 +447,10 @@ i[class*=" icon-"]:before {
 
 .icon-add:before {
     content: "\f113";
+}
+
+.icon-burger:before {
+    content: "\f114";
 }
 
 @media only screen and (max-device-width: 767px) {

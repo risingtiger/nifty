@@ -44,6 +44,8 @@ pub fn runit(instance:&str) -> Result<()> {
 fn manifest(instance:&str) -> Result<ManifestT> {
 
     let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+    let instance_server_dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+    let instance_server_dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
 
     let manifest_in = dir.clone() + crate::CLIENT_MAIN_SRC_PATH + "app.webmanifest";
     let manifest_instance_in = dir.clone() + crate::CLIENT_INSTANCE_SRC_PREFIX + instance + "/app_xtend.webmanifest";

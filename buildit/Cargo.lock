@@ -73,6 +73,7 @@ name = "buildit"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "lazy_static",
  "minify-js",
  "rayon",
  "regex",

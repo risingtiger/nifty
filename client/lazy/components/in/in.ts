@@ -19,8 +19,7 @@ type StateT = {
     mode: ModeT,
     isanimating: bool,
     val: str,
-    term: str,
-    error: str,
+    err_msg: str,
 }
 
 type ModelT = {
@@ -74,9 +73,6 @@ class CIn extends HTMLElement {
     keyframes: KeyframesT
     shadow:ShadowRoot
 
-
-
-
     static get observedAttributes() { return ['val']; }
 
 
@@ -88,7 +84,7 @@ class CIn extends HTMLElement {
 
         this.shadow = this.attachShadow({mode: 'open'});
 
-        this.s = { mode: ModeT.VIEW, val: "", term: "", error: "", isanimating: false }
+        this.s = { mode: ModeT.VIEW, val: "", isanimating: false, err_msg: "" }
         this.m = { layout: LayoutT.ROW, cansave:true, name: "", type: TypeT.INPUT, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
         this.els = { label: null, section: null, view: null, edit: null, displayval: null, action: null, editdone: null, animeffect: null, input: null, switch: null, dselect: null}
 
@@ -123,8 +119,6 @@ class CIn extends HTMLElement {
             this.s.mode = !this.m.cansave ? ModeT.EDIT : ( this.hasAttribute("edit") ? ModeT.EDIT : ModeT.VIEW )
             this.m.type = TypeT.DSELECT
             this.m.inputtype = "none"
-
-            this.s.term = this.getAttribute("term") || ""
 
         } else { 
             this.s.mode = !this.m.cansave ? ModeT.EDIT : ( this.hasAttribute("edit") ? ModeT.EDIT : ModeT.VIEW )
@@ -186,8 +180,8 @@ class CIn extends HTMLElement {
 
 
 
-    SaveResponse(newval:str, newterm:str|null) {   this.to_saved_result(newval, newterm);   }
-    SaveResponseError(error:str)          {   this.to_error_result(error);             }
+    public set_save_success(newval:str)         {   this.to_saved_result(newval);            }
+    public set_save_fail(newval:str, error:str) {   this.to_error_result(newval, error);     }
 
 
 
@@ -218,13 +212,6 @@ class CIn extends HTMLElement {
             else if (this.m.type === TypeT.DSELECT) {
 
                 allow_propagation = true
-                /*
-                if ((this.els.dselect as any).GetMode() === 1) {
-                    allow_propagation = true
-                } else {
-                    (this.els.dsselect as any).OpenIt();
-                }
-                */
             }
         }
 
@@ -317,7 +304,7 @@ class CIn extends HTMLElement {
 
             if (this.m.cansave) {
                 this.els.editdone = document.createElement("i")
-                this.els.editdone.className = "icon-edit2"
+                this.els.editdone.className = "icon-checkcircle"
 
                 this.els.editdone.addEventListener("click", () => {
                     const newval = this.els.input?.value || ""
@@ -340,13 +327,12 @@ class CIn extends HTMLElement {
 
             this.els.dselect = document.createElement("c-dselect")
             this.els.dselect.setAttribute("options", this.getAttribute("options") || "")
-            this.els.dselect.setAttribute("term", this.s.term || "")
             this.els.dselect.setAttribute("val", this.s.val)
 
 
             this.els.dselect.addEventListener("changed", (e:Event) => {
 
-				const e_newval = (e as CustomEvent).detail.newval
+				const e_newval = (e as CustomEvent).detail.newval || ""
 				const e_oldval = (e as CustomEvent).detail.oldval
 
 				this.trigger_changed(e_newval, e_oldval)
@@ -354,16 +340,11 @@ class CIn extends HTMLElement {
                 if (this.m.cansave) {
                     this.to_saving((e as CustomEvent).detail.newval, (e as CustomEvent).detail.oldval); 
                 } else { 
-
-                    const v = this.els.dselect!.getAttribute("val") || ""
-                    const t = this.els.dselect!.getAttribute("term") || ""
-
-                    this.setAttribute("val", v)
-                    this.setAttribute("term", t)
+                    this.setAttribute("val", e_newval)
                 }
             })
 
-            this.els.dselect.addEventListener("closed", (_e:Event) => {
+            this.els.dselect.addEventListener("cancelled", (_e:Event) => {
                 if (this.m.cansave) {
                     this.s.mode = ModeT.SAVED
                     this.to_view()
@@ -373,7 +354,7 @@ class CIn extends HTMLElement {
             this.els.edit.appendChild(this.els.dselect)
 
             if (immediate_focus) {
-                setTimeout(()=> (this.els.dselect as any).OpenIt(), 20)
+                setTimeout(()=> this.els.dselect!.setAttribute("open", ""), 200)
             }
         }
 
@@ -387,16 +368,36 @@ class CIn extends HTMLElement {
 
         this.els.view = document.createElement("span")
         this.els.view.id = "view"
-
         this.els.displayval = document.createElement("p")
-
         this.els.action = document.createElement("i")
-        this.els.action.className = "icon-edit1"
 
-        this.els.displayval.textContent = this.s.term || this.s.val
+		if (this.m.type === TypeT.DSELECT) {
+
+			const options = this.getAttribute("options") || ""
+			if (options) {
+				const options_arr = options.split(",")
+				const option = options_arr.find((o:str) => o.split(":")[1] === this.s.val)
+				this.els.displayval.textContent = option ? option.split(":")[0] : this.s.val
+
+			} else {
+				this.els.displayval.textContent = this.s.val
+			}
+
+		} else {
+
+			this.els.displayval.textContent = this.s.val
+		}
 
         this.els.view.appendChild(this.els.displayval)
         this.els.view.appendChild(this.els.action)
+
+        if (this.s.err_msg) {
+            const err_msg_el = document.createElement("span")
+            err_msg_el.id = "err_msg"
+            err_msg_el.textContent = this.s.err_msg
+            this.els.view.appendChild(err_msg_el)
+        }
+
         this.els.section?.appendChild(this.els.view) 
     }
 
@@ -434,7 +435,7 @@ class CIn extends HTMLElement {
             this.s.mode = ModeT.SAVING
 
             if (newval === oldval) {
-                this.to_saved_result(newval, oldval)
+                this.to_saved_result(newval)
                 return
             }
 
@@ -465,7 +466,12 @@ class CIn extends HTMLElement {
             this.els.animeffect.className = "active"
 
             setTimeout(() => {
-                this.dispatchEvent(new CustomEvent("save", {detail: {name:this.m.name, newval, oldval}}))
+                this.dispatchEvent(new CustomEvent("save", {detail: { 
+					name:this.m.name, 
+					newval, oldval, 
+					set_save_success: this.set_save_success.bind(this), 
+					set_save_fail: this.set_save_fail.bind(this)
+				}}))
             }, 500)
         }
     }
@@ -473,9 +479,11 @@ class CIn extends HTMLElement {
 
 
 
-    to_saved_result(newval:str, term:str|null) {
+    to_saved_result(newval:str) {
 
         if (this.s.mode === ModeT.SAVING && this.s.isanimating === false) {
+
+			this.s.err_msg = ""
 
             this.s.mode = ModeT.SAVED
 
@@ -492,16 +500,11 @@ class CIn extends HTMLElement {
             } else if (this.m.type === TypeT.INPUT) {
 
                 this.setAttribute("val", newval!)
-
                 this.to_view()
 
             } else if (this.m.type === TypeT.DSELECT) {
 
-                this.s.term = term!
-
                 this.setAttribute("val", newval!)
-                this.setAttribute("term", term!)
-
                 this.to_view()
             }
         }
@@ -510,9 +513,11 @@ class CIn extends HTMLElement {
 
 
 
-    to_error_result(error:str) {
+    to_error_result(newval:str, error:str) {
 
         if (this.s.mode === ModeT.SAVING && this.s.isanimating === false) {
+
+            this.s.err_msg = error || "";
 
             if (this.m.type === TypeT.TOGGLE) {
 
@@ -524,22 +529,21 @@ class CIn extends HTMLElement {
 
             } else if (this.m.type === TypeT.INPUT) {
 
-                this.els.input!.value = this.s.val
-
                 this.s.mode = ModeT.ERRORED
-
+				this.setAttribute("val", (newval ? newval : this.s.val))
+                this.els.input!.value = this.s.val
                 this.to_view()
 
             } else if (this.m.type === TypeT.DSELECT) {
 
-                (this.els.dselect as any).SetValAndTerm(this.s.val, this.s.term)
+				this.setAttribute("val", this.s.val)
 
                 this.s.mode = ModeT.ERRORED
 
                 this.to_view()
             }
 
-            console.log("error: " + error)
+            console.error("error: " + error)
         }
     }
 
