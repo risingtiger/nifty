@@ -1,6 +1,3 @@
-[submodule "client/client_pwt"]
-	path = client/client_pwt
-	url = git@github.com:Pure-Water-Tech/client_pwt.git
 [submodule "server/src/server_pwt"]
 	path = server/src/server_pwt
 	url = git@github.com:Pure-Water-Tech/server_pwt.git
