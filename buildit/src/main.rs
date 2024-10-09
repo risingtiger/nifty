@@ -1,38 +1,40 @@
 
 use anyhow::Result;
 use std::env;
-use std::fs;
-use lazy_static::lazy_static;
+//use std::fs;
+use std::sync::LazyLock;
 
 
-mod setinstance;
-mod lazy;
-mod thirdpartyfiles;
-mod mediafiles;
-mod serverfiles;
-mod dist;
-mod dist2;
-mod update_file;
-mod core;
-mod helperutils;
+//mod setinstance;
+//mod lazy;
+//mod thirdpartyfiles;
+//mod mediafiles;
+//mod serverfiles;
+mod dev;
+//mod dist;
+//mod dist2;
+//mod update_file;
+//mod core;
+//mod helperutils;
 
 
-lazy_static! {
-    static ref CLIENT_PREFIX: String = env::var("CLIENT_PREFIX").unwrap_or_else(|_| "client_".to_string());
-    static ref SERVER_PREFIX: String = env::var("SERVER_PREFIX").unwrap_or_else(|_| "server_".to_string());
-}
 
-const CLIENT_PREFIX: &str = "client_";
-const SERVER_PREFIX: &str = "server_";
 
-const CLIENT_MAIN_SRC_PATH: &str = "client/";
-const CLIENT_INSTANCE_SRC_PREFIX: &str = "client/client_";
-const CLIENT_OUTPUT_DEV_PATH: &str = "server/static_dev/";
-const CLIENT_OUTPUT_DIST_PATH: &str = "server/static_dist/";
+static MAIN_PATH: LazyLock<String> = LazyLock::new(|| env::var("NIFTY_DIR").expect("NIFTY_DIR env var not set"));
+static INSTANCE_SERVER_PATH: LazyLock<String> = LazyLock::new(|| env::var("NIFTY_INSTANCE_SERVER_DIR").expect("NIFTY_INSTANCE_SERVER_DIR env var not set"));
+static INSTANCE_CLIENT_PATH: LazyLock<String> = LazyLock::new(|| env::var("NIFTY_INSTANCE_CLIENT_DIR").expect("NIFTY_INSTANCE_CLIENT_DIR env var not set"));
 
-const SERVER_MAIN_PATH: &str = "server/";
-const SERVER_MAIN_SRC_PATH: &str = "server/src/";
-const SERVER_BUILD_PATH: &str = "server/build/";
+static CLIENT_MAIN_SRC_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "client/");
+static CLIENT_OUTPUT_DEV_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/static_dev/");
+static CLIENT_OUTPUT_DIST_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/static_dist/");
+ 
+static SERVER_MAIN_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/");
+static SERVER_MAIN_SRC_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/src/");
+static SERVER_BUILD_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/build/");
+
+static INSTANCE_CLIENT_OUTPUT_DEV_PATH: LazyLock<String> = LazyLock::new(|| CLIENT_OUTPUT_DEV_PATH.clone() +  "instance/");
+static INSTANCE_CLIENT_OUTPUT_DIST_PATH: LazyLock<String> = LazyLock::new(|| CLIENT_OUTPUT_DIST_PATH.clone() +  "instance/");
+
 
 //const IGNORE_ON_RSYNC_MAIN:[&str; 8] = [".*", "**/*.ts", "**/CHANGELOG.md", "**/alwaysload", "app_xtend.webmanifest", "app.webmanifest", "**/media", "index.html"];
 
@@ -42,35 +44,39 @@ const SERVER_BUILD_PATH: &str = "server/build/";
 
 fn main() {
 
-    let instance = env::var("NIFTY_INSTANCE").unwrap_or("".to_string());
-
     let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        println!("No arguments provided");
+        return;
+    }
+
     let primary_action = &args[1];
-    let primary_action_aux  = if args.len() >= 3 { &args[2] } else { "" };
+    //let primary_action_aux  = if args.len() >= 3 { &args[2] } else { "" };
+
+    reset_dev_dirs().expect("Unable to reset directories");
 
     match primary_action.as_str() {
 
-        "instance" => { let _ = setinstance::setinstance();   },
+        //"alldev" => {    let _ = all(&instance);   },
 
-        "alldev" => {    let _ = all(&instance);   },
+        "core" => {   let _ = dev::runit();   },
 
-        "core" => {   let _ = core::runit(&instance);   },
+        //"lazy" => {   let _ = lazy::runit(&instance);   },
 
-        "lazy" => {   let _ = lazy::runit(&instance);   },
+        //"corelazy" => {   let _ = core::runit();   let _ = lazy::runit(&instance);   },
 
-        "corelazy" => {   let _ = core::runit(&instance);   let _ = lazy::runit(&instance);   },
+        //"thirdparty" => {   let _ = thirdpartyfiles::thirdpartyfiles(&instance);   },
 
-        "thirdparty" => {   let _ = thirdpartyfiles::thirdpartyfiles(&instance);   },
+        //"mediafiles" => {  let _ = mediafiles::files(&instance);   },
 
-        "mediafiles" => {  let _ = mediafiles::files(&instance);   },
+        //"mediaiconsfont" => {  let _ = mediafiles::iconsfont(&instance);   },
 
-        "mediaiconsfont" => {  let _ = mediafiles::iconsfont(&instance);   },
+        //"server" => { let _ = serverfiles::serverfiles(&instance);   },
 
-        "server" => { let _ = serverfiles::serverfiles(&instance);   },
+        //"dist" => { let _ = dist::dist(&instance);   },
 
-        "dist" => { let _ = dist::dist(&instance);   },
-
-        "file" => { let _ = update_file::runit(&instance, &primary_action_aux);   },
+        //"file" => { let _ = update_file::runit(&instance, &primary_action_aux);   },
 
         _ => {   println!("Invalid argument");   }
     }
@@ -79,30 +85,31 @@ fn main() {
 
 
 
-fn all(instance:&str) -> Result<()> {
+fn reset_dev_dirs() -> Result<()> {
 
-    let dir = env::var("NIFTY_DIR").expect("Unable to get NIFTY_DIR environment variable");
+    let _xx = std::fs::remove_dir_all(CLIENT_OUTPUT_DEV_PATH.clone());
+    let _yy = std::fs::remove_dir_all(SERVER_BUILD_PATH.clone());
 
-    let x = format!("{}{}", dir, CLIENT_OUTPUT_DEV_PATH);
-    let y = format!("{}{}", dir, SERVER_BUILD_PATH);
+    std::fs::create_dir_all(CLIENT_OUTPUT_DEV_PATH.clone())?;
+    std::fs::create_dir_all(SERVER_BUILD_PATH.clone())?;
+    std::fs::create_dir_all(INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone())?;
 
-    let xx = std::fs::remove_dir_all(&x);
-    if xx.is_err() {   println!("output dev folder is already removed.");   }
+    Ok(())
+}
 
-    let yy = std::fs::remove_dir_all(&y);
-    if yy.is_err() {   println!("output build folder is already removed.");   }
 
-    std::fs::create_dir_all(&x)?;
-    std::fs::create_dir_all(&y)?;
+/*
+fn all() -> Result<()> {
 
+    reset_dev_dirs()?;
 
     mediafiles::files(&instance)?;
     mediafiles::iconsfont(&instance)?;
-    core::runit(&instance)?;
+    core::runit()?;
     thirdpartyfiles::thirdpartyfiles(&instance)?;
     lazy::runit(&instance)?;
     serverfiles::serverfiles(&instance)?;
 
     Ok(())
 }
-
+*/
