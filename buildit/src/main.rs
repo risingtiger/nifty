@@ -7,15 +7,10 @@ use std::sync::LazyLock;
 
 //mod setinstance;
 //mod lazy;
-//mod thirdpartyfiles;
-//mod mediafiles;
-//mod serverfiles;
+
 mod dev;
-//mod dist;
-//mod dist2;
-//mod update_file;
-//mod core;
-//mod helperutils;
+ 
+
 
 
 
@@ -35,6 +30,9 @@ static SERVER_BUILD_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() 
 static INSTANCE_CLIENT_OUTPUT_DEV_PATH: LazyLock<String> = LazyLock::new(|| CLIENT_OUTPUT_DEV_PATH.clone() +  "instance/");
 static INSTANCE_CLIENT_OUTPUT_DIST_PATH: LazyLock<String> = LazyLock::new(|| CLIENT_OUTPUT_DIST_PATH.clone() +  "instance/");
 
+static INSTANCE_SERVER_OUTPUT_DEV_PATH: LazyLock<String> = LazyLock::new(|| SERVER_BUILD_PATH.clone() +  "instance/");
+static INSTANCE_SERVER_OUTPUT_DIST_PATH: LazyLock<String> = LazyLock::new(|| SERVER_BUILD_PATH.clone() +  "instance/");
+
 
 //const IGNORE_ON_RSYNC_MAIN:[&str; 8] = [".*", "**/*.ts", "**/CHANGELOG.md", "**/alwaysload", "app_xtend.webmanifest", "app.webmanifest", "**/media", "index.html"];
 
@@ -52,7 +50,7 @@ fn main() {
     }
 
     let primary_action = &args[1];
-    //let primary_action_aux  = if args.len() >= 3 { &args[2] } else { "" };
+    let primary_action_aux  = if args.len() >= 3 { &args[2] } else { "" };
 
     reset_dev_dirs().expect("Unable to reset directories");
 
@@ -66,17 +64,17 @@ fn main() {
 
         //"corelazy" => {   let _ = core::runit();   let _ = lazy::runit(&instance);   },
 
-        //"thirdparty" => {   let _ = thirdpartyfiles::thirdpartyfiles(&instance);   },
+        "thirdparty" => {   let _ = dev::thirdparty::runit();   },
 
-        //"mediafiles" => {  let _ = mediafiles::files(&instance);   },
+        "media" => {  let _ = dev::media::runit();   },
 
-        //"mediaiconsfont" => {  let _ = mediafiles::iconsfont(&instance);   },
+        "iconsfont" => {  let _ = dev::media::iconsfont();   },
 
-        //"server" => { let _ = serverfiles::serverfiles(&instance);   },
+        "server" => { let _ = dev::server::runit();   },
 
         //"dist" => { let _ = dist::dist(&instance);   },
 
-        //"file" => { let _ = update_file::runit(&instance, &primary_action_aux);   },
+        "file" => { let _ = dev::update_file::runit(&primary_action_aux);   },
 
         _ => {   println!("Invalid argument");   }
     }
