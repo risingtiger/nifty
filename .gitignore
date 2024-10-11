@@ -5,8 +5,6 @@ server/static_dist/
 server/static_dev/
 buildit/target/
 buildit/buildit
-client/client_xen/
-server/src/server_xen/
 
 
 **/.DS_Store

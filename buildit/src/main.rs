@@ -9,6 +9,8 @@ use std::sync::LazyLock;
 //mod lazy;
 
 mod dev;
+mod dist;
+mod common_helperfuncs;
  
 
 
@@ -52,11 +54,9 @@ fn main() {
     let primary_action = &args[1];
     let primary_action_aux  = if args.len() >= 3 { &args[2] } else { "" };
 
-    reset_dev_dirs().expect("Unable to reset directories");
-
     match primary_action.as_str() {
 
-        //"alldev" => {    let _ = all(&instance);   },
+        "alldev" => {    let _ = dev::alldev();   },
 
         "core" => {   let _ = dev::runit();   },
 
@@ -72,28 +72,17 @@ fn main() {
 
         "server" => { let _ = dev::server::runit();   },
 
-        //"dist" => { let _ = dist::dist(&instance);   },
+        "dist" => { let _ = dist::runit();   },
 
         "file" => { let _ = dev::update_file::runit(&primary_action_aux);   },
 
-        _ => {   println!("Invalid argument");   }
+        _ => {   println!("Invalid command line argument");   }
     }
 }
 
 
 
 
-fn reset_dev_dirs() -> Result<()> {
-
-    let _xx = std::fs::remove_dir_all(CLIENT_OUTPUT_DEV_PATH.clone());
-    let _yy = std::fs::remove_dir_all(SERVER_BUILD_PATH.clone());
-
-    std::fs::create_dir_all(CLIENT_OUTPUT_DEV_PATH.clone())?;
-    std::fs::create_dir_all(SERVER_BUILD_PATH.clone())?;
-    std::fs::create_dir_all(INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone())?;
-
-    Ok(())
-}
 
 
 /*

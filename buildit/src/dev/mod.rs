@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use walkdir::WalkDir;
 
+pub mod entry;
 pub mod media;
 pub mod thirdparty;
 pub mod update_file;
@@ -46,8 +47,6 @@ struct ManifestT {
 
 pub fn runit() -> Result<()> {
 
-    let x = std::time::Instant::now();
-
     let manifest = handle_manifest()?;
 
     let a = crate::CLIENT_MAIN_SRC_PATH.clone();
@@ -66,15 +65,34 @@ pub fn runit() -> Result<()> {
     let h = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "lazy/";
     let instance_deep_copy_html_css = std::thread::spawn(move || copy_deep(vec!["html", "css"], &g, &h));
 
-
     js_client_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
     js_instance_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
     client_deep_copy_html_css.join().map_err(|e| anyhow::anyhow!("Lazy deep copy html and css panicked: {:?}", e))??;
     instance_deep_copy_html_css.join().map_err(|e| anyhow::anyhow!("Lazy deep copy html and css panicked: {:?}", e))??;
 
-    println!("Dev build took: {:?}", x.elapsed());
-
     let _ = handle_indexhtml(&manifest.short_name); // does write over index.html that happens to get created by client_deep_copy_html_css
+
+    Ok(())
+}
+
+
+
+
+pub fn alldev() -> Result<()> {
+     
+    reset_dev_dirs()?;
+
+    let core_thread       = std::thread::spawn(|| runit());
+    let thirdparty_thread = std::thread::spawn(|| thirdparty::runit());
+    let media_thread      = std::thread::spawn(|| media::runit());
+    let server_thread     = std::thread::spawn(|| server::runit());
+    let entry_thread      = std::thread::spawn(|| entry::runit());
+
+    core_thread.join().map_err(|e| anyhow::anyhow!("Dev Core thread panicked: {:?}", e))??;
+    thirdparty_thread.join().map_err(|e| anyhow::anyhow!("Dev Thirdparty thread panicked: {:?}", e))??;
+    media_thread.join().map_err(|e| anyhow::anyhow!("Dev Media thread panicked: {:?}", e))??;
+    server_thread.join().map_err(|e| anyhow::anyhow!("Dev Server thread panicked: {:?}", e))??;
+    entry_thread.join().map_err(|e| anyhow::anyhow!("Dev Entry thread panicked: {:?}", e))??;
 
     Ok(())
 }
@@ -108,7 +126,6 @@ fn handle_manifest() -> Result<ManifestT> {
 
     Ok(manifest)
 }
-
 
 
 
@@ -161,12 +178,15 @@ fn handle_js(src_path_str:&str, dest_path_str:&str) -> Result<()> {
     let src_folder_name        = src_path.file_name().expect("file name error").to_str().expect("to str error");
     let src_parent_folder_str  = src_path.parent().expect("parent error").to_str().expect("to str error");
     let dest_path_trimmed      = dest_path_str.trim_end_matches('/').to_string();
+    let swrc_path              = crate::CLIENT_MAIN_SRC_PATH.clone() + ".swcrc";
 
     let commandargs:Vec<String> = vec![
         String::from("swc"), 
         String::from(src_folder_name), 
         String::from("-d"), 
         String::from(dest_path_trimmed), 
+        String::from("--config-file"), 
+        String::from(swrc_path), 
         String::from("--strip-leading-paths"),
         String::from("--ignore"),
         String::from("**/media/**/*"),
@@ -232,6 +252,19 @@ fn copy_deep(file_extensions:Vec<&str>, src_path:&str, dest_path:&str) -> Result
 }
 
 
+
+
+fn reset_dev_dirs() -> Result<()> {
+
+    let _xx = std::fs::remove_dir_all(crate::CLIENT_OUTPUT_DEV_PATH.clone());
+    let _yy = std::fs::remove_dir_all(crate::SERVER_BUILD_PATH.clone());
+
+    std::fs::create_dir_all(crate::CLIENT_OUTPUT_DEV_PATH.clone())?;
+    std::fs::create_dir_all(crate::SERVER_BUILD_PATH.clone())?;
+    std::fs::create_dir_all(crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone())?;
+
+    Ok(())
+}
 
 /*
 fn handle_entry_csshtml() -> Result<()> {

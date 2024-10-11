@@ -9,8 +9,6 @@ use std::process::Command;
 
 pub fn runit() -> Result<()> {
 
-    let x = std::time::Instant::now();
-
     let a = crate::SERVER_MAIN_SRC_PATH.clone();
     let b = crate::SERVER_BUILD_PATH.clone();
     let js_server_thread = std::thread::spawn(move || handle_server_js(&a, &b));
@@ -21,8 +19,6 @@ pub fn runit() -> Result<()> {
 
     js_server_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
     js_instance_server_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
-
-    println!("Dev build took: {:?}", x.elapsed());
 
     Ok(())
 }

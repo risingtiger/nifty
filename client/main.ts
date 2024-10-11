@@ -2,7 +2,7 @@
 import { LazyLoadT, IndexedDBStoreMetaT } from "./definitions.js";
 
 
-import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_AddRoute } from './alwaysload/switchstation.js';
+import { InitInterval as SwitchStation_InitInterval, AddRoute as SwitchStation_AddRoute } from './alwaysload/switchstation/switchstation.js';
 
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
@@ -15,7 +15,7 @@ import EngagementListenM from './alwaysload/engagementlisten.js';
 import IndexedDBM from './alwaysload/indexeddb.js';
 import DataSync_Init  from './alwaysload/datasync.js';
 
-import INSTANCE from './client_pwt/main_xtend.js'; // instance is swapped out on buildit set instance 
+import INSTANCE from './instance/main_xtend.js'; // instance is swapped out on buildit set instance 
 
 
 

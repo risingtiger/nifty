@@ -7,30 +7,54 @@ use std::path::Path;
 use std::fs;
 use walkdir::WalkDir;
 
+use crate::common_helperfuncs;
 
 
 
 
 pub fn runit() -> Result<()> {
 
-    println!("Media runit");
-
     let a = crate::CLIENT_MAIN_SRC_PATH.clone() + "media/";
     let b = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "media/";
-    let client_deep_copy_media = std::thread::spawn(move || copy_deep(&a, &b));
+    let client_deep_copy_media = std::thread::spawn(move || crate::common_helperfuncs::copy_deep(&a, &b, "icons/**/*"));
 
     let d = crate::INSTANCE_CLIENT_PATH.clone() + "media/";
     let e = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "media/";
-    let instance_deep_copy_media = std::thread::spawn(move || copy_deep(&d, &e));
+    let instance_deep_copy_media = std::thread::spawn(move || crate::common_helperfuncs::copy_deep(&d, &e, "icons/**/*"));
+
+    //let iconsfont_thread = std::thread::spawn(move || iconsfont());
 
     client_deep_copy_media.join().map_err(|e| anyhow::anyhow!("Lazy deep copy media panicked: {:?}", e))??;
     instance_deep_copy_media.join().map_err(|e| anyhow::anyhow!("Lazy deep copy media panicked: {:?}", e))??;
+    //iconsfont_thread.join().map_err(|e| anyhow::anyhow!("Iconsfont media panicked: {:?}", e))??;
+
+    //let _ = iconsfont();
 
     Ok(())
 }
 
 
 
+
+pub fn iconsfont() -> Result<()> {
+
+    let media_in_path              = format!("{}{}", crate::CLIENT_MAIN_SRC_PATH.clone(), "media/");
+    let icons_in_path              = format!("{}{}", media_in_path, "icons/");
+    let icons_out_path             = format!("{}{}", media_in_path, "iconsfont/");
+
+    fs::create_dir_all(&icons_out_path)?;
+
+    let fantasticonargs = ["fantasticon", &icons_in_path, "-n", "icons", "-t", "woff2", "-o", &icons_out_path];
+    let _fantasticon    = Command::new("npx").args(fantasticonargs).output().expect("iconsfont fantasticon chucked an error on main media");
+
+
+    Ok(())
+}
+
+
+
+
+/* replaced by common_helperfuncs::copy_deep
 
 fn copy_deep(src_path:&str, dest_path:&str) -> Result<()> {
 
@@ -71,51 +95,7 @@ fn copy_deep(src_path:&str, dest_path:&str) -> Result<()> {
 
     Ok(())
 }
-
-
-
-/*
-pub fn _copy_deep(src_glob_str:&str, src_path:&str, dest_path:&str) -> Result<()> {
-
-    let full_glob_pattern = Path::new(src_path).join(src_glob_str);
-
-    for entry in glob(full_glob_pattern.to_str().unwrap()).expect("Failed to read glob pattern") {
-
-        if let Ok(src_path) = entry {
-            let dest = Path::new(dest_path).join(src_path.strip_prefix(Path::new(src_glob_str).parent().unwrap())?);
-            
-            if let Some(parent) = dest.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::copy(&src_path, &dest)?;
-        }
-    }
-    Ok(())
-}
 */
-
-
-
-
-pub fn iconsfont() -> Result<()> {
-
-    let media_in_path              = format!("{}{}", crate::CLIENT_MAIN_SRC_PATH.clone(), "media/");
-    let media_out_path             = format!("{}{}", crate::CLIENT_OUTPUT_DEV_PATH.clone(), "media/");
-    let icons_in_path              = format!("{}{}", media_in_path, "/icons/");
-    let css_index_in_path          = crate::CLIENT_MAIN_SRC_PATH.clone() + "index.css";
-    let css_index_out_path         = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "index.css";
-
-    std::fs::create_dir_all(&media_out_path)?;
-
-    let fantasticonargs = ["fantasticon", &icons_in_path, "-n", "icons", "-t", "woff2", "-o", &icons_in_path];
-    let _fantasticon    = Command::new("npx").args(fantasticonargs).output().expect("iconsfont fantasticon chucked an error on main media");
-
-    let outfile_str    = format!("--outfile={}", &css_index_out_path);
-    let css_index_args = ["esbuild", "--bundle", &css_index_in_path, "--loader:.woff2=dataurl", &outfile_str];
-    Command::new("npx").args(&css_index_args).output().expect("css index esbuild chucked an error");
-
-    Ok(())
-}
 
 
 
