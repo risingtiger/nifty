@@ -22,7 +22,7 @@ import './alwaysload/indexeddb.js';
 import './alwaysload/datasync.js';
 
 
-//{--main_instance.js--} 
+//{--main_instance.js--}
 
 
 let _is_in_initial_view_load = true;
@@ -72,6 +72,15 @@ const LAZYLOADS: LazyLoadT[] = [
 		is_instance: false,
 		dependencies: [],
 		auth: []
+	},
+
+	{
+		type: "component",
+		urlmatch: null,
+		name: "pol",
+		is_instance: false,
+		dependencies: [],
+		auth: [],
 	},
 
 	{
@@ -408,11 +417,11 @@ function check_for_updates() {
 
         fetch('/api/appfocusping?appversion=' + (window as any).APPVERSION)
 
-        .then(async response => { 
+        .then(async response => {
             let x = await response.text()
             if (Number(x) != (window as any).APPVERSION) {
                 update(1);
-            }   
+            }
         })
     }
 }
