@@ -1,26 +1,13 @@
 
-import { num, bool, str } from "../definitions.js"
+import { num, bool, str, FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs_client.js"
 
-
-type OptsT = {
-    disable_auth: bool,
-    isbackground: bool,
-	timeout:      num
-}
-
-type HttpOptsT = {
-    method: str,
-    headers: any,
-    body: string|null,
-}
-
-enum QueRequestStateE { INACTIVE, ACTIVE, SUCCESS }
+enum QueRequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
 
 type QueRequestT = {
     url: str,
     ts: num,
-    http_opts: HttpOptsT,
-    opts: OptsT,
+    http_opts: FetchLassieHttpOptsT,
+    opts: FetchLassieOptsT,
     state: QueRequestStateE,
     cb: (_:any)=>void,
 }
@@ -30,7 +17,7 @@ const ques:QueRequestT[] = []
 
 
 
-function FetchLassie(url:string, http_optsP:HttpOptsT|undefined, opts:OptsT|null|undefined) { return new Promise(async (response_callback:(_:any)=>void)=> { 
+function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts:FetchLassieOptsT|null|undefined) { return new Promise(async (response_callback:(_:any)=>void)=> { 
 
     //const i = que_i++
 
@@ -39,7 +26,7 @@ function FetchLassie(url:string, http_optsP:HttpOptsT|undefined, opts:OptsT|null
 
     opts.disable_auth = typeof opts.disable_auth !== "undefined" ? opts.disable_auth : false
 
-    let http_opts:HttpOptsT = {
+    let http_opts:FetchLassieHttpOptsT = {
         method: typeof http_optsP.method !== "undefined" ? http_optsP.method : "GET",
         headers: typeof http_optsP.headers !== "undefined" ? http_optsP.headers : {},
         body: typeof http_optsP.body !== "undefined" ? http_optsP.body : null
@@ -61,18 +48,6 @@ function FetchLassie(url:string, http_optsP:HttpOptsT|undefined, opts:OptsT|null
     }
 
     set_que(url, opts, http_opts, (r)=>response_callback(r))
-
-    /*
-    execute(url, http_opts)
-        .then((result:any)=> {
-            set_success(i)
-            res(result)
-        })
-
-        .catch((err:any)=> {
-            error_out(err)
-        })
-    */
 })}
 
 
@@ -85,11 +60,13 @@ function execute(que:QueRequestT) {
         .then(async (server_response:any)=> {
 
             if (server_response.status === 401) {
+				que.state = QueRequestStateE.FAILED
                 error_out("fetchlassie_not_authorized", "Fetchlassie- " + que.url + ":" + "401. Not Authorized")
             }
 
             else if (server_response.status === 410) {
-                window.location.href = "/index.html?update_init=1"
+				que.state = QueRequestStateE.FAILED
+                window.location.href = "/?update_init=1"
             }
 
             else if (server_response.ok) {
@@ -99,11 +76,13 @@ function execute(que:QueRequestT) {
             }
 
             else {
+				que.state = QueRequestStateE.FAILED
                 error_out("fetchlassie_server_error", "Fetchlassie Server Error - " + que.url + ": " + server_response.statusText)
             }
         })
 
         .catch((error:any)=> {
+				que.state = QueRequestStateE.FAILED
 			error_out("fetchlassie_network_error", "Fetchlassie Network Error - " + que.url + ": " + error.message)
         })
 }
@@ -124,7 +103,7 @@ function error_out(errmsg:string, errmsg_long:string="") {
 
 
 
-function set_que(url:string, opts:OptsT, http_opts:HttpOptsT, cb:(_:any)=>void) {
+function set_que(url:string, opts:FetchLassieOptsT, http_opts:FetchLassieHttpOptsT, cb:(_:any)=>void) {
 
     ques.push({ url, ts: Date.now(), opts, http_opts, state:QueRequestStateE.INACTIVE, cb });
 
@@ -189,7 +168,7 @@ function authrequest() { return new Promise<string>(async (res,_rej)=> {
 function fetch_lassie_ticktock() {
 
     for(let i = ques.length-1; i >= 0; i--) {
-        if (ques[i].state === QueRequestStateE.SUCCESS) {
+        if (ques[i].state === QueRequestStateE.SUCCESS || ques[i].state === QueRequestStateE.FAILED) {
             ques.splice(i, 1)
         }
     }
@@ -229,6 +208,7 @@ function fetch_lassie_ticktock() {
 }
 
 
-(window as any).FetchLassie = FetchLassie;
 
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).FetchLassie = FetchLassie;
 

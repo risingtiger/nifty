@@ -6,8 +6,6 @@ let cache_version = Number(cache_name.split("__")[1])
 
 
 const initial_cache_allall = [
-	"/",
-	"/index.html",
 	"/v",
 	"/assets/main.js",
 	"/assets/main.css",
@@ -41,15 +39,7 @@ self.addEventListener('activate', (e:any) => {
 		})
 
 		const cache = await caches.open(cache_name)
-		await cache.addAll([
-			"/",
-			"/index.html",
-			"/v",
-			"/assets/main.js",
-			"/assets/main.css",
-			"/assets/index.css",
-			"app.webmanifest",
-		])
+		await cache.addAll(initial_cache_allall)
 
         res(1)
     })
@@ -191,23 +181,8 @@ async function check_update_polling() {
 
 function should_url_be_cached(request:Request) {
 
-    if (request.url.includes(".webmanifest")) {
-        return true;
-    }
 
-    else if (request.url.includes("/assets/")) {
-        return true;
-    }
-
-    else if (request.url.includes("/lazy/")) {
-        return true;
-    }
-
-    else if (request.url.includes("/media/")) {
-        return true;
-    }
-
-    else if (request.url.includes("/v/")) {
+    if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v/")) {
         return true;
     }
 

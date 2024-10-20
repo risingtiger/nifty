@@ -120,7 +120,6 @@ async function js(absolute_path:str, jspath:str, jsextension:str, env:str, res:a
 			const css_replace = jspath.includes("views/") ? `<link rel="stylesheet" href="/assets/main.css"><link rel="stylesheet" href="${linkcsspath}">` : `<link rel="stylesheet" href="${linkcsspath}">`
 
             jsstr = jsstr.replace("{--html--}", `${htmlstr}`)
-            //jsstr = jsstr.replace("{--devservercss--}", `<link rel="stylesheet" href="${linkmaincsspath}"><link rel="stylesheet" href="${linkcsspath}">`)
             jsstr = jsstr.replace("{--css--}", css_replace)
 
             res.send(jsstr)
@@ -131,14 +130,14 @@ async function js(absolute_path:str, jspath:str, jsextension:str, env:str, res:a
 
     } else if (env === 'dist' || env === 'gcloud') {   
 
-        let is_br_file = await fs.promises.access(absolute_path + path_without_extension + `.min${jsextension}.br`).then(()=> true).catch(()=> false)
+        let is_br_file = await fs.promises.access(absolute_path + path_without_extension + `${jsextension}.br`).then(()=> true).catch(()=> false)
 
         if (is_br_file) {
-            jspath = path_without_extension + `.min${jsextension}.br`
+            jspath = path_without_extension + `${jsextension}.br`
             res.set('Content-Encoding', 'br');
 
         } else {
-            jspath = path_without_extension + `.min${jsextension}`
+            jspath = path_without_extension + `${jsextension}`
         }
 
         res.sendFile(absolute_path + jspath);
@@ -161,84 +160,18 @@ async function css(absolute_path:str, csspath:str, cssextension:str, env:str, re
 
 		const path_without_extension = csspath.substring(0, csspath.length - cssextension.length)
 
-        let is_br_file = await fs.promises.access(absolute_path + path_without_extension + `.min${cssextension}.br`).then(()=> true).catch(()=> false)
+        let is_br_file = await fs.promises.access(absolute_path + path_without_extension + `${cssextension}.br`).then(()=> true).catch(()=> false)
 
 		if (is_br_file) {
-			csspath = absolute_path + path_without_extension + `.min${cssextension}.br`
+			csspath = absolute_path + path_without_extension + `${cssextension}.br`
 			res.set('Content-Encoding', 'br');
 		} else {
-			csspath = absolute_path + path_without_extension + `.min${cssextension}`
+			csspath = absolute_path + path_without_extension + `${cssextension}`
 		}
 
 		res.sendFile(csspath);
 	}
 }
-
-
-
-
-
-
-
-/*
-async function lazy_embed_html_and_css_into_js(jspath:str, res:any, env:str, static_prefix:str) {   return new Promise<str>(async (promise_res, _reject) => {
-
-    const promises:any[] = []
-    
-    const js_path = jspath
-    const html_path = jspath.substring(0, jspath.length - 3) + ".html"
-    const css_path = jspath.substring(0, jspath.length - 3) + ".css"
-
-    //const abs_css_path_to_server = "/assets" + css_path.split(`${static_prefix}${env}`)[1]
-
-    promises.push(fs.promises.readFile(js_path, 'utf8'))
-    promises.push(fs.promises.readFile(html_path, 'utf8'))
-    promises.push(fs.promises.readFile(css_path, 'utf8'))
-
-    const strs = await Promise.all(promises)
-
-    let js_str = strs[0]
-    let html_str = strs[1]
-    let css_str = strs[2]
-
-    //js_str = js_str.replace("{--htmlcss--}", `<link rel='stylesheet' href='${abs_css_path_to_server}'>${html_str}`)
-    js_str = js_str.replace("{--html--}", `${html_str}`)
-    js_str = js_str.replace("{--css--}", `${css_str}`)
-
-    //js_str = `` + js_str
-
-    //js_str = js_str + "\n\n\n\n\n" + `document.getElementsByTagName("head")[0].insertAdjacentHTML("beforeend", "<link rel='stylesheet' href='${abs_css_path_to_server}'>")`
-    //js_str = js_str + "\n\n\n\n\n" + `<link rel='stylesheet' href='${abs_css_path_to_server}'>`
-
-    res.send(js_str)
-
-    promise_res("done")
-})}
-*/
-
-
-
-
-/*
-async function convert_path_to_br_or_just_min(path:str, extension:str, res:any) {   return new Promise<str>(async (resolve, _reject) => {
-
-    let url = ""
-
-    const path_without_extension = path.substring(0, path.length - extension.length)
-
-    let is_br_file = await fs.promises.access(path_without_extension + `.min${extension}.br`).then(()=> true).catch(()=> false)
-
-    if (is_br_file) {
-        url = path_without_extension + `.min${extension}.br`
-        res.set('Content-Encoding', 'br');
-
-    } else {
-        url = path_without_extension + `.min${extension}`
-    }
-
-    resolve( url )
-})}
-*/
 
 
 

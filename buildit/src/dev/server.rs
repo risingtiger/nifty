@@ -1,9 +1,8 @@
 
+use std::fs;
 use anyhow::Result;
-use std::env;
-use std::path::Path;
-use std::process::Command;
 
+use crate::common_helperfuncs;
 
 
 
@@ -11,14 +10,18 @@ pub fn runit() -> Result<()> {
 
     let a = crate::SERVER_MAIN_SRC_PATH.clone();
     let b = crate::SERVER_BUILD_PATH.clone();
-    let js_server_thread = std::thread::spawn(move || handle_server_js(&a, &b));
+    let c = vec!["*.ts"];  // only top level ts files, skipping instance files
+    let js_server_thread = std::thread::spawn(move || handle_server_js(&a, &b, c));
 
-    let c = crate::INSTANCE_SERVER_PATH.clone();
-    let d = crate::INSTANCE_SERVER_OUTPUT_DEV_PATH.clone();
-    let js_instance_server_thread = std::thread::spawn(move || handle_server_js(&c, &d));
+    let d = crate::INSTANCE_SERVER_PATH.clone();
+    let e = crate::INSTANCE_SERVER_OUTPUT_DEV_PATH.clone();
+    let f = vec!["**/*.ts"]; 
+    let js_instance_server_thread = std::thread::spawn(move || handle_server_js(&d, &e, f));
 
     js_server_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
     js_instance_server_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
+
+    handle_indexjs()?;
 
     Ok(())
 }
@@ -26,26 +29,23 @@ pub fn runit() -> Result<()> {
 
 
 
-pub fn handle_server_js(src_path_str:&str, dest_path_str:&str) -> Result<()> {
+pub fn handle_server_js(src_path_str:&str, dest_path_str:&str, glob_files:Vec<&str>) -> Result<()> {
 
-    let src_path               = Path::new(src_path_str);
-    let src_folder_name        = src_path.file_name().expect("file name error").to_str().expect("to str error");
-    let src_parent_folder_str  = src_path.parent().expect("parent error").to_str().expect("to str error");
-    let dest_path_trimmed      = dest_path_str.trim_end_matches('/').to_string();
+    let _ = common_helperfuncs::run_swc(src_path_str, dest_path_str, glob_files)?;
 
-    let commandargs:Vec<String> = vec![
-        String::from("swc"), 
-        String::from(src_folder_name), 
-        String::from("-d"), 
-        String::from(dest_path_trimmed), 
-        String::from("--strip-leading-paths"),
-        String::from("--ignore"),
-        String::from("**/media/**/*"),
-        String::from("--ignore"),
-        String::from("**/thirdparty/**/*"),
-    ];
+    Ok(())
+}
 
-    let _swc_cmd = Command::new("npx").args(commandargs).current_dir(src_parent_folder_str).output().expect("swc chucked an error");
+
+
+
+fn handle_indexjs() -> Result<()> {
+
+    let indexjs_in_path           = crate::SERVER_BUILD_PATH.clone() + "index.js";
+
+    let indexjs = fs::read_to_string(&indexjs_in_path).expect("read error");
+    let indexjs = indexjs.replace("//{--index_instance.js--}", "import INSTANCE from './instance/index_instance.js'");
+    fs::write(&indexjs_in_path, indexjs).expect("mainjs write error");
 
     Ok(())
 }

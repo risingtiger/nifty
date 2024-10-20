@@ -1,7 +1,5 @@
 
-use anyhow::Result;
 use std::env;
-//use std::fs;
 use std::sync::LazyLock;
 
 
@@ -25,19 +23,15 @@ static CLIENT_MAIN_SRC_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone
 static CLIENT_OUTPUT_DEV_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/static_dev/");
 static CLIENT_OUTPUT_DIST_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/static_dist/");
  
-static SERVER_MAIN_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/");
 static SERVER_MAIN_SRC_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/src/");
 static SERVER_BUILD_PATH: LazyLock<String> = LazyLock::new(|| MAIN_PATH.clone() + "server/build/");
 
 static INSTANCE_CLIENT_OUTPUT_DEV_PATH: LazyLock<String> = LazyLock::new(|| CLIENT_OUTPUT_DEV_PATH.clone() +  "instance/");
 static INSTANCE_CLIENT_OUTPUT_DIST_PATH: LazyLock<String> = LazyLock::new(|| CLIENT_OUTPUT_DIST_PATH.clone() +  "instance/");
-
+static INSTANCE_DIR_NAME: LazyLock<String> = LazyLock::new(|| "instance/".to_string());
 static INSTANCE_SERVER_OUTPUT_DEV_PATH: LazyLock<String> = LazyLock::new(|| SERVER_BUILD_PATH.clone() +  "instance/");
-static INSTANCE_SERVER_OUTPUT_DIST_PATH: LazyLock<String> = LazyLock::new(|| SERVER_BUILD_PATH.clone() +  "instance/");
 
-
-//const IGNORE_ON_RSYNC_MAIN:[&str; 8] = [".*", "**/*.ts", "**/CHANGELOG.md", "**/alwaysload", "app_xtend.webmanifest", "app.webmanifest", "**/media", "index.html"];
-
+static TMP_PATH: LazyLock<String> = LazyLock::new(|| "/tmp/niftybuildit/".to_string());
 
 
 
@@ -56,47 +50,25 @@ fn main() {
 
     match primary_action.as_str() {
 
-        "alldev" => {    let _ = dev::alldev();   },
+        "alldev" =>     { let _ = dev::alldev();   },
 
-        "core" => {   let _ = dev::runit();   },
+        "core" =>       { let _ = dev::handle_core();   },
 
-        //"lazy" => {   let _ = lazy::runit(&instance);   },
+        "corelazy" =>   { let _ = dev::handle_corelazy();   },
 
-        //"corelazy" => {   let _ = core::runit();   let _ = lazy::runit(&instance);   },
+        "thirdparty" => { let _ = dev::thirdparty::runit();   },
 
-        "thirdparty" => {   let _ = dev::thirdparty::runit();   },
+        "media" =>      { let _ = dev::media::runit();   },
 
-        "media" => {  let _ = dev::media::runit();   },
+        "iconsfont" =>  { let _ = dev::media::iconsfont();   },
 
-        "iconsfont" => {  let _ = dev::media::iconsfont();   },
+        "server" =>     { let _ = dev::server::runit();   },
 
-        "server" => { let _ = dev::server::runit();   },
+        "dist" =>       { let _ = dist::runit();   },
 
-        "dist" => { let _ = dist::runit();   },
+        "file" =>       { let _ = dev::handle_file_changed(&primary_action_aux);   },
 
-        "file" => { let _ = dev::update_file::runit(&primary_action_aux);   },
-
-        _ => {   println!("Invalid command line argument");   }
+        _ =>            {   println!("Invalid command line argument");   }
     }
 }
 
-
-
-
-
-
-/*
-fn all() -> Result<()> {
-
-    reset_dev_dirs()?;
-
-    mediafiles::files(&instance)?;
-    mediafiles::iconsfont(&instance)?;
-    core::runit()?;
-    thirdpartyfiles::thirdpartyfiles(&instance)?;
-    lazy::runit(&instance)?;
-    serverfiles::serverfiles(&instance)?;
-
-    Ok(())
-}
-*/

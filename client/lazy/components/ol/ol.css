@@ -30,10 +30,12 @@
     & .left {
         display: block;
         width: 20%;
-		font-family: var(--fontfamily);
+        font-family: var(--fontfamily);
         font-size: 16px;
         font-weight: 400;
         color: var(--actioncolor);
+        cursor: pointer;
+
     }
 
     & .middle {

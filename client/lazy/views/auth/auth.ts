@@ -1,13 +1,11 @@
 
 
-// type int = number
-// type bool = boolean
-type str = string
+import {str, $NT, FetchLassieHttpOptsT } from "../../../defs_client";
 
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
-declare var FetchLassie: any;
+declare var $N: $NT;
 
 
 
@@ -20,49 +18,44 @@ type State = {
 
 class VAuth extends HTMLElement {
 
-$:any 
-s:State
-cssstylesheet:CSSStyleSheet
-shadow:ShadowRoot
+	s:State
+	shadow:ShadowRoot
+
+
+
+
+	constructor() {   
+
+		super(); 
+
+		this.s = {
+			error_msg: "",
+		}
+
+		this.shadow = this.attachShadow({mode: 'open'});
+	}
+
+
+
+
+	connectedCallback() {   
+
+		setTimeout(()=> {   this.dispatchEvent(new Event('hydrated'))   }, 100)
+
+		//document.addEventListener('keyup', (e) => {   if (e.key === 'Enter') {   this.Login();   }})
+
+		this.sc()
+	}
 
 
 
 
 
+	sc() {
 
+		Lit_Render(this.template(this.s), this.shadow);
 
-constructor() {   
-
-    super(); 
-
-    this.s = {
-        error_msg: "",
-    }
-
-    this.shadow = this.attachShadow({mode: 'open'});
-}
-
-
-
-
-connectedCallback() {   
-
-    setTimeout(()=> {   this.dispatchEvent(new Event('hydrated'))   }, 100)
-
-    document.addEventListener('keyup', (e) => {   if (e.key === 'Enter') {   this.Login();   }})
-
-    this.stateChanged()
-}
-
-
-
-
-
-stateChanged() {
-
-    Lit_Render(this.template(this.s), this.shadow);
-
-}
+	}
 
 
 
@@ -76,7 +69,7 @@ async Login() {
     const identity_platform_key = localStorage.getItem('identity_platform_key')
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + identity_platform_key
 
-    const opts = {
+    const opts:FetchLassieHttpOptsT = {
         method: 'POST',
         body: JSON.stringify({
             email: els.username.value,
@@ -108,11 +101,11 @@ async Login() {
 	}
 	
 	else {
-		data = await FetchLassie(url, opts) as any
+		data = await $N.FetchLassie(url, opts, null)
 
 		if (data.error) {
 			this.s.error_msg = data.error.message
-			this.stateChanged()
+			this.sc()
 
 		} else {
 			localStorage.setItem('id_token', data.idToken);

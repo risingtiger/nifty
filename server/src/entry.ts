@@ -9,43 +9,52 @@ import fs from "fs";
 
 
 
-const runit = (instance:str, static_prefix:str, env:str) => new Promise(async (resolve, _reject) => {
+const runit = (req:any, res:any, static_prefix:str, env:str) => new Promise(async (resolve, _reject) => {
+
+	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
 
 	if (env === "dev") {
 
-		const promises:Promise<string>[] = []
+		if (req.path === "/" || req.path === "/index.html") {
+			res.set('Content-Type', 'text/html; charset=UTF-8');
+			const htmlstr = await fs.promises.readFile(static_prefix + "dev/instance/entry/index.html", 'utf8')
+			resolve(htmlstr)
+			return
+		}
 
-		promises.push(fs.promises.readFile(static_prefix + "dev/" + "entry/entry.html", 'utf8'))
-		promises.push(fs.promises.readFile(static_prefix + "dev/" + "entry/entry.js", 'utf8'))
-		promises.push(fs.promises.readFile(static_prefix + "dev/" + "entry/entry.css", 'utf8'))
+		else if (req.path === "/entry/index.js") {
+			res.set('Content-Type', 'application/javascript; charset=UTF-8');
+			const jsstr = await fs.promises.readFile(static_prefix + "dev/instance/entry/index.js", 'utf8')
+			resolve(jsstr)
+			return
+		}
 
-		promises.push(fs.promises.readFile(static_prefix + "dev/" + "client_" + instance + "/entry/entry.html", 'utf8'))
-		promises.push(fs.promises.readFile(static_prefix + "dev/" + "client_" + instance + "/entry/entry.js", 'utf8'))
-		promises.push(fs.promises.readFile(static_prefix + "dev/" + "client_" + instance + "/entry/entry.css", 'utf8'))
-		
-		const r = await Promise.all(promises)
-		
-		const html = r[0]
-		const js = r[1]
-		const css = r[2]
+		else if (req.path === "/entry/index.css") {
+			res.set('Content-Type', 'text/css; charset=UTF-8');
+			const cssstr = await fs.promises.readFile(static_prefix + "dev/instance/entry/index.css", 'utf8')
+			resolve(cssstr)
+			return
+		}
 
-		const instance_html = r[3]
-		const instance_js = r[4]
-		const instance_css = r[5]
-
-		const a = html.replace("{--js--}", js)
-		const b = a.replace("{--instance_js--}", instance_js)
-		const c = b.replace("{--css--}", css)
-		const d = c.replace("{--instance_css--}", instance_css)
-		const e = d.replace("{--instance_html--}", instance_html)
-
-		resolve(e)	
+		else if (req.path === "/entry/sw.js") {
+			res.set('Content-Type', 'application/javascript; charset=UTF-8');
+			const swstr = await fs.promises.readFile(static_prefix + "dev/instance/entry/sw.js", 'utf8')
+			resolve(swstr)
+			return
+		}
 	}
 
-	else {
+	else if (env === "dist" || env === "gcloud") {
 
-		const htmlstr = await fs.promises.readFile(static_prefix + "dist/" + "entry.html", 'utf8')
-		resolve(htmlstr)	
+		if (req.path === "/entry/sw.js") {
+			res.set('Content-Type', 'application/javascript; charset=UTF-8');
+			const swstr = await fs.promises.readFile(static_prefix + "dist/instance/entry/sw.js", 'utf8')
+			resolve(swstr)
+
+		} else if (req.path === "/entry/index.html" || req.path === "/entry/" || req.path === "/" || req.path === "/index.html") {
+			const htmlstr = await fs.promises.readFile(static_prefix + "dist/instance/entry/index.html", 'utf8')
+			resolve(htmlstr)	
+		}
 	}
 })
 

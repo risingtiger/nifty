@@ -1,7 +1,5 @@
 
 
-import '../definitions.js'
-
 enum EListenerTypeT {
     focus = "focus",
     blur = "blur"
@@ -91,8 +89,5 @@ function redirect_from_error(errmsg:string, errmsg_long:string) {
 
 
 
-(window as any).EngagementListen = { Add_Listener, Remove_Listener, IsDocFocused }
-
-export default { Init, IsDocFocused }
-
-
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).EngagementListen = { Init, IsDocFocused, Add_Listener, Remove_Listener };

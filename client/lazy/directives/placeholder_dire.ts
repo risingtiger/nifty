@@ -1,7 +1,7 @@
 
 
 
-import { str, bool, num } from "../../definitions.js";
+import { str, bool, num } from "../../defs_client.js";
 
 declare var Lit_Directive: any;
 declare var Lit_directive: any;

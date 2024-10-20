@@ -1,6 +1,8 @@
 
 
-import { str } from "./definitions.js";
+declare var INSTANCE:INSTANCE_T // for LSP only
+
+import { str, INSTANCE_T } from "./defs_server.js"
 
 import fs from "fs";
 import https from 'https';
@@ -10,7 +12,7 @@ import bodyParser from 'body-parser'
 import { initializeApp, cert }  from "firebase-admin/app";
 import { getFirestore }  from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
-import { google as googleapis } from "googleapis";
+//import { google as googleapis } from "googleapis";
 //import { PubSub }     from "@google-cloud/pubsub";
 //import { authenticate } from "@google-cloud/local-auth";
 
@@ -24,17 +26,12 @@ import FileRequest from "./filerequest.js"
 import Entry from "./entry.js"
 import HTMLStr from "./htmlstr.js"
 
-//@ts-ignore
-import INSTANCE from ''
 
-
+//{--index_instance.js--} 
 
 
 const STATIC_PREFIX = "static_";
-const APPVERSION = 0; 
-
-
-
+const APPVERSION=0; 
 
 
 const VAR_NODE_ENV = process.env.NODE_ENV || 'dev';
@@ -96,7 +93,7 @@ app.post('/api/influxdb_retrieve_medians', influxdb_retrieve_medians)
 
 
 
-app.get("/api/sse_add_listener", (req:any, res:any)=> {sse_add_listener(req, res)})
+app.get("/api/sse_add_listener", sse_add_listener)
 
 
 
@@ -107,7 +104,7 @@ app.post("/api/notifications_send_msg", notifications_send_msg)
 
 
 
-app.get(['/index.html','/'], entry)
+app.get(['/index.html','/','/entry/*'], entry)
 
 
 
@@ -288,7 +285,8 @@ async function influxdb_retrieve_medians(req:any, res:any) {
 
 
 
-function sse_add_listener(req:any, res:any) {
+async function sse_add_listener(req:any, res:any) {
+
     SSE.Add_Listener(req, res)
 }
 
@@ -340,11 +338,7 @@ async function notifications_send_msg(req:any, res:any) {
 async function entry(req:any, res:any) {
 
 	//res.set('Cache-Control', 'private, max-age=300');
-	res.set('Content-Type', 'text/html; charset=UTF-8');
-	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
-
-    const htmlstr = await Entry.runit(INSTANCE.INSTANCEID, STATIC_PREFIX, VAR_NODE_ENV)
-
+    const htmlstr = await Entry.runit(req, res, STATIC_PREFIX, VAR_NODE_ENV)
     res.status(200).send(htmlstr)
 }
 

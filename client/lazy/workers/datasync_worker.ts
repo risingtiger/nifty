@@ -4,8 +4,8 @@ type num = number
 //type bool = boolean
 
 type IndexedDBStoreMetaT = {
-	name: str,
-	url: str
+	name: string,
+	url: string
 }
 
 enum DataSyncStoreMetaStateE  { 

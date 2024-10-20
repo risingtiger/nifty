@@ -1,27 +1,14 @@
 
-use std::process::Command;
 use std::fs;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
-use walkdir::WalkDir;
 
-pub mod entry;
+use crate::common_helperfuncs;
+
 pub mod media;
 pub mod thirdparty;
-pub mod update_file;
+pub mod handlefile;
 pub mod server;
-
-//use crate::helperutils;
-
-/*
-static MAIN_MANIFEST_PATH: &str = concat!(
-    crate::MAIN_PATH,
-    crate::CLIENT_MAIN_SRC_PATH,
-    "app.webmanifest"
-);
-*/
-
 
 
 
@@ -44,33 +31,25 @@ struct ManifestT {
 
 
 
+pub fn alldev() -> Result<()> {
+     
+    reset_dev_dirs()?;
 
-pub fn runit() -> Result<()> {
+    let _  = handle_core();
 
-    let manifest = handle_manifest()?;
+    let lazy_thread            = std::thread::spawn(|| handle_lazy());
+    let thirdparty_thread      = std::thread::spawn(|| thirdparty::runit());
+    let media_thread           = std::thread::spawn(|| media::runit());
+    let server_thread          = std::thread::spawn(|| server::runit());
+    let instance_entry_thread  = std::thread::spawn(|| handle_instance_entry());
+    let symlinks_thread        = std::thread::spawn(|| handle_symlinks());
 
-    let a = crate::CLIENT_MAIN_SRC_PATH.clone();
-    let b = crate::CLIENT_OUTPUT_DEV_PATH.clone();
-    let js_client_thread = std::thread::spawn(move || handle_js(&a, &b));
-
-    let c = crate::INSTANCE_CLIENT_PATH.clone();
-    let d = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone();
-    let js_instance_thread = std::thread::spawn(move || handle_js(&c, &d));
-
-    let e = crate::CLIENT_MAIN_SRC_PATH.clone();
-    let f = crate::CLIENT_OUTPUT_DEV_PATH.clone();
-    let client_deep_copy_html_css = std::thread::spawn(move || copy_deep(vec!["html", "css"], &e, &f));
-
-    let g = crate::INSTANCE_CLIENT_PATH.clone() + "lazy/";
-    let h = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "lazy/";
-    let instance_deep_copy_html_css = std::thread::spawn(move || copy_deep(vec!["html", "css"], &g, &h));
-
-    js_client_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
-    js_instance_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
-    client_deep_copy_html_css.join().map_err(|e| anyhow::anyhow!("Lazy deep copy html and css panicked: {:?}", e))??;
-    instance_deep_copy_html_css.join().map_err(|e| anyhow::anyhow!("Lazy deep copy html and css panicked: {:?}", e))??;
-
-    let _ = handle_indexhtml(&manifest.short_name); // does write over index.html that happens to get created by client_deep_copy_html_css
+    lazy_thread.join().map_err(|e| anyhow::anyhow!("Dev Lazy thread panicked: {:?}", e))??;
+    thirdparty_thread.join().map_err(|e| anyhow::anyhow!("Dev Thirdparty thread panicked: {:?}", e))??;
+    media_thread.join().map_err(|e| anyhow::anyhow!("Dev Media thread panicked: {:?}", e))??;
+    server_thread.join().map_err(|e| anyhow::anyhow!("Dev Server thread panicked: {:?}", e))??;
+    instance_entry_thread.join().map_err(|e| anyhow::anyhow!("Dev Entry thread panicked: {:?}", e))??;
+    symlinks_thread.join().map_err(|e| anyhow::anyhow!("Dev Symlinks thread panicked: {:?}", e))??;
 
     Ok(())
 }
@@ -78,21 +57,90 @@ pub fn runit() -> Result<()> {
 
 
 
-pub fn alldev() -> Result<()> {
-     
-    reset_dev_dirs()?;
+pub fn handle_core() -> Result<()> {
 
-    let core_thread       = std::thread::spawn(|| runit());
-    let thirdparty_thread = std::thread::spawn(|| thirdparty::runit());
-    let media_thread      = std::thread::spawn(|| media::runit());
-    let server_thread     = std::thread::spawn(|| server::runit());
-    let entry_thread      = std::thread::spawn(|| entry::runit());
+    let _ = handle_symlinks();
+    let manifest = handle_manifest()?;
 
-    core_thread.join().map_err(|e| anyhow::anyhow!("Dev Core thread panicked: {:?}", e))??;
-    thirdparty_thread.join().map_err(|e| anyhow::anyhow!("Dev Thirdparty thread panicked: {:?}", e))??;
-    media_thread.join().map_err(|e| anyhow::anyhow!("Dev Media thread panicked: {:?}", e))??;
-    server_thread.join().map_err(|e| anyhow::anyhow!("Dev Server thread panicked: {:?}", e))??;
-    entry_thread.join().map_err(|e| anyhow::anyhow!("Dev Entry thread panicked: {:?}", e))??;
+    let a =  crate::CLIENT_MAIN_SRC_PATH.clone();
+    let b =  crate::CLIENT_OUTPUT_DEV_PATH.clone();
+    let glob_files = vec!["sw.ts", "main.ts", "alwaysload/**/*", "defs_client.ts", "defs_server_symlink.ts"];
+    let js_client_thread = std::thread::spawn(move || common_helperfuncs::run_swc(&a, &b, glob_files));
+
+    let c = crate::INSTANCE_CLIENT_PATH.clone();
+    let d = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone();
+    let glob_files = vec!["main_instance.ts", "alwaysload/**/*", "defs_instance_client.ts", "defs_instance_server_symlink.ts"];
+    let js_instance_thread = std::thread::spawn(move || common_helperfuncs::run_swc(&c, &d, glob_files));
+
+    let handle_primary_css_files_thread = std::thread::spawn(move || handle_primary_css_files());
+
+    js_client_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
+    js_instance_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
+    handle_primary_css_files_thread.join().map_err(|e| anyhow::anyhow!("Primary css files thread panicked: {:?}", e))??;
+
+    let _ = handle_indexhtml(&manifest.short_name); // does write over index.html that happens to get created by client_deep_copy_html_css
+    let _ = handle_mainjs();
+
+    Ok(())
+}
+
+
+
+
+pub fn handle_lazy() -> Result<()> {
+
+    let a =  crate::CLIENT_MAIN_SRC_PATH.clone();
+    let b =  crate::CLIENT_OUTPUT_DEV_PATH.clone();
+    let glob_files = vec!["lazy/**/*"];
+    let js_client_thread = std::thread::spawn(move || common_helperfuncs::run_swc(&a, &b, glob_files));
+
+    let c = crate::INSTANCE_CLIENT_PATH.clone();
+    let d = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone();
+    let glob_files = vec!["lazy/**/*"];
+    let js_instance_thread = std::thread::spawn(move || common_helperfuncs::run_swc(&c, &d, glob_files));
+
+    let e = crate::CLIENT_MAIN_SRC_PATH.clone() + "lazy/";
+    let f = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "lazy/";
+    let client_deep_copy_html_css = std::thread::spawn(move || common_helperfuncs::copy_deep(&e, &f, "**/*", "**/*.ts"));
+
+    let g = crate::INSTANCE_CLIENT_PATH.clone() + "lazy/";
+    let h = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "lazy/";
+    let instance_deep_copy_html_css = std::thread::spawn(move || common_helperfuncs::copy_deep(&g, &h, "**/*", "**/*.ts"));
+
+    js_client_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
+    js_instance_thread.join().map_err(|e| anyhow::anyhow!("JS thread panicked: {:?}", e))??;
+    client_deep_copy_html_css.join().map_err(|e| anyhow::anyhow!("Lazy deep copy html and css panicked: {:?}", e))??;
+    instance_deep_copy_html_css.join().map_err(|e| anyhow::anyhow!("Lazy deep copy html and css panicked: {:?}", e))??;
+
+    Ok(())
+}
+
+
+
+
+pub fn handle_corelazy() -> Result<()> {
+
+    let _ = handle_core();
+    let _ = handle_lazy();
+
+    Ok(())
+}
+
+
+
+fn handle_symlinks() -> Result<()> {
+
+    let defs_server         = crate::SERVER_MAIN_SRC_PATH.clone() + "defs_server.ts";
+    let defs_server_symlink = crate::CLIENT_MAIN_SRC_PATH.clone() + "defs_server_symlink.ts";
+    match std::os::unix::fs::symlink(&defs_server, &defs_server_symlink) {
+        Ok(_) => (), Err(_) => (),
+    }
+
+    let defs_instance_server = crate::INSTANCE_SERVER_PATH.clone() + "defs_instance_server.ts";
+    let defs_instance_server_symlink = crate::INSTANCE_CLIENT_PATH.clone() + "defs_instance_server_symlink.ts";
+    match std::os::unix::fs::symlink(&defs_instance_server, &defs_instance_server_symlink) {
+        Ok(_) => (), Err(_) => (),
+    }
 
     Ok(())
 }
@@ -103,7 +151,7 @@ pub fn alldev() -> Result<()> {
 fn handle_manifest() -> Result<ManifestT> {
 
     let manifest_in_path          = crate::CLIENT_MAIN_SRC_PATH.clone() + "app.webmanifest";
-    let manifest_instance_in_path = crate::INSTANCE_CLIENT_PATH.clone() + "app_xtend.webmanifest";
+    let manifest_instance_in_path = crate::INSTANCE_CLIENT_PATH.clone() + "app_instance.webmanifest";
     let manifest_out_path         = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "app.webmanifest";
 
 
@@ -130,33 +178,6 @@ fn handle_manifest() -> Result<ManifestT> {
 
 
 
-/*
-fn handle_css() -> Result<()> {
-
-    let css_index_in_path       = crate::CLIENT_MAIN_SRC_PATH.clone() + "index.css";
-    let css_index_out_path      = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "index.css";
-
-    let css_main_in_path        = crate::CLIENT_MAIN_SRC_PATH.clone() + "main.css";
-    let css_main_out_path       = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "main.css";
-
-    let css_instance_in_path    = crate::INSTANCE_CLIENT_PATH.clone() + "main_xtend.css";
-    let css_instance_out_path   = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "main_xtend.css";
-
-    let css_index_args_outfilestr = format!("--outfile={}", &css_index_out_path);
-    
-    let css_index_args = ["esbuild", "--bundle", &css_index_in_path, "--loader:.woff2=dataurl", &css_index_args_outfilestr];
-
-    Command::new("npx").args(&css_index_args).output().expect("css index esbuild chucked an error");
-    std::fs::copy(&css_main_in_path, &css_main_out_path).expect("css main cp chucked an error");
-    std::fs::copy(&css_instance_in_path, &css_instance_out_path).expect("css instance cp chucked an error");
-
-    Ok(())
-}
-*/
-
-
-
-
 fn handle_indexhtml(manifestname:&str) -> Result<()> {
 
     let index_in_path           = crate::CLIENT_MAIN_SRC_PATH.clone() + "index.html";
@@ -172,29 +193,13 @@ fn handle_indexhtml(manifestname:&str) -> Result<()> {
 
 
 
-fn handle_js(src_path_str:&str, dest_path_str:&str) -> Result<()> {
+fn handle_mainjs() -> Result<()> {
 
-    let src_path               = Path::new(src_path_str);
-    let src_folder_name        = src_path.file_name().expect("file name error").to_str().expect("to str error");
-    let src_parent_folder_str  = src_path.parent().expect("parent error").to_str().expect("to str error");
-    let dest_path_trimmed      = dest_path_str.trim_end_matches('/').to_string();
-    let swrc_path              = crate::CLIENT_MAIN_SRC_PATH.clone() + ".swcrc";
+    let mainjs_in_path           = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "main.js";
 
-    let commandargs:Vec<String> = vec![
-        String::from("swc"), 
-        String::from(src_folder_name), 
-        String::from("-d"), 
-        String::from(dest_path_trimmed), 
-        String::from("--config-file"), 
-        String::from(swrc_path), 
-        String::from("--strip-leading-paths"),
-        String::from("--ignore"),
-        String::from("**/media/**/*"),
-        String::from("--ignore"),
-        String::from("**/thirdparty/**/*"),
-    ];
-
-    let _swc_cmd = Command::new("npx").args(commandargs).current_dir(src_parent_folder_str).output().expect("swc chucked an error");
+    let mainjs = fs::read_to_string(&mainjs_in_path).expect("read error");
+    let mainjs = mainjs.replace("//{--main_instance.js--}", "import INSTANCE from './instance/main_instance.js';");
+    fs::write(&mainjs_in_path, mainjs).expect("mainjs write error");
 
     Ok(())
 }
@@ -202,50 +207,49 @@ fn handle_js(src_path_str:&str, dest_path_str:&str) -> Result<()> {
 
 
 
-/*
-pub fn handle_thirdparty_js(src_path_str:&str, dest_path_str:&str) -> Result<()> {
+fn handle_primary_css_files() -> Result<()> {
 
-    let dest_path_trimmed      = dest_path_str.trim_end_matches('/').to_string();
+    // may do more with css, like parsing for specific things (like fonts and sprite sheets and sucking in instance css in the furture
 
-    let src_str    = format!("{}{}", src_path_str, "*");
-    let outdir_str = format!("{}{}", "--outdir=", dest_path_trimmed);
+    let index_in_path           = crate::CLIENT_MAIN_SRC_PATH.clone() + "index.css";
+    let index_out_path          = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "index.css";
+    let main_in_path            = crate::CLIENT_MAIN_SRC_PATH.clone() + "main.css";
+    let main_out_path           = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "main.css";
 
-    let args = ["esbuild", &src_str, "--bundle", &outdir_str];
-
-    let _cmd = Command::new("npx").args(args).spawn().expect("ebuild chucked an error on handle_thirdparty_js");
+    fs::copy(&index_in_path, &index_out_path)?;
+    fs::copy(&main_in_path, &main_out_path)?;
 
     Ok(())
 }
-*/
 
 
 
-fn copy_deep(file_extensions:Vec<&str>, src_path:&str, dest_path:&str) -> Result<()> {
 
-    let source_folder = Path::new(src_path);
-    let destination_folder = Path::new(dest_path);
+fn handle_instance_entry() -> Result<()> {
 
-    fs::create_dir_all(&destination_folder)?;
+    let entry_in                = crate::INSTANCE_CLIENT_PATH.clone() + "entry/";
+    let entry_out               = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "entry/";
 
-    for entry in WalkDir::new(&source_folder) {
-        let entry = entry?;
-        let path = entry.path();
+    std::fs::create_dir_all(entry_out.clone())?;
+    std::fs::copy(entry_in.clone() + "index.html", entry_out.clone() + "index.html")?;
+    std::fs::copy(entry_in.clone() + "index.css", entry_out.clone() + "index.css")?;
 
-        if path.is_file() {
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if file_extensions.contains(&ext) {
-                    let relative_path = path.strip_prefix(&source_folder).unwrap();
+    common_helperfuncs::run_swc(&entry_in, &entry_out, vec!["*.ts"])?;
 
-                    let destination_path = destination_folder.join(relative_path);
+    Ok(())
+}
 
-                    if let Some(parent) = destination_path.parent() {
-                        fs::create_dir_all(parent)?;
-                    }
 
-                    fs::copy(&path, &destination_path)?;
-                }
-            }
-        }
+
+
+pub fn handle_file_changed(changed_file:&str) -> Result<()> {
+
+    let file_meta = handlefile::file_changed(changed_file)?;
+
+    if matches!(file_meta.action, handlefile::FileActionE::Core)  {
+        let _ = handle_core();
+    } else if matches!(file_meta.action, handlefile::FileActionE::ThirdParty) {
+        let _ = thirdparty::runit();
     }
 
     Ok(())
@@ -266,60 +270,6 @@ fn reset_dev_dirs() -> Result<()> {
     Ok(())
 }
 
-/*
-fn handle_entry_csshtml() -> Result<()> {
-
-    let entry_in_path           = crate::MAIN_PATH.clone() + &crate::CLIENT_MAIN_SRC_PATH + "entry/";
-    let entry_out_path          = crate::MAIN_PATH.clone() + &crate::CLIENT_OUTPUT_DEV_PATH + "entry/";
-    let entry_instance_in_path  = crate::INSTANCE_CLIENT_PATH.clone() + "entry/";
-    let entry_instance_out_path = crate::MAIN_PATH.clone() + &crate::CLIENT_OUTPUT_DEV_PATH + &crate::INSTANCE_CLIENT_OUTPUT_DIST_PATH + "entry/";
-
-    Command::new("mkdir").args(["-p", &entry_out_path]).output().expect("unable to make entry directory");
-    Command::new("mkdir").args(["-p", &entry_instance_out_path]).output().expect("unable to make entry instance directory");
-
-    let entry_files_cp_args          = [entry_in_path.clone() + "entry.html", entry_in_path.clone() + "entry.css", entry_out_path.clone() + "."];
-    let entry_instance_files_cp_args = [entry_instance_in_path.clone() + "entry.html", entry_instance_in_path.clone() + "entry.css", entry_instance_out_path.clone() + "."];
-    Command::new("cp").args(entry_files_cp_args).output().expect("unable to copy entry files");
-    Command::new("cp").args(entry_instance_files_cp_args).output().expect("unable to copy entry instance files");
-
-    Ok(())
-}
-*/
-
-
-
-
-/*
-pub fn instance_ignores(instance:&str, c_m:&str, excludeterm:&str, prefix:&str, should_create_relative_paths:bool) -> Result<Vec<String>> {
-
-    let paths = fs::read_dir(c_m)?
-        .filter_map(|x| {
-            let p = x.unwrap().path();
-            let pstr = p.to_str()?.to_string();
-
-            if p.is_dir() && pstr.contains(prefix) && !pstr.contains(&instance){
-                let spepa = if should_create_relative_paths {
-                    pstr.split("/").collect::<Vec<&str>>().last().unwrap().to_string()
-                } else {
-                    pstr
-                };
-                return Some( [format!("{}{}","--", &excludeterm), spepa.clone()] );
-            } else {
-                return None;
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let mut ignores: Vec<String> = vec![];
-
-    paths.iter().for_each(|x| {
-        ignores.push(x[0].clone());
-        ignores.push(x[1].clone());
-    });
-
-    Ok(ignores)
-}
-*/
 
 
 

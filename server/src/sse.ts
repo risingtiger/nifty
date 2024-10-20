@@ -1,5 +1,5 @@
 
-import { SSE_TriggersE, str  } from './definitions.js'
+import { SSE_TriggersE, str  } from './defs_server.js'
 
 
 
@@ -12,7 +12,6 @@ type ListenerT = {
 }
 
 const listeners:Map<str,ListenerT> = new Map()
-
 
 
 
@@ -29,7 +28,8 @@ function Add_Listener(req:any, res:any) {
         id, 
         cb: (trigger:SSE_TriggersE, data:any)=> {
             res.write(`event: a_${trigger}\n`)
-            res.write(`data: ${JSON.stringify(data)}`)
+            res.write(`data: ${JSON.stringify(data)}\n`)
+			res.write('retry: 15000\n')
             res.write('\n\n')
         }
     })
@@ -41,7 +41,8 @@ function Add_Listener(req:any, res:any) {
     })
 
     res.write('event: connected\n')
-    res.write('data: { "message": "hey connected" }')
+    res.write('data: { "message": "hey connected" }\n')
+	res.write('retry: 15000\n')
     res.write('\n\n')
 
     req.on('close', () => {
@@ -55,17 +56,15 @@ function Add_Listener(req:any, res:any) {
 function TriggerEvent(eventname:SSE_TriggersE, data:any) {
 
     listeners.forEach(l => {
-        l.cb(eventname, data)
+		try {
+			l.cb(eventname, data)
+		} catch (e) {
+			listeners.delete(l.id)
+		}
     })
 }
 
 
-
-/*
-setInterval(() => {
-    TriggerEvent('cssupdate', { cssfile: '/Users/dave/Code/nifty/client/client_pwt/lazy/views/home/home.css' })
-}, 5000)
-*/
 
 
 

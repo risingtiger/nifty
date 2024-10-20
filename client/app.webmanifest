@@ -13,5 +13,5 @@
   "scope": "/",
   "start_url": ".",
   "display": "standalone",
-  "version": "0"
+  "version":"0"
 }

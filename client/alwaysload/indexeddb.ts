@@ -1,5 +1,6 @@
 
-import { int, str, IndexedDBStoreMetaT } from "../definitions.js";
+import { str } from "../../defs.js";
+import { IndexedDBStoreMetaT } from "../defs_client.js";
 
 
 let DBNAME:str = ""
@@ -107,8 +108,6 @@ function redirect_from_error(errmsg:str, errmsg_long:str) {
 
 
 
-(window as any).IndexedDB = { GetAll }
-
-export default { Init, GetAll }
-
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).IndexedDB = { Init, GetAll };
 

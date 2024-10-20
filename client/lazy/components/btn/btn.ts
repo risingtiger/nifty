@@ -1,7 +1,7 @@
 
 
 
-import { str, num, bool } from "../../../definitions.js";
+import { str, num, bool } from "../../../defs_client.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
@@ -16,7 +16,7 @@ type StateT = {
 }
 
 type ModelT = {
-	wait_for_confirm: bool
+	show_anime_on_click: bool,
 }
 
 type ElsT = {
@@ -48,7 +48,7 @@ class CBtn extends HTMLElement {
         this.shadow = this.attachShadow({mode: 'open'});
 
         this.s = { mode: ModeT.INERT}
-        this.m = { wait_for_confirm: true }
+        this.m = { show_anime_on_click: true }
         this.els = { animeffect: null}
     }
 
@@ -57,43 +57,38 @@ class CBtn extends HTMLElement {
 
     connectedCallback() {   
 
-        this.sc()
+		this.m.show_anime_on_click = this.hasAttribute("noanime") ? false : true
 
-		this.m.wait_for_confirm = this.hasAttribute("nowait") ? false : true
+		this.sc()
 
-        this.addEventListener("click", () => {
-            this.is_clicked()
-        })
+		this.shadow.querySelector("#slotwrap")!.addEventListener("click", () => { this.is_clicked() })
     }
 
 
 
 
-    async attributeChangedCallback(name:str, oldval:str, newval:str) {
+    async attributeChangedCallback(_name:str, _oldval:str, _newval:str) {
     }
 
 
 
 
-    public set_resolved()         {   this.to_resolved();            }
+    public click_resolved()         {   this.to_stop_anime();            }
 
 
 
 
     is_clicked() {
-
-        if (this.s.mode == ModeT.INERT && this.m.wait_for_confirm) {
-            this.to_saving()
-			this.dispatchEvent(new CustomEvent("submit", {detail: { 
-				set_resolved: this.set_resolved.bind(this), 
-			}}))
+        if (this.s.mode == ModeT.INERT && this.m.show_anime_on_click) {
+            this.to_start_anime()
+			this.dispatchEvent(new CustomEvent("btnclick", {detail: {resolved: this.click_resolved.bind(this)}}))
         }
     }
 
 
 
 
-    to_saving() {   
+    to_start_anime() {   
 
         if (this.s.mode === ModeT.INERT) {
             
@@ -113,8 +108,7 @@ class CBtn extends HTMLElement {
 
 
 
-
-    to_resolved() {   
+    to_stop_anime() {   
 
         if (this.s.mode === ModeT.SAVING) {
             
@@ -132,29 +126,6 @@ class CBtn extends HTMLElement {
             }, 100)
         }
     }
-
-
-
-
-    /*
-    set_mode(mode:ModeT) {   
-
-        switch (mode) {
-
-            case ModeT.INERT: this.classList.remove("saving", "saved"); break
-
-            case ModeT.SAVING: 
-
-                this.classList.add("saving"); 
-
-                this.dispatchEvent
-
-            break
-
-            case ModeT.SAVED: this.classList.add("saved"); break
-        }
-    }
-    */
 
 
 

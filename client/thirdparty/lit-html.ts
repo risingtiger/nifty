@@ -1,7 +1,7 @@
 
-
-import { render, html, LitElement } from "lit"
+import { render, html, css, svg, LitElement } from "lit"
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+
 //import {classMap} from 'lit/directives/class-map.js';
 //import {styleMap} from 'lit/directives/style-map.js';
 //import {Directive, directive} from 'lit/directive.js';
@@ -14,6 +14,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 (window as any).Lit_Html          = html;
 (window as any).Lit_Element       = LitElement;
 (window as any).Lit_UnsafeHtml    = unsafeHTML;
+(window as any).Lit_Css           = css;
 
 //(window as any).Lit_ClassMap = classMap;
 //(window as any).Lit_StyleMap = styleMap;

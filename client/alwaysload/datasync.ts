@@ -1,8 +1,8 @@
 
-import { int, str, num, IndexedDBStoreMetaT, SSE_TriggersE  } from "../definitions.js";
+import { num, str  } from "../../defs.js";
+import { IndexedDBStoreMetaT, $NT  } from "../defs_client.js";
 
-declare var EngagementListen:any
-declare var SSEvents:any
+declare var $N:$NT
 
 let   worker:Worker|null = null
 const app_start_time = Math.floor(Date.now() / 1000)
@@ -56,7 +56,7 @@ function Init(indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:int
         // but i'll see if browser automaticlly takes care of that
     })
 
-    SSEvents.Add_Listener("datasync", [SSE_TriggersE.FIRESTORE], (data:any)=> {
+    $N.SSEvents.Add_Listener("datasync", ['firestore'], (data:any)=> {
 
 		const store_metas = JSON.parse(localStorage.getItem("datasync_store_metas") || "[]") as any[]
 
@@ -83,7 +83,7 @@ function Subscribe(store_names:str[], subscriber_el:HTMLElement) {
 function notify_subscribers(subscribers:str[]) {
 
 	for (const s of subscribers) {
-		const subscriber_el = get_el_from_subscriber_str(s)
+		const subscriber_el = get_el_from_subscriber_str(s) as any
 
 		if (subscriber_el && subscriber_el["DataSync_Updated"]) {
 			subscriber_el["DataSync_Updated"]()
@@ -98,7 +98,7 @@ function save_store_metas(store_metas:DataSyncStoreMetaT[]) {
 
 	for (const s of store_metas) {
 		for (const sm of s.s) {
-			const subscriber_el = get_el_from_subscriber_str(sm)
+			const subscriber_el = get_el_from_subscriber_str(sm) as any
 
 			if (subscriber_el && subscriber_el["DataSync_Updated"]) {
 				// all good
@@ -169,20 +169,5 @@ function remove_store_metas_not_in_indexeddb_store_metas(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-const DataSync = { Subscribe };
-
-(window as any).DataSync = DataSync
-
-export default  Init 
-
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).DataSync = { Init, Subscribe };

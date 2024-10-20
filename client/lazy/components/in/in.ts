@@ -1,14 +1,16 @@
 
 
 
-import { str, num, bool } from "../../../definitions.js";
+import { str, num, bool } from "../../../defs_client.js";
 
+declare var Lit_Element: any;
 declare var Lit_Render: any;
 declare var Lit_Html: any;
+//declare var Lit_Css: any;
 
 
 
-enum ModeT { EDIT = 0, VIEW = 1, SAVING = 2, SAVED = 3, ERRORED = 4}
+enum ModeT { EDIT = 0, VIEW = 1, SAVING = 2, SAVED = 3, ERRORED = 4, YAP = 156 }
 enum LayoutT { ROW = 0, INLINE = 1 }
 enum TypeT { INPUT = 0, DSELECT = 1, TOGGLE = 2 }
 type InputStrT = "none" | "text" | "phone" | "email" | "password" | "number" | "url" | "date" | "time" | "datetime" | "month" | "week" | "color" | "search" | "file" | "range"
@@ -63,7 +65,7 @@ type KeyframesT = {
 
 
 
-class CIn extends HTMLElement {
+class CIn extends Lit_Element {
 
     s:StateT
     m:ModelT
@@ -146,7 +148,7 @@ class CIn extends HTMLElement {
 
         this.shadow.appendChild(frag)
 
-        this.addEventListener("click", (e) => this.clicked(e), true)
+        this.addEventListener("click", (e:any) => this.clicked(e), true)
 
         this.classList.add ( this.m.layout === LayoutT.ROW ? 'row' : 'inline' )
     }
@@ -304,7 +306,7 @@ class CIn extends HTMLElement {
 
             if (this.m.cansave) {
                 this.els.editdone = document.createElement("i")
-                this.els.editdone.className = "icon-checkcircle"
+				this.els.editdone.innerHTML = "&#xf115;"
 
                 this.els.editdone.addEventListener("click", () => {
                     const newval = this.els.input?.value || ""
@@ -370,6 +372,7 @@ class CIn extends HTMLElement {
         this.els.view.id = "view"
         this.els.displayval = document.createElement("p")
         this.els.action = document.createElement("i")
+		this.els.action.innerHTML = "&#xf105;" 
 
 		if (this.m.type === TypeT.DSELECT) {
 
@@ -618,7 +621,9 @@ class CIn extends HTMLElement {
 
 
 
-    sc() {   Lit_Render(this.template(), this.shadow);   }
+    sc() {   
+		Lit_Render(this.template(), this.shadow);   
+	}
 
 
 
@@ -629,6 +634,7 @@ class CIn extends HTMLElement {
 
 
 
+//@ts-ignore
 customElements.define('c-in', CIn);
 
 

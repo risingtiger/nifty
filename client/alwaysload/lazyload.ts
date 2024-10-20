@@ -1,8 +1,6 @@
 
 
-import { bool, str,  LazyLoadT } from "../definitions.js";
-
-
+import { LazyLoadT, bool, str } from "../defs_client.js";
 
 
 const TIMEOUT_TS = 9000;
@@ -19,7 +17,7 @@ let loadstart_ts = 0;
 
 
 
-function LazyLoad(loads:LazyLoadT[]) {   return new Promise<bool>(async (res, _rej)=> {
+function Run(loads:LazyLoadT[]) {   return new Promise<bool>(async (res, _rej)=> {
 
     if (loadstart_ts > 0) {
         console.log("LazyLoad loadstart_ts > 0, returning early.")
@@ -30,7 +28,7 @@ function LazyLoad(loads:LazyLoadT[]) {   return new Promise<bool>(async (res, _r
     const loadque:LazyLoadT[] = []
 
     for(const load of loads) {
-        conditionally_addtoque(load, loadque)
+        addtoque(load, loadque)
     }
 
     if (loadque.length > 0) {
@@ -60,25 +58,23 @@ function Init(lazyloads_:LazyLoadT[]) {
 
 
 
-function conditionally_addtoque(load:LazyLoadT, loadque:LazyLoadT[]) {
+function addtoque(load:LazyLoadT, loadque:LazyLoadT[]) {
 
-    if (_loaded.find(l=> l.type === load.type && l.name === load.name && l.instance === load.instance)) {
-        console.log("already loaded", load)
-        return;
-    }
+	let is_already_loaded = _loaded.find(l=> l.type === load.type && l.name === load.name) 
+	if (is_already_loaded !== undefined) {
+		return;
+	}
 
-    if (loadque.find(l=> l.type === load.type && l.name === load.name && l.instance === load.instance)) {
-        return;
-    }
+	for (const dep of load.dependencies) {
+		const dep_load = lazyloads.find(l=> l.type === dep.type && l.name === dep.name)
+		if (dep_load === undefined) {
+			console.error("LazyLoad dependency not found", dep)
+		} else {
+			addtoque(dep_load, loadque)
+		}
+	}
 
-    for (const dep of load.dependencies) {
-
-        const dep_inst = dep.instance ? dep.instance : null;
-        const dep_load = lazyloads.find(l=> l.type === dep.type && l.name === dep.name && l.instance == dep_inst)!
-        conditionally_addtoque(dep_load, loadque)
-    }
-
-    loadque.push(load)
+	loadque.push(load)
 }
 
 
@@ -88,9 +84,10 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<bool>(async
 
     const promises:Promise<bool>[] = []
 
-    const filepaths = loadque.map(l=> get_filepath(l.type, l.name, l.instance))
+    const filepaths = loadque.map(l=> get_filepath(l.type, l.name, l.is_instance))
 
     for(const f of filepaths) {
+		//@ts-ignore
         promises.push(import(f).catch((_e)=> { 
 			console.log("lazyload dynamic import error: ");
 			console.log(_e); 
@@ -106,9 +103,9 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<bool>(async
 
 
 
-function get_filepath(type:str, name:str, instance:str|null) {
+function get_filepath(type:str, name:str, is_instance:bool|null) {
 
-    let path = instance ? `/assets/client_${instance}/` : "/assets/"
+    let path = is_instance ? `/assets/instance/` : "/assets/"
 
     switch (type) {
         case "view": 
@@ -178,11 +175,8 @@ function ticktock() {
 }
 
 
-
-
-(window as any).LazyLoad = LazyLoad;
-
-export default { Init }
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).LazyLoad = { Run, Init };
 
 
 

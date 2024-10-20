@@ -1,16 +1,9 @@
 
-import { SSE_TriggersE } from "../definitions.js";
+import { SSE_TriggersE } from "../../defs.js";
 
 type str = string; type bool = boolean; type int = number;
 
-
-declare var FetchLassie:any
-declare var SSEvents:any
-declare var EngagementListen:any
-
-
-import FStore from './firestore.js';
-import IndexedDB from './indexeddb.js';
+declare var $N: any;
 
 
 enum CollectionStatusE        {   Empty, Updated, Old, Stale   }
@@ -66,7 +59,7 @@ let   inmemory_data:InMemoryDataT[] = []
 
 function Init() {
 
-    EngagementListen.Add_Listener("firestorelive", "focus", ()=> {
+    $N.EngagementListen.Add_Listener("firestorelive", "focus", ()=> {
 
 		console.log("firestorelive focus")
 
@@ -80,7 +73,7 @@ function Init() {
         // but i'll see if browser automaticlly takes care of that
     })
 
-    SSEvents.Add_Listener("firestorelive", [SSE_TriggersE.FIRESTORE], (data:any)=> {
+    $N.SSEvents.Add_Listener("firestorelive", ['firestore'], (data:any)=> {
 
         const updated_collections:str[] = (data.paths as str[]).map(p=> {
 			return p.split("/")[0]
@@ -148,7 +141,7 @@ function fetch_collections_since_ts(collections:CollectionT[]) {
         }
         */
 
-        const f = await FStore.Retrieve(paths, opts) as Array<any[]>
+        const f = await $N.Firestore.Retrieve(paths, opts) as Array<any[]>
 
         const results = collections.map((p,i)=> {
             return { collection_ref:p, docs:f[i] }
@@ -176,7 +169,7 @@ function update_collections_from_fetch(fetch_results:FetchCollectionResultT[])  
 
         if (fetch_results.some(r=> r.collection_ref.type === CollectionStorageTypeE.IndexedDB)) {
             const collection_names = fetch_results.filter(f=> f.collection_ref.type === CollectionStorageTypeE.IndexedDB).map(f=> f.collection_ref.name)
-            tx = await IndexedDB.New_Tx(collection_names, "readwrite")
+            tx = await $N.IndexedDB.New_Tx(collection_names, "readwrite")
         }
 
         let are_there_any_put_errors = false
@@ -297,7 +290,7 @@ function get_indexeddb_resources(resources:ResourceRefT[])  {
         const collection_names = resources.map(r=> r.collection_ref.name)
         const returns:Array<object[]|object> = Array(resources.length).fill(null)
 
-        let tx = await IndexedDB.New_Tx(collection_names, "readonly")
+        let tx = await $N.IndexedDB.New_Tx(collection_names, "readonly")
         let are_there_any_read_errors = false
 
         resources.forEach((r,i)=> {
@@ -503,8 +496,8 @@ function subscribe___add_collection_if_not_exists(collection_name:str, url:str, 
 
 
 
-(window as any).FirestoreLive = { Subscribe, Unsubscribe }
 
-export default { Init, Remove  }
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).FirestoreLive = { Init, Remove, Subscribe, Unsubscribe };
 
 

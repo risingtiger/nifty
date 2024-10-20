@@ -1,8 +1,6 @@
 
-import { num, str, bool } from "../definitions.js";
-import { SSE_TriggersE } from '../definitions.js'
-
-declare var EngagementListen:any;
+import { num, str, bool } from "../defs_client.js"
+import { SSE_TriggersE } from "../defs_server_symlink.js"
 
 
 
@@ -15,6 +13,7 @@ type SSE_Listener = {
 
 const sse_listeners:SSE_Listener[] = []
 let evt: EventSource|null = null
+let connect_ts = 0
 //let evt_state:EventState_ = EventState_.UNINITIALIZED
 //let set_timeout_intrv:NodeJS.Timeout|null = null
 //let connection_init_time = 0
@@ -63,7 +62,7 @@ async function Reset() {
 
     setTimeout(()=> {
         boot_up()
-    }, 5000)
+    }, 15000)
 }
 
 
@@ -79,6 +78,7 @@ function boot_up() {
     }
 
     evt = new EventSource("/api/sse_add_listener?id=" + id)
+	connect_ts = Date.now()
 
     evt.onerror = (e) => {
         console.error("SSE Error")
@@ -92,6 +92,9 @@ function boot_up() {
     evt.addEventListener("a_"+SSE_TriggersE.FIRESTORE, (e) => {
 		if (document.hasFocus()) {
 			const data = JSON.parse(e.data)
+			console.log("firestore event listener")
+			console.log(e)
+			console.log(data)
 			sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
 		}
     }) 
@@ -231,8 +234,6 @@ function redirect_from_error(errmsg:str, errmsg_long:str) {
 
 
 
-(window as any).SSEvents = { Add_Listener, Remove_Listener }
-
-export default { Init, Reset, Add_Listener, Remove_Listener }
-
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).SSEvents = { Init, Reset, Add_Listener, Remove_Listener };
 

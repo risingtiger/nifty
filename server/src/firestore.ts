@@ -1,6 +1,6 @@
 
 
-import { SSE_TriggersE  } from './definitions.js'
+import { SSE_TriggersE  } from './defs_server.js'
 import SSE from './sse.js'
 
 type str = string; type int = number; type bool = boolean;

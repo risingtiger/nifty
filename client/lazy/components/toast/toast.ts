@@ -1,7 +1,7 @@
 
 
 
-import { str, num, bool } from "../../../definitions.js";
+import { str, num, bool } from "../../../defs_client.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;
@@ -10,6 +10,9 @@ declare var Lit_Html: any;
 
 enum ModeT { CLOSED = 0, OPEN = 1, OPENING = 2, CLOSING = 3 }
 enum LevelT { INFO = 0, SAVED = 1, SUCCESS = 2, WARNING = 3, ERROR = 4  }
+
+
+const DEFAULT_DURATION = 2000
 
 
 type StateT = {
@@ -47,7 +50,7 @@ class CToast extends HTMLElement {
 
 
 
-    static get observedAttributes() { return ['clink']; }
+    static get observedAttributes() { return ['action']; }
 
 
 
@@ -71,7 +74,6 @@ class CToast extends HTMLElement {
     connectedCallback() {   
 
         this.sc()
-
     }
 
 
@@ -79,26 +81,26 @@ class CToast extends HTMLElement {
 
     async attributeChangedCallback(name:str, oldval:str, newval:str) {
 
-        if (name == "clink" && newval === 'run' && (oldval === '' || oldval === null)) {
+        if (name == "action" && newval === 'run' && (oldval === '' || oldval === null)) {
 
             const msg = this.getAttribute("msg") || ""
             const level = this.getAttribute("level") || "0"
-            const duration = this.getAttribute("duration") || "5000"
+            const duration = this.getAttribute("duration") || DEFAULT_DURATION
 
-            await this.clink(msg, Number(level), Number(duration))
+            await this.action(msg, Number(level), Number(duration))
 
-            this.setAttribute("clink", "")
+            this.setAttribute("action", "")
         }
     }
 
 
 
 
-    clink(msg:str, level:LevelT, duration:num|null) { 
+    action(msg:str, level:LevelT, duration:num|null) { 
 
         return new Promise((res) => { 
 
-            duration = duration || 5000
+            duration = duration || DEFAULT_DURATION
 
             this.els.msg = this.shadow.getElementById("msg") as HTMLElement
             this.els.msg.textContent = msg
@@ -125,7 +127,7 @@ class CToast extends HTMLElement {
             function transitionend() {
                 this.removeEventListener("transitionend", transitionend)
                 this.style.display = "none"
-                console.log("transitionend")
+                this.dispatchEvent(new CustomEvent('done'))
                 res(1)
             }
     })}

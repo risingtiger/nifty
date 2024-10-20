@@ -1,6 +1,6 @@
 
 
-import { str, bool } from "../../../definitions.js";
+import { str, bool } from "../../../defs_client.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;

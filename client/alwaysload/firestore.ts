@@ -1,8 +1,9 @@
 
+import { $NT } from '../defs_client.js'
 
 type str = string; type bool = boolean; type int = number;   
 
-declare var FetchLassie:any
+declare var $N:$NT
 
 type Opt = {
     limit: int
@@ -38,7 +39,7 @@ function Add(path:str, newdocs:any[]) { return new Promise(async (res,_rej)=> {
         body: JSON.stringify(body),
     }
 
-    await FetchLassie('/api/firestore_add', opts, null) as Promise<any[]>
+    await $N.FetchLassie('/api/firestore_add', opts, null) as Promise<any[]>
 
     res({result_str: "ok"})
 })}
@@ -55,7 +56,7 @@ function Patch(paths:str, data:any, param_opts:object|object|null) {   return ne
         body: JSON.stringify(body),
     }
 
-    const fetch_results = await FetchLassie('/api/firestore_patch', opts, null) as Promise<any[]>
+    const fetch_results = await $N.FetchLassie('/api/firestore_patch', opts, null) as Promise<any[]>
 
     res(fetch_results)
 })}
@@ -92,7 +93,7 @@ function firestore_fetch_paths(paths:str[], firestoreopts:Opt[]) {   return new 
         body: JSON.stringify(body),
     }
 
-    const fetch_results = await FetchLassie('/api/firestore_retrieve', fetchopts, null) as Promise<any[]>
+    const fetch_results = await $N.FetchLassie('/api/firestore_retrieve', fetchopts, null) as Promise<any[]>
 
     res(fetch_results)
 })}
@@ -100,8 +101,7 @@ function firestore_fetch_paths(paths:str[], firestoreopts:Opt[]) {   return new 
 
 
 
-(window as any).Firestore = { Retrieve, Add, Patch }
 
-export default { Retrieve }
-
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).Firestore = { Retrieve, Add, Patch };
 

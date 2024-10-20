@@ -1,12 +1,12 @@
 
 
-import { str, num, bool } from "../../../definitions.js";
+import { num, bool, str, $NT } from "../../../defs_client.js"
 
 declare var Chartist_LineChart: any;
 declare var Chartist_BarChart: any;
-declare var InfluxDB: any;
 declare var Lit_Render: any;
 declare var Lit_Html: any;
+declare var $N: $NT;
 
 
 
@@ -136,7 +136,7 @@ class CGraphing extends HTMLElement {
                 */
                 // .... AND now all that crap in previous comments is irrelevant 
 
-                const queries_list = await InfluxDB.Retrieve_Series(this.s.bucket, [this.s.begin], [end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
+                const queries_list = await $N.InfluxDB.Retrieve_Series(this.s.bucket, [this.s.begin], [end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
 
                 render_graph_frame(this.shadow.querySelector('.ct-chart')!, this.s.type, queries_list[0], this.s.lowhigh, this.s.unitterms)
 

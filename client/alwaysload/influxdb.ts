@@ -1,12 +1,11 @@
 
 
-type str = string; type int = number; type bool = boolean;
+import { str, num, $NT } from "../defs_client.js";
+
+declare var $N: $NT;
 
 
-declare var FetchLassie: any;
-
-
-function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[], intrv:int[], priors:str[]) {   
+function Retrieve_Series(bucket:str, begins:num[], ends:num[], msrs:str[], fields:str[], tags:str[], intrv:num[], priors:str[]) {   
     return new Promise<any>(async (res, _rej)=> { 
         const body = { bucket, begins, ends, msrs, fields, tags, intrv, priors } 
         const parsed_data = await influx_fetch_paths("retrieve_series", body)
@@ -25,7 +24,7 @@ function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], field
 
 
 
-function Retrieve_Points(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[]) {   
+function Retrieve_Points(bucket:str, begins:num[], ends:num[], msrs:str[], fields:str[], tags:str[]) {   
     return new Promise<any>(async (res, _rej)=> { 
         const body = { bucket, begins, ends, msrs, fields, tags} 
         const parsed_data = await influx_fetch_paths("retrieve_points", body)
@@ -42,7 +41,7 @@ function Retrieve_Points(bucket:str, begins:int[], ends:int[], msrs:str[], field
 
 
 
-function Retrieve_Medians(bucket:str, begins:int[], ends:int[], dur_amounts:int[], dur_units:str[], msrs:str[], fields:str[], tags:str[], aggregate_fn:str[]) {   
+function Retrieve_Medians(bucket:str, begins:num[], ends:num[], dur_amounts:num[], dur_units:str[], msrs:str[], fields:str[], tags:str[], aggregate_fn:str[]) {   
     return new Promise<any>(async (res, _rej)=> { 
         const body = { bucket, begins, ends, dur_amounts, dur_units, msrs, fields, tags, aggregate_fn}
         const parsed_data = await influx_fetch_paths("retrieve_medians", body)
@@ -60,7 +59,7 @@ function influx_fetch_paths(path:str, body:any) {   return new Promise<any>(asyn
         body: JSON.stringify(body),
     }
 
-    const fetch_results = await FetchLassie('/api/influxdb_'+path, fetchopts) as Promise<any[]>
+    const fetch_results = await $N.FetchLassie('/api/influxdb_'+path, fetchopts) as Promise<any[]>
 
     res(fetch_results)
 })}
@@ -68,6 +67,6 @@ function influx_fetch_paths(path:str, body:any) {   return new Promise<any>(asyn
 
 
 
-(window as any).InfluxDB = { Retrieve_Series, Retrieve_Points, Retrieve_Medians }
 
-
+if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).InfluxDB = { Retrieve_Series, Retrieve_Points, Retrieve_Medians };
