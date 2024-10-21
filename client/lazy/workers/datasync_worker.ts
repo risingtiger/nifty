@@ -120,8 +120,8 @@ function EventLoopen_Run(
 
 
 function handle_subscribe_call(
-	store_names:str[], 
-	subscriber:str,
+	store_names:string[], 
+	subscriber:string,
 	store_metas:DataSyncStoreMetaT[]
 ){
 
@@ -150,7 +150,7 @@ function handle_subscribe_call(
 
 
 
-function add_to_store_metas_if_not_exists(store_names:str[], component_path_str:string) {
+function add_to_store_metas_if_not_exists(store_names:string[], component_path_str:string) {
 
 	for(const store_name of store_names) {
 		let existing_store = store_metas_while_open_que.find((s:DataSyncStoreMetaT) => s.n === store_name)
@@ -239,16 +239,16 @@ function handle_loaded_store_metas(loaded_store_metas:DataSyncStoreMetaT[]) {
 // UPDATE WORKER
 /* ********** */
 
-let DBNAME:str = "";
+let DBNAME:string = "";
 let DBVERSION:num = 0
 let APPVERSION:num = 0;
-let ID_TOKEN:str = ""
+let ID_TOKEN:string = ""
 let INDEXEDDB_STORES:IndexedDBStoreMetaT[] = []
 
 
 
 
-async function Updater_Init(dbname:str,dbversion:num,appversion:num,id_token:str,indexeddb_stores:IndexedDBStoreMetaT[]) {
+async function Updater_Init(dbname:string,dbversion:num,appversion:num,id_token:string,indexeddb_stores:IndexedDBStoreMetaT[]) {
 	DBNAME = dbname
 	DBVERSION = dbversion
 	APPVERSION = appversion
@@ -262,8 +262,8 @@ async function Updater_StoresToIndexeddb(store_metas:DataSyncStoreMetaT[]) {
 
 	const url = "/api/firestore_retrieve"
 
-	const paths:str[] = []
-	const opts:{limit:num, order_by:str, ts:num}[] = []
+	const paths:string[] = []
+	const opts:{limit:num, order_by:string, ts:num}[] = []
 
 	for(const sm of store_metas) {
 		const store_url = INDEXEDDB_STORES.find((s) => s.name === sm.n)!.url
@@ -314,11 +314,11 @@ async function Updater_StoresToIndexeddb(store_metas:DataSyncStoreMetaT[]) {
 function write_to_indexeddb(
 	data:any, 
 	store_metas:DataSyncStoreMetaT[],
-	db_name:str,
+	db_name:string,
 	db_version:num
 ) {
 
-	return new Promise<bool>(async (resolve, _reject) => {
+	return new Promise<boolean>(async (resolve, _reject) => {
 
 		if (!data.some((d:any) => d.length > 0)) {
 			resolve(true)
@@ -376,7 +376,7 @@ function write_to_indexeddb(
 
 
 
-function redirect_from_error(errmsg:str, errmsg_long:str) {
+function redirect_from_error(errmsg:string, errmsg_long:string) {
 	self.postMessage({ cmd: "error", errmsg, errmsg_long })
 }
 

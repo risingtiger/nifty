@@ -2,7 +2,7 @@
 
 declare var INSTANCE:INSTANCE_T // for LSP only
 
-import { str, INSTANCE_T } from "./defs_server.js"
+import { str, INSTANCE_T, ServerMainsT } from "./defs_server.js"
 
 import fs from "fs";
 import https from 'https';
@@ -485,13 +485,13 @@ async function bootstrapit() {
 
     await init()
 
-    INSTANCE.Set_Server_Mains(app, db, sheets, Notifications, APPVERSION, validate_request)
+	let servermains:ServerMainsT = {app, db, appversion:APPVERSION, sheets, notifications:Notifications, firestore:Firestore, influxdb:InfluxDB, validate_request}
+    INSTANCE.Set_Server_Mains(servermains)
     INSTANCE.Set_Routes()
 
     startit()
 }
 
-//setTimeout(()=> bootstrapit(),5000)
 bootstrapit()
 
 

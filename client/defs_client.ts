@@ -51,6 +51,7 @@ export type $NT = {
 
 	DataSync: {
 		Init: (indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:number, appversion:num) => void
+		Subscribe(store_names:str[], subscriber_el:HTMLElement)
 	}
 
 	EngagementListen: {
@@ -67,9 +68,17 @@ export type $NT = {
 	}
 
 	Firestore: {
-		Retrieve: (path:string, opts?:any) => Promise<any>,
+		Retrieve: (path:string|string[], opts?:any) => Promise<any>,
 		Patch: (path:string, opts?:any) => Promise<any>,
 		Add: (path:string, newdocs:any[]) => Promise<any>,
+	}
+
+	FirestoreLive: {
+		Init: () => Promise<any>,
+		Get: (resources:any[]) => Promise<any[]>,
+		Remove: () => void,
+		Subscribe: (htmlel:HTMLElement) => void,
+		UnSubscribe: (htmlel:HTMLElement) => void,
 	}
 
 	InfluxDB: {

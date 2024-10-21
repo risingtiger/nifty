@@ -1,6 +1,6 @@
 
 import {  } from "./defs_server_symlink.js";
-import { LazyLoadT, $NT, INSTANCE_T } from "./defs_client.js";
+import { LazyLoadT, $NT, INSTANCE_T, IndexedDBStoreMetaT } from "./defs_client.js";
 
 
 declare var INSTANCE:INSTANCE_T; // set here for LSP support only
@@ -190,7 +190,6 @@ window.addEventListener("load", async (_e) => {
 
 
 
-	/*
 	const saved_indexeddb_stores = JSON.parse(localStorage.getItem("indexeddb_stores") || "[]") as IndexedDBStoreMetaT[]
 
 	for(const s of INSTANCE.INFO.indexeddb_stores) {
@@ -199,7 +198,9 @@ window.addEventListener("load", async (_e) => {
 	}
 
 	localStorage.setItem("indexeddb_stores", JSON.stringify(INSTANCE.INFO.indexeddb_stores))
-	*/
+
+
+
 
 	await $N.IndexedDB.Init  (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 	$N.DataSync.Init          (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion, (window as any).APPVERSION)
@@ -214,7 +215,7 @@ window.addEventListener("load", async (_e) => {
 		setup_service_worker()
 	}
 
-	//FirestoreLiveM.Init()
+	$N.FirestoreLive.Init()
 	$N.EngagementListen.Init()
 	$N.LazyLoad.Init(lazyloads)
 

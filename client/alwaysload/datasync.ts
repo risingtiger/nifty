@@ -1,6 +1,6 @@
 
-import { num, str  } from "../../defs.js";
-import { IndexedDBStoreMetaT, $NT  } from "../defs_client.js";
+import { IndexedDBStoreMetaT, $NT, num, str  } from "../defs_client.js";
+import { SSE_TriggersE } from "../defs_server_symlink.js";
 
 declare var $N:$NT
 
@@ -8,7 +8,7 @@ let   worker:Worker|null = null
 const app_start_time = Math.floor(Date.now() / 1000)
 
 
-function Init(indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:int, appversion:num) {
+function Init(indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:num, appversion:num) {
 
 	worker = new Worker("/assets/lazy/workers/datasync_worker.js", { type: "module" })
 
@@ -56,7 +56,7 @@ function Init(indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:int
         // but i'll see if browser automaticlly takes care of that
     })
 
-    $N.SSEvents.Add_Listener("datasync", ['firestore'], (data:any)=> {
+    $N.SSEvents.Add_Listener("datasync", [SSE_TriggersE.FIRESTORE], (data:any)=> {
 
 		const store_metas = JSON.parse(localStorage.getItem("datasync_store_metas") || "[]") as any[]
 
@@ -94,7 +94,7 @@ function notify_subscribers(subscribers:str[]) {
 
 
 
-function save_store_metas(store_metas:DataSyncStoreMetaT[]) {
+function save_store_metas(store_metas:any[]) {
 
 	for (const s of store_metas) {
 		for (const sm of s.s) {
@@ -155,7 +155,7 @@ function get_el_from_subscriber_str(el_str:string) {
 
 function remove_store_metas_not_in_indexeddb_store_metas(
 	indexeddb_stores:IndexedDBStoreMetaT[],
-	store_metas:DataSyncStoreMetaT[]
+	store_metas:any[]
 ){
 
 	for(const s of store_metas) {
