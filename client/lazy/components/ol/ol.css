@@ -64,6 +64,11 @@
     }
 }
 
+.wrapper > slot {
+    display: block;
+    overflow-y: auto;
+}
+
 .backgroundcover {
     position: absolute;
     width: 100%;

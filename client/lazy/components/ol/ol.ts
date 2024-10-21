@@ -359,10 +359,12 @@ class COl extends HTMLElement {
         const wrapper_el = this.shadow.querySelector(".wrapper") as HTMLElement
 
         wrapper_el.style.width = this.s.width
-        wrapper_el.style.height = this.s.height
+        wrapper_el.style.maxHeight = this.s.height
         wrapper_el.style.top = this.s.top
         wrapper_el.style.left = this.s.left
         wrapper_el.style.marginLeft = this.s.margin_left
+        wrapper_el.style.display = 'block grid';
+        wrapper_el.style.gridTemplateRows = 'auto 1fr';
 
 		if (this.s.is_mobile_centric) {
 			wrapper_el.classList.add("mobile_centric")
