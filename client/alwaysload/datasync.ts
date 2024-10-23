@@ -8,6 +8,8 @@ let   worker:Worker|null = null
 const app_start_time = Math.floor(Date.now() / 1000)
 
 
+
+
 function Init(indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:num, appversion:num) {
 
 	worker = new Worker("/assets/lazy/workers/datasync_worker.js", { type: "module" })
@@ -43,7 +45,6 @@ function Init(indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:num
 	});
 
 
-    //EngagementListen.Add_Listener("firestorelive", "focus", ()=> {
 	window.addEventListener("focus", ()=> {
 
 		const store_metas = JSON.parse(localStorage.getItem("datasync_store_metas") || "[]") as any[]

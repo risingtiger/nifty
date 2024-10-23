@@ -347,6 +347,7 @@ async function entry(req:any, res:any) {
 
 async function htmlstr(req:any, res:any) {
 
+	debugger
 	//res.set('Cache-Control', 'private, max-age=300');
 	res.set('Content-Type', 'text/html; charset=UTF-8');
 	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')

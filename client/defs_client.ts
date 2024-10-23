@@ -47,11 +47,12 @@ export type $NT = {
 
 	IndexedDB: {
 		Init: (indexeddb_store_names:IndexedDBStoreMetaT[], firebase_project:string, dbversion:number) => Promise<void>,
+		GetAll: (store_names: str[]) => Promise<Map<string, any[]>>
 	}
 
 	DataSync: {
 		Init: (indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:number, appversion:num) => void
-		Subscribe(store_names:str[], subscriber_el:HTMLElement)
+		Subscribe: (store_names:str[], subscriber_el:HTMLElement) => void
 	}
 
 	EngagementListen: {

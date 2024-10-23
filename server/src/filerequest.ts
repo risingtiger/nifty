@@ -16,6 +16,7 @@ import * as path_util from "path";
 
 
 function runit(fileurl:str, res:any, env:str, static_prefix:str)  {   return new Promise(async (resolve, _reject) => {
+	debugger
 
 	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
 

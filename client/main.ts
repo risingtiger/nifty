@@ -183,7 +183,7 @@ const LAZYLOADS: LazyLoadT[] = [
 
 window.addEventListener("load", async (_e) => {
 
-	console.log("7777reload entire app if over such adn such seconds")
+	console.log("reload entire app if over such adn such seconds")
 
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
 
@@ -192,8 +192,8 @@ window.addEventListener("load", async (_e) => {
 
 	const saved_indexeddb_stores = JSON.parse(localStorage.getItem("indexeddb_stores") || "[]") as IndexedDBStoreMetaT[]
 
-	for(const s of INSTANCE.INFO.indexeddb_stores) {
-		const found = saved_indexeddb_stores.find(ss => ss.name === s.name)
+	for(const s of (INSTANCE.INFO.indexeddb_stores as any)) {
+		const found = saved_indexeddb_stores.find(ss => ss.name === s.name) as any
 		s.ts = found ? found.ts : 0
 	}
 
