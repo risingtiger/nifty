@@ -7,6 +7,9 @@ use std::process::Command;
 
 use crate::common_helperfuncs;
 
+use crate::common_helperfuncs::PathE;
+use crate::common_helperfuncs::pathp;
+use crate::common_helperfuncs::path;
 
 
 
@@ -28,8 +31,9 @@ pub fn runit(appversion:u32) -> Result<u32> {
 
 fn process_manifest(appversion:u32) -> Result<()> {
 
-    let manifest_in_path           = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "app.webmanifest";
-    let manifest_out_path          = crate::CLIENT_OUTPUT_DIST_PATH.clone() + "app.webmanifest";
+    let manifest_in_path           = pathp(PathE::ClientOutputDev, "app.webmanifest");
+    let manifest_out_path          = pathp(PathE::ClientOutputDist, "app.webmanifest");
+
     let manifest_in_content        = fs::read_to_string(&manifest_in_path)?;
 
     let version_regex       = Regex::new(r#""version":\s*"(\d+)""#)?;
@@ -46,9 +50,9 @@ fn process_indexhtml(appversion:u32) -> Result<()> {
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
-    let html_in_str   = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "index.html";
-    let html_out_str  = crate::CLIENT_OUTPUT_DIST_PATH.clone() + "index.html";
-    let html_content  = fs::read_to_string(&html_in_str)?;
+    let html_in_str     = pathp(PathE::ClientOutputDev, "index.html");
+    let html_out_str    = pathp(PathE::ClientOutputDist, "index.html");
+    let html_content    = fs::read_to_string(&html_in_str)?;
 
     let html_str = html_content.replace("APPVERSION=0", format!("APPVERSION={}", appversion).as_str());
     let html_str = html_str.replace("APPUPDATE_TS=0", format!("APPUPDATE_TS={}", now).as_str());
@@ -63,8 +67,9 @@ fn process_indexhtml(appversion:u32) -> Result<()> {
 
 fn process_sw(appversion:u32) -> Result<()> {
 
-    let sw_in_str   = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "sw.js";
-    let sw_out_str  = crate::CLIENT_OUTPUT_DIST_PATH.clone() + "sw.js";
+    let sw_in_str     = pathp(PathE::ClientOutputDev, "sw.js");
+    let sw_out_str    = pathp(PathE::ClientOutputDist, "sw.js");
+
     let sw_content  = fs::read_to_string(&sw_in_str)?;
 
     let sw_str       = sw_content.replace("cacheV__0__", format!("cacheV__{}__", appversion).as_str());
