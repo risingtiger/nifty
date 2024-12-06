@@ -84,13 +84,13 @@ fn process_sw(appversion:u32) -> Result<()> {
 
 fn process_css() -> Result<()> {
 
-    let main_path_str     = crate::MAIN_PATH.clone();
-    let cssindex_in_str   = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "index.css";
-    let cssindex_out_str  = crate::CLIENT_OUTPUT_DIST_PATH.clone() + "index.css";
-    let cssmain_in_str    = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "main.css";
-    let cssmain_out_str   = crate::CLIENT_OUTPUT_DIST_PATH.clone() + "main.css";
+    let main_path         = path(PathE::MainSrc);
+    let cssindex_in_str   = pathp(PathE::ClientOutputDev, "index.css");
+    let cssindex_out_str  = pathp(PathE::ClientOutputDist, "index.css");
+    let cssmain_in_str    = pathp(PathE::ClientOutputDev, "main.css");
+    let cssmain_out_str   = pathp(PathE::ClientOutputDist, "main.css");
 
-    let cssindex_cmd      = Command::new("npx").args(["esbuild", &cssindex_in_str, "--bundle", "--loader:.woff2=dataurl"]).current_dir(main_path_str).output().expect("esbuild chucked an error");
+    let cssindex_cmd      = Command::new("npx").args(["esbuild", cssindex_in_str.to_str().unwrap(), "--bundle", "--loader:.woff2=dataurl"]).current_dir(main_path).output().expect("esbuild chucked an error");
     let cssindex_content  = String::from_utf8(cssindex_cmd.stdout).expect("css stdout error");
     let _                 = fs::write(&cssindex_out_str, &cssindex_content);
 
@@ -104,13 +104,13 @@ fn process_css() -> Result<()> {
 
 fn process_media() -> Result<()> {
 
-    let media_in_str             = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "media/";
-    let media_out_str            = crate::CLIENT_OUTPUT_DIST_PATH.clone() + "media/";
-    let media_instance_in_str    = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "media/";
-    let media_instance_out_str   = crate::INSTANCE_CLIENT_OUTPUT_DIST_PATH.clone() + "media/";
+    let media_in_path           = pathp(PathE::ClientOutputDev, "media/");
+    let media_out_path          = pathp(PathE::ClientOutputDist, "media/");
+    let media_instance_in_path  = pathp(PathE::InstanceClientOutputDev, "media/");
+    let media_instance_out_path = pathp(PathE::InstanceClientOutputDist, "media/");
 
-    common_helperfuncs::copy_deep(&media_in_str, &media_out_str, "**/*", "_____").unwrap();
-    common_helperfuncs::copy_deep(&media_instance_in_str, &media_instance_out_str, "**/*", "_____").unwrap();
+    common_helperfuncs::copy_deep(media_in_path, media_out_path, "**/*", "_____").unwrap();
+    common_helperfuncs::copy_deep(media_instance_in_path, media_instance_out_path, "**/*", "_____").unwrap();
 
     Ok(())
 }
@@ -120,9 +120,9 @@ fn process_media() -> Result<()> {
 
 fn process_server(appversion:u32) -> Result<()> {
 
-    let server_in_path             = crate::SERVER_BUILD_PATH.clone() + "index.js";
+    let server_in_path     = pathp(PathE::ServerOutput, "index.js");
 
-    let server_content      = fs::read_to_string(&server_in_path)?;
+    let server_content     = fs::read_to_string(&server_in_path)?;
     let server_regex        = Regex::new(r#"APPVERSION = \d+"#).unwrap();
     let server_content      = server_regex.replace_all(&server_content, format!("APPVERSION = {}", appversion).as_str()).to_string();
 
