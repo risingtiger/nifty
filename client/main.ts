@@ -1,6 +1,6 @@
 
 import {  } from "./defs_server_symlink.js";
-import { LazyLoadT, $NT, INSTANCE_T, IndexedDBStoreMetaT } from "./defs_client.js";
+import { LazyLoadT, $NT, INSTANCE_T, IndexedDBStoreMetaT, LoggerSubjectE, LoggerTypeE } from "./defs.js";
 
 
 declare var INSTANCE:INSTANCE_T; // set here for LSP support only
@@ -13,19 +13,21 @@ import './alwaysload/switchstation/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
 import './alwaysload/firestore.js';
-import './alwaysload/firestore_live.js';
+//import './alwaysload/firestore_live.js';
 import './alwaysload/influxdb.js';
 import './alwaysload/lazyload.js';
 import './alwaysload/sse.js';
 import './alwaysload/engagementlisten.js';
 import './alwaysload/indexeddb.js';
 import './alwaysload/datasync.js';
+import './alwaysload/logger.js';
+import './alwaysload/utils.js';
 
 
 //{--main_instance.js--}
 
 
-let _is_in_initial_view_load = true;
+let _is_in_initial_view_load = false;
 let serviceworker_reg: ServiceWorkerRegistration|null;
 
 
@@ -192,46 +194,24 @@ const LAZYLOADS: LazyLoadT[] = [
 
 window.addEventListener("load", async (_e) => {
 
-	console.log("reload entire app if over such adn such seconds")
-
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
 
-
-
-
 	const saved_indexeddb_stores = JSON.parse(localStorage.getItem("indexeddb_stores") || "[]") as IndexedDBStoreMetaT[]
-
 	for(const s of (INSTANCE.INFO.indexeddb_stores as any)) {
 		const found = saved_indexeddb_stores.find(ss => ss.name === s.name) as any
 		s.ts = found ? found.ts : 0
 	}
-
 	localStorage.setItem("indexeddb_stores", JSON.stringify(INSTANCE.INFO.indexeddb_stores))
 
-
-
-
 	await $N.IndexedDB.Init  (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
-	$N.DataSync.Init          (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion, (window as any).APPVERSION)
+	$N.DataSync.Init          (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 
-	/*
-	setTimeout(() => {
-		DataSyncM.Subscribe(["cats", "sources", "tags", "transactions"], document.body)
-	}, 2000)
-	*/
+	if ((window as any).APPVERSION > 0)   await setup_service_worker()
 
-	if (window.location.protocol === "https:") {
-		setup_service_worker()
-	}
-
-	$N.FirestoreLive.Init()
 	$N.EngagementListen.Init()
 	$N.LazyLoad.Init(lazyloads)
 
-	setTimeout(() => {
-		$N.SSEvents.Init()
-	}, 5000)
-
+	setTimeout(() => $N.SSEvents.Init(), 3000)
 
 	localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
 
@@ -244,17 +224,8 @@ window.addEventListener("load", async (_e) => {
 
 
 document.querySelector("#views")!.addEventListener("view_load_done", () => {
-
-	if (_is_in_initial_view_load) {
-
-		_is_in_initial_view_load = false;
-
-	}
+	if (_is_in_initial_view_load)   _is_in_initial_view_load = false
 })
-
-
-
-
 
 
 
@@ -288,141 +259,82 @@ $N.ToastShow = ToastShow
 
 
 
-function setup_service_worker() {
+const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 
-	 navigator.serviceWorker.register('sw.js').then(regitration => {
+	let hasPreviousController = navigator.serviceWorker.controller ? true : false;
 
-		serviceworker_reg = regitration;
+	 navigator.serviceWorker.register('sw.js').then(registration => {
 
-		regitration.addEventListener("updatefound", () => {
-			const worker = regitration.installing;
-			worker!.addEventListener('statechange', () => {
-				if (worker!.state === "activated") {
-					window.location.href = "/index.html"
+		serviceworker_reg = registration;
+
+         navigator.serviceWorker.ready.then(() => {                                                             
+			registration.active?.postMessage({                                                                 
+				action:"initial_pass_auth_info",                                                               
+				id_token: localStorage.getItem("id_token"),                                                    
+				token_expires_at: localStorage.getItem("token_expires_at"),                                    
+				refresh_token: localStorage.getItem("refresh_token"),                                          
+				user_email: localStorage.getItem("user_email")                                                 
+			});                                                                                                
+
+			resolve()
+		}); 
+
+		navigator.serviceWorker.addEventListener('message', (event:any) => {
+
+			if (event.data.action === 'update_auth_info') {
+				localStorage.setItem("id_token", event.data.id_token)
+				localStorage.setItem("token_expires_at", event.data.token_expires_at.toString())
+				localStorage.setItem("refresh_token", event.data.refresh_token)
+			}
+
+			else if (event.data.action === 'update_init') {
+				$N.SSEvents.ForceStop()
+				serviceworker_reg?.update()
+			}
+
+			else if (event.data.action === 'error_out') {
+				$N.Logger.Log(LoggerTypeE.error, event.data.subject, `${event.data.errmsg}`)
+				if (window.location.protocol === "https:") {
+					window.location.href = `/index.html?error_subject=${event.data.subject}`; 
+				} else {
+					throw new Error(event.data.subject + " -- " + event.data.errmsg)
 				}
-			});
+			}
 		});
+
+		navigator.serviceWorker.addEventListener('controllerchange', onNewServiceWorkerControllerChange);
+
+		navigator.serviceWorker.addEventListener('updatefound', (_e:any) => {
+			$N.SSEvents.ForceStop()
+		});
+
+
+		function onNewServiceWorkerControllerChange() {
+
+			console.log("main.ts controllerchange")
+
+			if (!hasPreviousController) {
+				console.log("main.ts no previous controller")
+				hasPreviousController = true
+				return;
+			}
+
+			console.log("main.ts has previous controller")
+
+			localStorage.clear();
+
+			setTimeout(() => {
+				if (window.location.protocol === "https:") {
+					window.location.href = "/index.html?update=done";
+				} else {
+					alert("Update complete. Redirect to /index.html?update=done")
+				}
+			}, 2000)
+		}
 	});
-	navigator.serviceWorker.addEventListener('controllerchange', () => {
-		window.location.href = "/index.html"
-	});
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-async function sse_triggered(obj:any) {
-
-    if (obj.what === "firestore_changed") {
-        (window as any).Firestore.Update_Triggered(obj.paths).then(()=> {
-
-            const activeview = document.querySelector("#views > .view.active")!
-
-            if ((activeview as any).SSE_Update) (activeview as any).SSE_Update(obj)
-
-        })
-    }
-}
-*/
-
-
-/*
-
-const INDEXEDDB_STORES_YA = ["pers_cats","pers_sources","pers_tags","pers_transactions"]
-
-
-
-
-*/
-
-
-
-
-
-/*
- * Part of listening for changes. Not done yet. will come back to this .... maybe
- *
-document.addEventListener("data_change", () => {
-
-
-
-    const alertel = document.querySelector("#data_has_changed_alert")
-
-    if (!alertel) {
-
-        const htmlstr = `<div id="data_has_changed_alert">
-                            <i class="icon-refresh"></i> View New Data
-                        </div>`
-
-        document.body.insertAdjacentHTML("beforeend", htmlstr)
-
-        const el = document.querySelector("#data_has_changed_alert")! as any
-
-        setTimeout(()=> {
-            el.classList.add("active")
-        }, 100)
-
-        document.querySelector("#data_has_changed_alert")!.addEventListener("click", ()=> {
-            document.body.removeChild(document.querySelector("#data_has_changed_alert")!)
-
-            const activeview = document.querySelector("#views")!.querySelector(".view.active") as any
-
-            if (activeview.Refresh) activeview.Refresh()
-        })
-    }
-
-})
-*/
-
-
-
-/*
-window.addEventListener("focus", () => {
-
-    check_for_updates()
 })
 
 
 
 
-function check_for_updates() {
 
-    if ((window as any).APPVERSION > 0) {
-
-        fetch('/api/appfocusping?appversion=' + (window as any).APPVERSION)
-
-        .then(async response => {
-            let x = await response.text()
-            if (Number(x) != (window as any).APPVERSION) {
-                update(1);
-            }
-        })
-    }
-}
-*/
