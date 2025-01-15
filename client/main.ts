@@ -23,6 +23,7 @@ import './alwaysload/datasync.js';
 import './alwaysload/logger.js';
 import './alwaysload/utils.js';
 import './alwaysload/abc.js';
+import './alwaysload/weather.js';
 
 
 //{--main_instance.js--}
