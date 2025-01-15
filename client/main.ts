@@ -257,11 +257,6 @@ function ToastShow(msg: string, level?: number | null, duration?: number | null)
 $N.ToastShow = ToastShow
 
 
-// AI Generated LOGIC: Generates a random number between 1 and 1000
-function genran(): number {
-    return Math.floor(Math.random() * 1000) + 1;
-}
-$N.genran = genran;
 
 
 const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
