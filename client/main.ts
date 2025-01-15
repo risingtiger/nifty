@@ -222,20 +222,6 @@ window.addEventListener("load", async (_e) => {
 
 
 
-function generate_ran_num(param: number): number {
-    // Validate input is between 1 and 12
-    if (param < 1 || param > 12) {
-        throw new Error('Parameter must be between 1 and 12');
-    }
-    
-    // Generate random number between param and param * 10
-    return Math.floor(Math.random() * (param * 10 - param + 1)) + param;
-}
-
-function genran(): number {
-    // AI Generated Comment: Generates a random number between 1 and 1000
-    return Math.floor(Math.random() * 1000) + 1;
-}
 
 document.querySelector("#views")!.addEventListener("view_load_done", () => {
 	if (_is_in_initial_view_load)   _is_in_initial_view_load = false
