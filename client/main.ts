@@ -7,7 +7,7 @@ declare var INSTANCE:INSTANCE_T; // set here for LSP support only
 declare var $N: $NT;
 
 
-// 33--THE FOLLOWING GET BUNDLED INTO THE MAIN BUNDLE
+// --THE FOLLOWING GET BUNDLED INTO THE MAIN BUNDLE
 
 import './alwaysload/switchstation/switchstation.js';
 import './thirdparty/lit-html.js';
@@ -22,9 +22,6 @@ import './alwaysload/indexeddb.js';
 import './alwaysload/datasync.js';
 import './alwaysload/logger.js';
 import './alwaysload/utils.js';
-import './alwaysload/abc.js';
-import './alwaysload/weather.js';
-
 
 //{--main_instance.js--}
 
