@@ -1,6 +1,6 @@
 
 
-type str = string; //type int = number; //type bool = boolean;
+import { str } from './defs.js'
 
 
 
@@ -16,7 +16,6 @@ import * as path_util from "path";
 
 
 function runit(fileurl:str, res:any, env:str, static_prefix:str)  {   return new Promise(async (resolve, _reject) => {
-	debugger
 
 	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
 
@@ -102,6 +101,9 @@ function runit(fileurl:str, res:any, env:str, static_prefix:str)  {   return new
 
 
 async function js(absolute_path:str, jspath:str, jsextension:str, env:str, res:any) {
+
+	res.set('Content-Type', 'text/html; charset=UTF-8');
+	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
 
     const path_without_extension = jspath.substring(0, jspath.length - jsextension.length)
 

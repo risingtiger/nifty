@@ -1,6 +1,6 @@
 
 
-import { SSE_TriggersE  } from './defs_server.js'
+import { SSETriggersE  } from './defs.js'
 import SSE from './sse.js'
 
 type str = string; type int = number; type bool = boolean;
@@ -79,7 +79,7 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
 
     await batch.commit().catch((_err:any)=> { res({err:"batch commit failed"}) })
 
-	SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: [path].map(p=> p.split("/")[0]) } )
+	SSE.TriggerEvent(SSETriggersE.FIRESTORE, {paths: [path] } )
 
     res({ok: true})
 })}
@@ -103,7 +103,7 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
 
 	if (!db) {
 		const returns = patch_jsons(pathstr, data, opts)
-		SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: pathstr})
+		SSE.TriggerEvent(SSETriggersE.FIRESTORE, {paths: pathstr})
 		res(returns)
 		return
 	}
@@ -121,8 +121,7 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
             returns.push({ok: true})
         }
 
-		console.log(pathstr)
-		SSE.TriggerEvent(SSE_TriggersE.FIRESTORE, {paths: (pathstr as str[]).map(p=> p.split("/")[0]) } )
+		SSE.TriggerEvent(SSETriggersE.FIRESTORE, {paths: pathstr } )
 
         res(returns)
     })
@@ -269,6 +268,11 @@ function get_jsons(pathstr:str[]|str, _opts:RetrieveOptsT[]|null) {
 		} else if (/^machines\/[^\s]+\/statuses$/.test(pathstr[i])) {
 
 			const s = readFileSync(offlinedata_dir + "statuses.json", "utf8") as string
+			returns.push(JSON.parse(s))
+
+		} else if (/^machines\/[^\s]+\/reconciles$/.test(pathstr[i])) {
+
+			const s = readFileSync(offlinedata_dir + "reconciles.json", "utf8") as string
 			returns.push(JSON.parse(s))
 		}
 	}

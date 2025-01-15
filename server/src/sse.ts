@@ -1,5 +1,5 @@
 
-import { SSE_TriggersE, str  } from './defs_server.js'
+import { SSETriggersE, str  } from './defs.js'
 
 
 
@@ -8,7 +8,7 @@ import { SSE_TriggersE, str  } from './defs_server.js'
 
 type ListenerT = {
     id:str,
-    cb:(trigger:SSE_TriggersE, obj:any)=>void
+    cb:(trigger:SSETriggersE, obj:any)=>void
 }
 
 const listeners:Map<str,ListenerT> = new Map()
@@ -24,9 +24,11 @@ function Add_Listener(req:any, res:any) {
 		listeners.delete(id)
     }
 
+	console.info(`SSE new listener: ${id} and listeners.size: ${listeners.size}`)
+
     listeners.set(id, {
         id, 
-        cb: (trigger:SSE_TriggersE, data:any)=> {
+        cb: (trigger:SSETriggersE, data:any)=> {
             res.write(`event: a_${trigger}\n`)
             res.write(`data: ${JSON.stringify(data)}\n`)
 			res.write('retry: 15000\n')
@@ -53,7 +55,7 @@ function Add_Listener(req:any, res:any) {
 
 
 
-function TriggerEvent(eventname:SSE_TriggersE, data:any) {
+function TriggerEvent(eventname:SSETriggersE, data:any) {
 
     listeners.forEach(l => {
 		try {

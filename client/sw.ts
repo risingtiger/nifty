@@ -1,49 +1,57 @@
 
+
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
+
+
 
 let cache_name = 'cacheV__0__';
 let cache_version = Number(cache_name.split("__")[1])
-
-
-const initial_cache_allall = [
-	"/v",
-	"/assets/main.js",
-	"/assets/main.css",
-	"/assets/index.css",
-	"app.webmanifest",
-]
-
-
-
-self.addEventListener('install', (e: any) => { 
-
-    let promise = new Promise(async (res, _rej) => {
-
-        // @ts-ignore
-        self.skipWaiting()
-        res(1)
-    })
-    e.waitUntil(promise)
-})
+let id_token = ""
+let token_expires_at = 0
+let refresh_token = ""
+let user_email = ""
 
 
 
 
-self.addEventListener('activate', (e:any) => {
+self.addEventListener('install', (event:any) => {
+	event.waitUntil((async () => {
+		console.log("sw.ts install")
 
-    let promise = new Promise(async (res, _rej) => {
+		// Optionally, pre-cache any needed static assets here:
+		// const cache = await caches.open(CACHE_NAME);
+		// await cache.addAll([
+		//   '/index.html',
+		//   '/main.js',
+		//   '/styles.css',
+		//   ...
+		// ]);
 
-		let cachekeys = await caches.keys();
-		cachekeys.forEach(async (c)=> {
-			await caches.delete(c);
-		})
+		await (self as any).skipWaiting();
+		console.log("sw.ts install - after skipWaiting")
+	})());
+});
 
-		const cache = await caches.open(cache_name)
-		await cache.addAll(initial_cache_allall)
 
-        res(1)
-    })
-    e.waitUntil(promise)
+self.addEventListener('activate', (event:any) => {
+	event.waitUntil((async () => {
+		console.log("sw.ts activate")
+		const cacheKeys = await caches.keys();
+		for (const key of cacheKeys) {
+			if (key !== cache_name) {
+				console.log("sw.ts activate - deleting cache: " + key)
+				await caches.delete(key);
+			}
+		}
+
+		await (self as any).clients.claim();
+	})());
+});
+
+
+
+
+self.addEventListener('controllerchange', (_e:any) => {
 })
 
 
@@ -62,7 +70,6 @@ self.addEventListener('fetch', (e:any) => {
 		} else {
 
 			if (should_url_be_cached(e.request)) {
-
 				const r = await fetch(e.request)
 
 				if (r.ok)
@@ -70,8 +77,51 @@ self.addEventListener('fetch', (e:any) => {
 
 				res(r)
 
-			} else {
+			} else if(e.request.url.includes("/api/")) {
 
+				await authrequest()
+
+				const new_headers = new Headers(e.request.headers);
+				new_headers.append('appversion', cache_version.toString())
+				new_headers.append('Authorization', `Bearer ${id_token}`)
+
+				const new_request = new Request(e.request, {
+					headers: new_headers,
+					cache: 'no-store'
+				});
+
+				fetch(new_request)
+					.then(async (server_response:any)=> {
+
+						if (server_response.status === 401) {
+							error_out("sw4", "") // error_out has a setTimeout, so it will circumvent the respondWith
+							res(false) // just so respondWith gets a resolve. next line will trigger main.js and redirect browser
+						}
+
+						else if (server_response.status === 410) {
+							(self as any).clients.matchAll().then((clients:any) => {
+								clients.forEach((client: any) => {
+									client.postMessage({
+										action: 'update_init'
+									})
+								})
+								res(false) // respondWith needs aeresolve. And caller needs a response, even if location.href get redirected by main.js (after a timeout)
+							})
+
+						} else if (server_response.status === 200 && server_response.ok) {
+							res(server_response)
+
+						} else {
+							error_out("swe", server_response.status + " - " + server_response.statusText)
+							res(false)
+						}
+					})
+					.catch((err:any)=> {
+						error_out("swe", "network error: " + err)
+						res(false)
+					})
+
+			} else {
 				const r = await fetch(e.request)
 				res(r)
 			}
@@ -89,6 +139,13 @@ self.addEventListener('message', async (e:any) => {
 	if (e.data.action === "update") {
 		//@ts-ignore
 		self.registration?.update()
+	}
+
+	else if (e.data.action === "initial_pass_auth_info") {
+		id_token = e.data.id_token;
+		token_expires_at = Number(e.data.token_expires_at);
+		refresh_token = e.data.refresh_token;
+		user_email = e.data.user_email;
 	}
 })
 
@@ -180,16 +237,91 @@ async function check_update_polling() {
 
 
 function should_url_be_cached(request:Request) {
-
-
     if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v/")) {
         return true;
     }
-
     else {
         return false;
     }
+}
 
+
+
+
+function authrequest() { return new Promise(async (res,_rej)=> { 
+
+    if (!id_token) {
+		error_out("swe", "authrequest no token in browser storage")
+        return
+    }
+
+
+    if (Date.now()/1000 > token_expires_at-30) {
+
+        const body = { refresh_token }
+
+        fetch('/api/refresh_auth', {
+
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+
+        }).then(async r=> {
+
+            let data = await r.json() as any
+
+            if (data.error) {
+				error_out("swe", "authrequest refresh failed - " + data.error.message)
+            }
+
+            else {
+                id_token = data.id_token
+                refresh_token = data.refresh_token
+                token_expires_at = Math.floor(Date.now()/1000) + Number(data.expires_in);
+
+				(self as any).clients.matchAll().then((clients:any) => {
+					clients.forEach((client: any) => {
+						client.postMessage({
+							action: 'update_auth_info',
+							id_token,
+							refresh_token,
+							token_expires_at
+						})
+					})
+				})
+
+
+                res(1)
+            }
+
+        }).catch(err=> {
+			error_out("swe", "authrequest refresh network failed - " + err)
+        })
+    }
+
+    else {
+        res(1)
+    }
+})}
+
+
+
+
+function error_out(subject:string, errmsg:string="") {
+
+	(self as any).clients.matchAll().then((clients:any) => {
+		setTimeout(()=> {
+			clients.forEach((client: any) => {
+				client.postMessage({
+					action: 'error_out',
+					subject,
+					errmsg
+				})
+			})
+		},100)
+	})
 }
 
 

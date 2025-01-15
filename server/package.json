@@ -22,7 +22,9 @@
     "firebase-admin": "^12.4.0",
     "google-auth-library": "^9.14.0",
     "googleapis": "^143.0.0",
-    "jsdom": "^25.0.0"
+    "jsdom": "^25.0.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@tsconfig/node20": "^20.1.2",

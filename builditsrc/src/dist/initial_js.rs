@@ -8,12 +8,15 @@ use walkdir::WalkDir;
 
 use super::ProcessedStatsT;
 
+use crate::common_helperfuncs::PathE;
+use crate::common_helperfuncs::path;
+
 
 
 
 pub fn runit(stats: &mut ProcessedStatsT) -> Result<()> {
 
-    let client_output_dev_str        = crate::CLIENT_OUTPUT_DEV_PATH.clone();
+    let client_output_dev_str        = path(PathE::ClientOutputDev);
     let client_output_dev_path       = Path::new(&client_output_dev_str);
     let mut file_paths: Vec<PathBuf> = Vec::new();
 
@@ -125,7 +128,7 @@ fn process_minify_js(js_str: &String) -> Result<String> {
 
 fn write_js(file_in_path: &Path, js_str: &String) -> Result<()> {
 
-    let prefix_to_cut_str  = crate::CLIENT_OUTPUT_DEV_PATH.clone();
+    let prefix_to_cut_str  = path(PathE::ClientOutputDev);
     let tmpdir_str         = crate::TMP_PATH.clone();
     let prefix_to_cut_path = Path::new(&prefix_to_cut_str);
     let output_dir_str     = Path::new(&tmpdir_str);

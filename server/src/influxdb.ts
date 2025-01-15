@@ -1,6 +1,6 @@
 
 
-type str = string; type int = number; type bool = boolean;
+import { bool, str, num } from './defs.js'
 
 
 
@@ -8,9 +8,9 @@ type str = string; type int = number; type bool = boolean;
 type Series = { 
     field: str,
     tag: {name:str, val:str}
-    prior: { amount:int, unit:str }|null
+    prior: { amount:num, unit:str }|null
     points: {   
-        val: int, 
+        val: num, 
         date: Date 
     }[]
 }
@@ -22,7 +22,7 @@ const XENT = process.env.XEN_INFLUXDB || ""
 
 
 
-function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[], intrv:int[], priors:str[]) { 
+function Retrieve_Series(bucket:str, begins:num[], ends:num[], msrs:str[], fields:str[], tags:str[], intrv:num[], priors:str[]) { 
 
     return new Promise<Series[][]>(async (res, _rej) => {
 
@@ -51,7 +51,7 @@ function Retrieve_Series(bucket:str, begins:int[], ends:int[], msrs:str[], field
 
 
 
-function Retrieve_Points(bucket:str, begins:int[], ends:int[], msrs:str[], fields:str[], tags:str[]) {   
+function Retrieve_Points(bucket:str, begins:num[], ends:num[], msrs:str[], fields:str[], tags:str[]) {   
 
     return new Promise<Series[]>(async (res, _rej)=> { 
 
@@ -80,9 +80,9 @@ function Retrieve_Points(bucket:str, begins:int[], ends:int[], msrs:str[], field
 
 
 
-function Retrieve_Medians(bucket:str, begins:int[], ends:int[], dur_amounts:int[], dur_units:str[], msrs:str[], fields:str[], tags:str[], aggregate_fn:str[]) {   
+function Retrieve_Medians(bucket:str, begins:num[], ends:num[], dur_amounts:num[], dur_units:str[], msrs:str[], fields:str[], tags:str[], aggregate_fn:str[]) {   
 
-    return new Promise<{field:str,median:int}[][]>(async (res, _rej)=> { 
+    return new Promise<{field:str,median:num}[][]>(async (res, _rej)=> { 
 
         let token = bucket === "PWT" ? PWTT : XENT
 
@@ -101,7 +101,7 @@ function Retrieve_Medians(bucket:str, begins:int[], ends:int[], dur_amounts:int[
 
         const data = await callserver(bodystr, token)
 
-        const yields = begins.map(_b=> []) as {field:str,median:int}[][]
+        const yields = begins.map(_b=> []) as {field:str,median:num}[][]
 
         data.split("\n").forEach((r:str)=> {
             if (r.includes("result") || r.length < 20)   return
@@ -129,9 +129,9 @@ function Retrieve(bucket:str, fluxstr:str) {   return new Promise<str>(async (re
 
 
 
-function setcomplexfluxstr(index:int, bucket:str, msr: str, fields:str, tags:str, begin:int, end:int, intrv:int, priors:str) {   
+function setcomplexfluxstr(index:num, bucket:str, msr: str, fields:str, tags:str, begin:num, end:num, intrv:num, priors:str) {   
 
-    type Call = {range_begin:int, range_end:int, priors_amount?:int, priors_unit?:str}
+    type Call = {range_begin:num, range_end:num, priors_amount?:num, priors_unit?:str}
 
     let calls:Call[] = [{range_begin:begin, range_end:end, priors_amount: null, priors_unit: null}]
 
@@ -219,7 +219,7 @@ function callserver(fluxstr:str, token:str) {   return new Promise<str>(async (r
 
 
 
-function parseit_for_series(queries_length:int, data_str:str, fields:str[], tags:str[], priors:str[]) : Series[][] {
+function parseit_for_series(queries_length:num, data_str:str, fields:str[], tags:str[], priors:str[]) : Series[][] {
 
     const queries_list:Series[][] = []
     let   last_tag_name = ""

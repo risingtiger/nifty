@@ -1,6 +1,6 @@
 
 
-import { str, num, bool } from "../../../defs_client.js";
+import { str, num, bool } from "../../../defs_server_symlink.js";
 
 
 declare var Lit_Render: any;
@@ -144,6 +144,7 @@ class COl extends HTMLElement {
             this.close()
         }
     }
+
 
 
 

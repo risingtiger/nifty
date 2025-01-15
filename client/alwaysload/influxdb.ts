@@ -1,6 +1,7 @@
 
 
-import { str, num, $NT } from "../defs_client.js";
+import { str, num } from "../defs_server_symlink.js";
+import { $NT } from "../defs.js";
 
 declare var $N: $NT;
 

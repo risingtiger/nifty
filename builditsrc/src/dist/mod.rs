@@ -1,6 +1,7 @@
 
 use anyhow::Result;
 use std::fs;
+use std::fs::{copy, remove_file};
 use regex::Regex;
 
 
@@ -12,6 +13,11 @@ mod bundle_js;
 mod entry;
 mod gen;
 mod brotli;
+
+use crate::common_helperfuncs::PathE;
+use crate::common_helperfuncs::path;
+use crate::common_helperfuncs::pathp;
+
 
 
 
@@ -43,7 +49,7 @@ pub fn runit() -> Result<()> {
     let _          = handle_defs_files();
     let _          = bundle_js::runit();
     let _          = gen::runit(appversion)?;
-    let _          = entry::runit();
+    let _          = entry::runit(appversion);
     let _          = brotli::runit();
 
     println!("APPVersion {}", appversion);
@@ -60,7 +66,7 @@ pub fn runit() -> Result<()> {
 
 fn iterate_manifest_appversion() -> Result<u32> {
 
-    let manifest_path     = crate::INSTANCE_CLIENT_PATH.clone() + "app_instance.webmanifest";
+    let manifest_path     = pathp(PathE::InstanceClientSrc,"app.webmanifest");
     let manifest_content  = fs::read_to_string(&manifest_path).unwrap();
 
     let manifest_regex          = Regex::new(r#""version":\s*"(\d+)""#).unwrap();
@@ -79,11 +85,11 @@ fn iterate_manifest_appversion() -> Result<u32> {
 
 fn reset_dist_dirs() -> Result<()> {
 
-    let _xx = std::fs::remove_dir_all(crate::CLIENT_OUTPUT_DIST_PATH.clone());
+    let _xx = std::fs::remove_dir_all(path(PathE::ClientOutputDist));
     let _   = std::fs::remove_dir_all(crate::TMP_PATH.clone());
 
-    std::fs::create_dir_all(crate::CLIENT_OUTPUT_DIST_PATH.clone())?;
-    std::fs::create_dir_all(crate::INSTANCE_CLIENT_OUTPUT_DIST_PATH.clone())?;
+    std::fs::create_dir_all(path(PathE::ClientOutputDist))?;
+    std::fs::create_dir_all(path(PathE::InstanceClientOutputDist))?;
 
     Ok(())
 }
@@ -93,23 +99,20 @@ fn reset_dist_dirs() -> Result<()> {
 
 fn handle_defs_files() -> Result<()> {
 
-    let instance_name       = crate::INSTANCE_DIR_NAME.clone();
-    let client_main_in      = crate::CLIENT_MAIN_SRC_PATH.clone();
-    let client_instance_in  = crate::INSTANCE_CLIENT_PATH.clone();
-    let client_out          = crate::TMP_PATH.clone();
-    let client_instance_out = crate::TMP_PATH.clone() + &instance_name;
+    remove_file(pathp(PathE::TMPDir,"defs.js")).unwrap();
+    remove_file(pathp(PathE::TMPDir,"defs_server_symlink.js")).unwrap();
+    remove_file(pathp(PathE::InstanceClientOutputTMP,"defs.js")).unwrap();
+    remove_file(pathp(PathE::InstanceClientOutputTMP,"defs_client_symlink.js")).unwrap();
+    remove_file(pathp(PathE::InstanceClientOutputTMP,"defs_server_symlink.js")).unwrap();
+    remove_file(pathp(PathE::InstanceClientOutputTMP,"defs_instance_server_symlink.js")).unwrap();
 
-    std::fs::copy(client_main_in.clone() + "defs_client.ts", client_out.clone() + "defs_client.ts").unwrap();
-    std::fs::copy(client_main_in.clone() + "defs_server_symlink.ts", client_out.clone() + "defs_server_symlink.ts").unwrap();
+    copy(pathp(PathE::ClientSrc,"defs.ts"), pathp(PathE::TMPDir,"defs.ts")).unwrap();
+    copy(pathp(PathE::ServerSrc,"defs.ts"), pathp(PathE::TMPDir,"defs_server_symlink.ts")).unwrap();
+    copy(pathp(PathE::InstanceClientSrc,"defs.ts"), pathp(PathE::InstanceClientOutputTMP,"defs.ts")).unwrap();
+    copy(pathp(PathE::ClientSrc,"defs.ts"), pathp(PathE::InstanceClientOutputTMP,"defs_client_symlink.ts")).unwrap();
+    copy(pathp(PathE::ServerSrc,"defs.ts"), pathp(PathE::InstanceClientOutputTMP,"defs_server_symlink.ts")).unwrap();
+    copy(pathp(PathE::InstanceServerSrc,"defs.ts"), pathp(PathE::InstanceClientOutputTMP,"defs_instance_server_symlink.ts")).unwrap();
 
-    std::fs::copy(client_instance_in.clone() + "defs_instance_client.ts", client_instance_out.clone() + "defs_instance_client.ts").unwrap();
-    std::fs::copy(client_instance_in.clone() + "defs_instance_server_symlink.ts", client_instance_out.clone() + "defs_instance_server_symlink.ts").unwrap();
-
-    let _ = std::fs::remove_file(client_out.clone() + "defs_client.js");
-    let _ = std::fs::remove_file(client_out.clone() + "defs_server_symlink.js");
-
-    let _ = std::fs::remove_file(client_instance_out.clone() + "defs_instance_client.js");
-    let _ = std::fs::remove_file(client_instance_out.clone() + "defs_instance_server_symlink.js");
 
     Ok(())
 }

@@ -1,6 +1,6 @@
 
 
-import { str, bool } from "../../../defs_client.js";
+import { str, bool } from "../../../defs_server_symlink.js";
 
 declare var Lit_Render: any;
 declare var Lit_Html: any;

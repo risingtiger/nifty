@@ -1,5 +1,5 @@
 
-import { $NT } from '../defs_client.js'
+import { $NT } from '../defs.js'
 
 type str = string; type bool = boolean; type int = number;   
 

@@ -1,6 +1,7 @@
 
 
-import { str, LazyLoadT } from  "../../defs_client.js" 
+import { LazyLoadT } from  "../../defs.js" 
+import { str } from  "../../defs_server_symlink.js" 
 import SwitchStationDragBack from "./dragback.js"
 
 declare var $N:any
@@ -52,7 +53,6 @@ class Route {
             el.addEventListener("touchcancel", SwitchStationDragBack.TouchCancel)
 
 			function hydrated() {
-				console.log("view hydrated")
 
                 // !! HACK !! - Making an exemption for machinetelemetry because chartist needs display to block in order to figure out offsets widths etc
                 // TODO: - Need to have display set to block from the get go and use visibility hidden instead

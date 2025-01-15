@@ -1,9 +1,6 @@
 
-export type str = string; 
-export type bool = boolean; 
-export type num = number;
 
-import { SSE_TriggersE } from "./defs_server_symlink.js";
+import { bool, num, str, SSETriggersE } from './defs_server_symlink.js'
 
 
 export type LazyLoadT = {
@@ -17,16 +14,54 @@ export type LazyLoadT = {
 
 
 export type FetchLassieHttpOptsT = {
-	method?: "GET" | "POST" | "PUT" | "DELETE",
+	method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
 	headers?: any,
 	body?: string | null
 }
-
 export type FetchLassieOptsT = {
-	disable_auth?: bool,
 	isbackground?: bool,
-	timeout: num,
+	timeout?: num,
 }
+
+
+export const enum LoggerTypeE {
+	debug = 10,
+    info = 20,
+	warning = 30,
+	error = 40
+}
+
+
+export const enum LoggerSubjectE {
+	sse_listener_added = "ssa",
+	sse_listener_removed = "ssd",
+	sse_listener_connected = "ssc",
+	sse_listener_error = "sse",
+    sse_received_withfocus = "ssw",
+    sse_received_firestore = "ssf",
+	sw_fetch_not_authorized = "sw4",
+	sw_fetch_error = "swe",
+}
+
+
+export const enum DataSyncStoreMetaStateE  { 
+	EMPTY, 
+	STALE, 
+	QUELOAD, 
+	LOADING, 
+	LOADED_AND_CHANGED, 
+	LOADED_AND_UNCHANGED,
+	OK 
+}
+export type DataSyncStoreMetaT = {
+	n: string, // store name
+	i: null|string, // item id or null if entire store
+	l: DataSyncStoreMetaStateE, // 
+	ts: number // timestamp
+}
+
+
+
 
 
 
@@ -41,7 +76,8 @@ export type IndexedDBStoreMetaT = {
 export type $NT = {
 	SSEvents: {
 		Init: () => void,
-		Add_Listener: (listener_name:string, eventname:SSE_TriggersE[], callback_func:any) => void
+		ForceStop: () => void,
+		Add_Listener: (el:HTMLElement, listener_name:string, eventname:SSETriggersE[], callback_func:any) => void
 		Remove_Listener: (name:string)=>void
 	},
 
@@ -51,8 +87,8 @@ export type $NT = {
 	}
 
 	DataSync: {
-		Init: (indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:number, appversion:num) => void
-		Subscribe: (store_names:str[], subscriber_el:HTMLElement) => void
+		Init: (indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:number) => void
+		Subscribe: (el:HTMLElement, store_names:str[], callback:(data:any)=>void) => void
 	}
 
 	EngagementListen: {
@@ -74,14 +110,6 @@ export type $NT = {
 		Add: (path:string, newdocs:any[]) => Promise<any>,
 	}
 
-	FirestoreLive: {
-		Init: () => Promise<any>,
-		Get: (resources:any[]) => Promise<any[]>,
-		Remove: () => void,
-		Subscribe: (htmlel:HTMLElement) => void,
-		UnSubscribe: (htmlel:HTMLElement) => void,
-	}
-
 	InfluxDB: {
 		Retrieve_Series: (bucket:str, begins:number[], ends:number[], msrs:str[], fields:str[], tags:str[], intrv:number[], priors:str[]) => Promise<any>
 	}
@@ -89,6 +117,16 @@ export type $NT = {
 	FetchLassie: (url:string, http_optsP?:FetchLassieHttpOptsT|undefined, opts?:FetchLassieOptsT|null|undefined) => Promise<any>
 
 	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
+
+	Logger: {
+		Log: (type:LoggerTypeE, subject:LoggerSubjectE, message:str) => void,
+		Save: () => void
+		Get: () => void
+	}
+
+	Utils: {
+		CSV_Download: (csvstr:string, filename:string) => void,
+	}
 }
  
 
@@ -104,7 +142,3 @@ export type INSTANCE_T = {
 	},
 	LAZYLOADS: LazyLoadT[],
 }
-
-
-
-

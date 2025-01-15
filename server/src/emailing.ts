@@ -1,6 +1,6 @@
 
 
-type str = string; //type int = number; type bool = boolean;
+import { str } from './defs.js'
 
 
 
@@ -22,7 +22,7 @@ async function Send(messages:any[]) {
         Messages: messages
     }
 
-    const fetchres = await fetch(url, {
+    await fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

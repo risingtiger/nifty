@@ -7,8 +7,7 @@
 
 
 
-type bool = boolean;  //type str = string; type int = number;   
-
+import { bool } from '../../../defs_server_symlink.js'
 
 
 

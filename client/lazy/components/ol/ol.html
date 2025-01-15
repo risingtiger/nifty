@@ -20,14 +20,15 @@
 
 <div class="wrapper">
   ${_s.show_header ? Lit_Html`
-    <header>
-      <div class="left">${_s.show_closebtn ? Lit_Html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
+	<header>
+	  <div class="left">${_s.show_closebtn ? Lit_Html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
 		<div class="middle"><h1>${_s.title}</h1></div>
-      <div class="right">&nbsp;</div>
-    </header>
+	  <div class="right">&nbsp;</div>
+	</header>
   ` : ''}
   <slot></slot>
 </div>
+<div class="emptyspace snapel"></div>
 
 <div class="backgroundcover" @click="${()=>this.close()}">
     <div class="topcover"></div>

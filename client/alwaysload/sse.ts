@@ -1,14 +1,18 @@
 
-import { num, str, bool } from "../defs_client.js"
-import { SSE_TriggersE } from "../defs_server_symlink.js"
 
+import { str, SSETriggersE } from "../defs_server_symlink.js"
+import { $NT, LoggerTypeE, LoggerSubjectE } from "../defs.js"
 
 
 type SSE_Listener = {
     name: str,
-    triggers:SSE_TriggersE[],
+	el: HTMLElement,
+    triggers:SSETriggersE[],
     cb:(paths:str[])=>void
 }
+
+
+declare var $N: $NT;
 
 
 const sse_listeners:SSE_Listener[] = []
@@ -22,16 +26,28 @@ let connect_ts = 0
 
 
 function Init() {   
-
     boot_up()
 }
 
 
 
 
-function Add_Listener(name:str, triggers:SSE_TriggersE[], callback_:(obj:any)=>void) {
+function ForceStop() {   
+	evt!.close()
+}
 
-    const is_already_listener = sse_listeners.find(l=> l.name === name) ? true : false
+
+
+
+function Add_Listener(el:HTMLElement, name:str, triggers:SSETriggersE[], callback_:(obj:any)=>void) {
+
+	for (const s of sse_listeners) {
+		if (!s.el.parentElement) {
+			sse_listeners.splice(sse_listeners.indexOf(s), 1)
+		}
+	}
+
+    const is_already_listener = sse_listeners.find(l=> l.name === name && l.el === el) ? true : false
 
     if (is_already_listener) {
         redirect_from_error("sse_listner_already_exists","SSE Listener with that name already exists")
@@ -40,15 +56,26 @@ function Add_Listener(name:str, triggers:SSE_TriggersE[], callback_:(obj:any)=>v
 
     sse_listeners.push({
         name: name,
+		el: el,
         triggers,
         cb: callback_
     })
+
+	$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_added, `${name}`)
+
+	console.log(`SSE Listener Added: ${el.tagName} - ${name}`)
 }
 
 
 
 
-function Remove_Listener(name:str) {   sse_listeners.splice(sse_listeners.findIndex(l=> l.name === name), 1)   }
+function Remove_Listener(name:str) {   
+	const i = sse_listeners.findIndex(l=> l.name === name)
+	sse_listeners.splice(i, 1)   
+
+	$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_removed, `${sse_listeners[i].name}`)
+	console.log(`SSE Listener Removed: ${sse_listeners[i].name}`)
+}
 
 
 
@@ -80,22 +107,29 @@ function boot_up() {
     evt = new EventSource("/api/sse_add_listener?id=" + id)
 	connect_ts = Date.now()
 
-    evt.onerror = (e) => {
-        console.error("SSE Error")
-        console.error(e)
+    evt.onerror = (_e) => {
+		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_error, ``)
+		console.log(`SSE Listener Client Error: `)
     }
 
     evt.addEventListener("connected", (_e) => {
-        //
+		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_connected, ``)
+		console.log(`SSE Listener Client Connected: `)
+		//
     })
 
-    evt.addEventListener("a_"+SSE_TriggersE.FIRESTORE, (e) => {
+    evt.addEventListener("a_"+SSETriggersE.FIRESTORE, (e) => {
+
+		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_firestore, ``)
+		console.log(`SSE Received Firestore: ${e.data}`)
+
 		if (document.hasFocus()) {
+
+			$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_withfocus, ``)
+			console.log(`SSE Received With Focus: `)
+
 			const data = JSON.parse(e.data)
-			console.log("firestore event listener")
-			console.log(e)
-			console.log(data)
-			sse_listeners.filter(l=> l.triggers.includes(SSE_TriggersE.FIRESTORE)).forEach(l=> l.cb(data))
+			sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE)).forEach(l=> l.cb(data))
 		}
     }) 
 
@@ -235,5 +269,5 @@ function redirect_from_error(errmsg:str, errmsg_long:str) {
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SSEvents = { Init, Reset, Add_Listener, Remove_Listener };
+((window as any).$N as any).SSEvents = { Init, ForceStop, Reset, Add_Listener, Remove_Listener };
 

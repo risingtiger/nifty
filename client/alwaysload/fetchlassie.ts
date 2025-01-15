@@ -1,7 +1,10 @@
 
-import { num, bool, str, FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs_client.js"
+import { num, str } from "../defs_server_symlink.js"
+import { FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs.js"
+
 
 enum QueRequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
+
 
 type QueRequestT = {
     url: str,
@@ -11,6 +14,7 @@ type QueRequestT = {
     state: QueRequestStateE,
     cb: (_:any)=>void,
 }
+
 
 const ques:QueRequestT[] = []
 
@@ -22,9 +26,10 @@ function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts
     //const i = que_i++
 
     http_optsP = http_optsP || { method: "GET", headers: {}, body: null }
-    opts = opts || { disable_auth: false, isbackground: false, timeout: 9000 }
+    opts = opts || { isbackground: false, timeout: 9000 }
 
-    opts.disable_auth = typeof opts.disable_auth !== "undefined" ? opts.disable_auth : false
+    opts.isbackground = typeof opts.isbackground !== "undefined" ? opts.isbackground : false
+	opts.timeout = typeof opts.timeout !== "undefined" ? opts.timeout : 9000
 
     let http_opts:FetchLassieHttpOptsT = {
         method: typeof http_optsP.method !== "undefined" ? http_optsP.method : "GET",
@@ -39,6 +44,7 @@ function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts
     if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
     if(!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
 
+	/*
     if (url.startsWith("/api/"))
         http_opts.headers["appversion"] = (window as any).APPVERSION
 
@@ -46,6 +52,7 @@ function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts
         let id_token = await authrequest()
         http_opts.headers["Authorization"] = `Bearer ${id_token}`
     }
+	*/
 
     set_que(url, opts, http_opts, (r)=>response_callback(r))
 })}
@@ -56,34 +63,14 @@ function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts
 function execute(que:QueRequestT) {  
 
     fetch(que.url, que.http_opts)
-
-        .then(async (server_response:any)=> {
-
-            if (server_response.status === 401) {
-				que.state = QueRequestStateE.FAILED
-                error_out("fetchlassie_not_authorized", "Fetchlassie- " + que.url + ":" + "401. Not Authorized")
-            }
-
-            else if (server_response.status === 410) {
-				que.state = QueRequestStateE.FAILED
-                window.location.href = "/?update_init=1"
-            }
-
-            else if (server_response.ok) {
+        .then(async (server_response:Response|false)=> {
+            if (server_response && server_response.status === 200 && server_response.ok) {
                 const request_result = await (que.http_opts.headers["Accept"] === "application/json" ? server_response.json() : server_response.text())
                 que.state = QueRequestStateE.SUCCESS
                 que.cb(request_result)
-            }
-
-            else {
-				que.state = QueRequestStateE.FAILED
-                error_out("fetchlassie_server_error", "Fetchlassie Server Error - " + que.url + ": " + server_response.statusText)
-            }
-        })
-
-        .catch((error:any)=> {
-				que.state = QueRequestStateE.FAILED
-			error_out("fetchlassie_network_error", "Fetchlassie Network Error - " + que.url + ": " + error.message)
+            } else {
+				// all requests are funneled through service worker, which handles errors
+			}
         })
 }
 
@@ -114,6 +101,7 @@ function set_que(url:string, opts:FetchLassieOptsT, http_opts:FetchLassieHttpOpt
 
 
 
+/*
 function authrequest() { return new Promise<string>(async (res,_rej)=> { 
 
     let id_token = localStorage.getItem('id_token')
@@ -163,6 +151,9 @@ function authrequest() { return new Promise<string>(async (res,_rej)=> {
         res(id_token)
     }
 })}
+*/
+
+
 
 
 function fetch_lassie_ticktock() {
@@ -175,7 +166,7 @@ function fetch_lassie_ticktock() {
 
     const now = Date.now()
 
-    const que_timedout = ques.find(x=> now - x.ts > x.opts.timeout)
+    const que_timedout = ques.find(x=> now - x.ts > x.opts.timeout!)
 
     if (que_timedout) {
         error_out("fetchlassie_timeout", "Fetch Lassie Timeout - " + que_timedout.url)
@@ -211,4 +202,6 @@ function fetch_lassie_ticktock() {
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).FetchLassie = FetchLassie;
+
+
 

@@ -1,18 +1,23 @@
 
 use std::process::Command;
 use anyhow::Result;
+use std::path::PathBuf;
 
+use crate::common_helperfuncs::PathE;
+use crate::common_helperfuncs::pathp;
 
 
 
 pub fn runit() -> Result<()> {
 
-    let i = crate::CLIENT_MAIN_SRC_PATH.clone() + "thirdparty/";
-    let j = crate::CLIENT_OUTPUT_DEV_PATH.clone() + "thirdparty/";
+    let i = pathp(PathE::ClientSrc,"thirdparty/");
+    let j = pathp(PathE::ClientOutputDev,"thirdparty/");
+
     let client_js = std::thread::spawn(move || handle_thirdparty_js(&i, &j));
 
-    let k = crate::INSTANCE_CLIENT_PATH.clone() + "thirdparty/";
-    let l = crate::INSTANCE_CLIENT_OUTPUT_DEV_PATH.clone() + "thirdparty/";
+    let k = pathp(PathE::InstanceClientSrc,"thirdparty/");
+    let l = pathp(PathE::InstanceClientOutputDev,"thirdparty/");
+
     let instance_js = std::thread::spawn(move || handle_thirdparty_js(&k, &l));
 
     client_js.join().map_err(|e| anyhow::anyhow!("Thirdparty JS thread panicked: {:?}", e))??;
@@ -24,11 +29,12 @@ pub fn runit() -> Result<()> {
 
 
 
-pub fn handle_thirdparty_js(src_path_str:&str, dest_path_str:&str) -> Result<()> {
+pub fn handle_thirdparty_js(src:&PathBuf, dest:&PathBuf) -> Result<()> {
 
-    let dest_path_trimmed      = dest_path_str.trim_end_matches('/').to_string();
 
-    let src_str    = format!("{}{}", src_path_str, "*");
+    let dest_path_trimmed      = dest.to_string_lossy().trim_end_matches('/').to_string();
+
+    let src_str    = format!("{}{}", src.display(), "*");
     let outdir_str = format!("{}{}", "--outdir=", dest_path_trimmed);
 
     let args = ["esbuild", &src_str, "--bundle", &outdir_str];

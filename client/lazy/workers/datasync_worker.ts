@@ -1,26 +1,12 @@
 
-type num = number
-//type str = string
-//type bool = boolean
+
+import { DataSyncStoreMetaT, DataSyncStoreMetaStateE } from "../../defs.js"
+import { num } from '../../defs_server_symlink.js'
+
 
 type IndexedDBStoreMetaT = {
 	name: string,
 	url: string
-}
-
-enum DataSyncStoreMetaStateE  { 
-	EMPTY, 
-	STALE, 
-	QUELOAD, 
-	LOADING, 
-	LOADED, 
-	OK 
-}
-type DataSyncStoreMetaT = {
-	n: string, // name
-	s: string[], // subscribers
-	l: DataSyncStoreMetaStateE, // 
-	ts: number // timestamp
 }
 
 
@@ -28,16 +14,12 @@ type DataSyncStoreMetaT = {
 
 self.onmessage = async (e:any) => {
 
-
 	switch (e.data.cmd) {
 		case "init":
-			Updater_Init(e.data.dbname, e.data.dbversion, e.data.appversion, e.data.id_token, e.data.indexeddb_stores)	
+			Updater_Init(e.data.dbname, e.data.dbversion, e.data.indexeddb_stores)	
 		break;
-		case "subscribe":
-			EventLoopen_Run(e.data.store_names, e.data.subscriber, e.data.store_metas);
-		break;
-		case "refresh_from_stale":
-			EventLoopen_Run(null, null, e.data.store_metas);
+		case "run_loop":
+			EventLoopen_Run(e.data.store_metas);
 		break;
 	}
 }
@@ -70,126 +52,78 @@ self.onmessage = async (e:any) => {
 // EventLoopenWorker
 /* ************ */
 
-let   store_metas_while_open_que:DataSyncStoreMetaT[] = []
+// is only used in memory as needed. Continually written to localStorage and then memory flushed
+let   store_metas_que:DataSyncStoreMetaT[] = []
 
 
 
 
-function EventLoopen_Run(
-	store_names:str[]|null, 
-	subscriber:str|null,
-	store_metas:DataSyncStoreMetaT[]|null
-){
+function EventLoopen_Run(store_metas_from_mainthread:DataSyncStoreMetaT[]) {
 
-	console.log("hitten the event loop")
+	// this function will be called recursively until all store_metas are loaded and the que is empty
 
-	if (store_metas_while_open_que.length === 0 && !store_names && !subscriber && (store_metas && store_metas.length)) {
-		store_metas_while_open_que = store_metas
+	console.log("datasync_worker EventLoopen_Run")
+
+	// make sure store_metas_que is always reflective of store_metas_from_localstorage
+
+	if (store_metas_que.length === 0 && (store_metas_from_mainthread && store_metas_from_mainthread.length)) {
+
+		store_metas_que = store_metas_from_mainthread
+
+	} else if (store_metas_from_mainthread && store_metas_from_mainthread.length) {
+
+		// merge store_metas_from_localstorage into store_metas_que and always reflect store_metas_que l (state) to reflect store_metas_from_localstorage regardless of where que is at
+
+		for(const sm of store_metas_from_mainthread) {
+			let store = store_metas_que.find((s) => s.n === sm.n)
+
+			if (!store) {
+				store_metas_que.push(sm)
+				store = store_metas_que[store_metas_que.length-1]
+			}
+
+			// if state goes back to stale, empty etc, then it will force a reload even if this que is currently in the process
+			store.l = sm.l
+			store.i = sm.i
+			store.ts = sm.ts
+		}
+
+	} else {
+		// just re-run the loop. store_metas_from_localstorage has already been dealt with at this point
 	}
 
-	else if (store_names && subscriber && store_metas)  {
-		handle_subscribe_call(store_names, subscriber, store_metas)
+	for(const sm of store_metas_que) {
+		if (sm.l === DataSyncStoreMetaStateE.EMPTY || sm.l === DataSyncStoreMetaStateE.STALE) {
+			sm.l = DataSyncStoreMetaStateE.QUELOAD
+		}
 	}
 
-
-	const queload_store_metas = store_metas_while_open_que.filter((sm) => sm.l === DataSyncStoreMetaStateE.QUELOAD)
-	const loaded_store_metas  = store_metas_while_open_que.filter((sm) => sm.l === DataSyncStoreMetaStateE.LOADED)
+	const queload_store_metas = store_metas_que.filter((sm) => sm.l === DataSyncStoreMetaStateE.QUELOAD)
+	const loaded_store_metas  = store_metas_que.filter((sm) => sm.l === DataSyncStoreMetaStateE.LOADED_AND_CHANGED || sm.l === DataSyncStoreMetaStateE.LOADED_AND_UNCHANGED)
 
 	if (loaded_store_metas.length) {
-		handle_loaded_store_metas(loaded_store_metas)
+		self.postMessage({ cmd: "notify_subscribers", loaded_store_metas: loaded_store_metas })
 	}
 
 	if (queload_store_metas.length) {
-
 		Updater_StoresToIndexeddb(queload_store_metas)
-
 		queload_store_metas.forEach((sm) => sm.l = DataSyncStoreMetaStateE.LOADING)
+		self.postMessage({ cmd: "save_changed_store_metas_state", changed_store_metas: queload_store_metas })
 	}
 
-	const pending = store_metas_while_open_que.filter((sm) => sm.l === DataSyncStoreMetaStateE.LOADING)
+	const pending = store_metas_que.filter((sm) => sm.l === DataSyncStoreMetaStateE.LOADING)
 
 	if (pending.length) {
 		setTimeout(EventLoopen_Run, 100)
 	} else {
-		self.postMessage({ cmd: "save_store_metas", store_metas: store_metas_while_open_que })
-		store_metas_while_open_que = []
+		store_metas_que = []
 	}
 }
 
 
 
 
-function handle_subscribe_call(
-	store_names:string[], 
-	subscriber:string,
-	store_metas:DataSyncStoreMetaT[]
-){
 
-	if (store_metas_while_open_que.length === 0) {
-		store_metas_while_open_que = store_metas
-	}
-
-	add_to_store_metas_if_not_exists(store_names, subscriber)
-
-	const filtered_store_metas  = store_metas_while_open_que.filter((sm) => store_names.includes(sm.n))
-
-	for(const fsm of filtered_store_metas) {
-		if (
-			fsm.l === DataSyncStoreMetaStateE.EMPTY || 
-			fsm.l === DataSyncStoreMetaStateE.STALE 
-		){
-			fsm.l = DataSyncStoreMetaStateE.QUELOAD
-		}
-	}
-
-	if (filtered_store_metas.every((sm) => sm.l === DataSyncStoreMetaStateE.OK)) {
-		self.postMessage({ cmd: "notify_subscribers", subscribers:[subscriber]  })
-	}
-}
-
-
-
-
-function add_to_store_metas_if_not_exists(store_names:string[], component_path_str:string) {
-
-	for(const store_name of store_names) {
-		let existing_store = store_metas_while_open_que.find((s:DataSyncStoreMetaT) => s.n === store_name)
-
-		if (!existing_store) {
-			const new_store:DataSyncStoreMetaT = { n: store_name, s: [component_path_str], l:DataSyncStoreMetaStateE.EMPTY, ts: 0 }
-			store_metas_while_open_que.push(new_store)
-			existing_store = store_metas_while_open_que[store_metas_while_open_que.length-1]
-		}
-
-		if (!existing_store.s.includes(component_path_str)) {
-			existing_store.s.push(component_path_str)
-		}
-	}
-}
-
-
-
-
-function handle_loaded_store_metas(loaded_store_metas:DataSyncStoreMetaT[]) {
-
-	const subscribers_to_notify:str[] = []
-	const subscribers = [...new Set(loaded_store_metas.map((sm) => sm.s).flat())]
-	const subscribers_map = new Map(subscribers.map((s) => [s, store_metas_while_open_que.filter((sm) => sm.s.includes(s))]))
-
-	for(let [subscriber, store_metas] of subscribers_map) {
-		if (store_metas.some((sm) => sm.l === DataSyncStoreMetaStateE.LOADED)) {
-			if (store_metas.every((sm) => sm.l === DataSyncStoreMetaStateE.LOADED || sm.l === DataSyncStoreMetaStateE.OK)) {
-				subscribers_to_notify.push(subscriber)
-			}
-		}	
-	}
-
-	loaded_store_metas.forEach((sm) => sm.l = DataSyncStoreMetaStateE.OK)
-
-	if (subscribers_to_notify.length) {
-		self.postMessage({ cmd: "notify_subscribers", subscribers: subscribers_to_notify })
-	}
-}
 
 
 
@@ -241,18 +175,14 @@ function handle_loaded_store_metas(loaded_store_metas:DataSyncStoreMetaT[]) {
 
 let DBNAME:string = "";
 let DBVERSION:num = 0
-let APPVERSION:num = 0;
-let ID_TOKEN:string = ""
 let INDEXEDDB_STORES:IndexedDBStoreMetaT[] = []
 
 
 
 
-async function Updater_Init(dbname:string,dbversion:num,appversion:num,id_token:string,indexeddb_stores:IndexedDBStoreMetaT[]) {
+async function Updater_Init(dbname:string,dbversion:num,indexeddb_stores:IndexedDBStoreMetaT[]) {
 	DBNAME = dbname
 	DBVERSION = dbversion
-	APPVERSION = appversion
-	ID_TOKEN = id_token
 	INDEXEDDB_STORES = indexeddb_stores
 }
 
@@ -268,7 +198,7 @@ async function Updater_StoresToIndexeddb(store_metas:DataSyncStoreMetaT[]) {
 	for(const sm of store_metas) {
 		const store_url = INDEXEDDB_STORES.find((s) => s.name === sm.n)!.url
 		paths.push(store_url)
-		opts.push({ limit: 1000, order_by: "ts,desc", ts: sm.ts })
+		opts.push({ limit: 10000, order_by: "ts,desc", ts: sm.ts })
 	}
 
 	const body = { paths, opts }
@@ -276,9 +206,7 @@ async function Updater_StoresToIndexeddb(store_metas:DataSyncStoreMetaT[]) {
 	const fetchopts = {   
 		method: "POST",
 		headers: { 
-			"Content-Type": "application/json", 
-			"appversion": APPVERSION,
-			"Authorization": `Bearer ${ID_TOKEN}`
+			"Content-Type": "application/json"
 		},
 		body: JSON.stringify(body),
 	}
@@ -305,7 +233,10 @@ async function Updater_StoresToIndexeddb(store_metas:DataSyncStoreMetaT[]) {
 
 	await write_to_indexeddb(data, store_metas, DBNAME, DBVERSION)
 
-	store_metas.forEach((sm) => { sm.l = DataSyncStoreMetaStateE.LOADED; sm.ts = Math.floor(Date.now() / 1000) })
+	store_metas.forEach((sm, i) => { 
+		sm.l = data[i].length ? DataSyncStoreMetaStateE.LOADED_AND_CHANGED : DataSyncStoreMetaStateE.LOADED_AND_UNCHANGED; 
+		sm.ts = Math.floor(Date.now() / 1000) 
+	})
 }
 
 
@@ -358,6 +289,8 @@ function write_to_indexeddb(
 
 			tx.oncomplete = (_event:any) => {
 
+				db.close()
+
 				if (are_there_any_put_errors) {   
 					redirect_from_error("firestorelive_indexeddb_put","Firestorelive Error putting data into IndexedDB")  
 					return   
@@ -367,6 +300,7 @@ function write_to_indexeddb(
 			}
 
 			tx.onerror = (_event:any) => {
+				db.close()
 				redirect_from_error("firestorelive_indexeddb_put","Firestorelive Error putting data from IndexedDB")
 			}
 		}
@@ -379,6 +313,7 @@ function write_to_indexeddb(
 function redirect_from_error(errmsg:string, errmsg_long:string) {
 	self.postMessage({ cmd: "error", errmsg, errmsg_long })
 }
+
 
 
 

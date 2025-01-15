@@ -1,6 +1,6 @@
 
 
-type str = string; //type int = number; //type bool = boolean;
+import { str } from './defs.js'
 
 
 

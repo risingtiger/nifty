@@ -211,6 +211,12 @@ function dragreleased(_e:Event) {
         s.active_view.offsetHeight
 
         s.active_view.addEventListener("transitionend", transitionend_cancel)
+
+		/*
+		s.active_view.style.transitionDuration = `${duration}s`
+		s.active_view.style.transitionTimingFunction = `cubic-bezier(${cubic_bezier})`
+		*/
+
         s.active_view.style.transform = `translate3d(0px, 0px, 0px)`
         s.previous_view.style.transform = `translate3d(-150px, 0, 0)`
 
@@ -233,6 +239,56 @@ function dragreleased(_e:Event) {
         s.previous_view.style.transform = `translate3d(0, 0, 0)`
 
         s.active_view.addEventListener("transitionend", transitionend_back)
+
+		/*
+		const cubic_beziers = [
+			"0.76, 0, 0.37, 1",
+			"0.47, 0, 0.37, 1",
+			"0.09, 0.19, 0.37, 1",
+			"0.04, 0.51, 0.37, 1",
+			"0.01, 0.78, 0.37, 1"
+		]
+		const durations = [
+			0.9, 0.7, 0.5, 0.4, 0.3
+		]
+
+		let cubic_bezier = cubic_beziers[0]
+		let duration = durations[0]
+
+		if (s.x < window.innerWidth / 4) {
+			console.log("less than 1/4")
+			duration = durations[0]
+		} else if (s.x < window.innerWidth / 3) {
+			console.log("less than 1/3")
+			duration = durations[1]
+		} else if (s.x < window.innerWidth / 2) {
+			console.log("less than 1/2")
+			duration = durations[2]
+		} else if (s.x < window.innerWidth / 1.5) {
+			console.log("less than 1.5")
+			duration = durations[3]
+		} else {
+			console.log("greater than 1.5")
+			duration = durations[4]
+		}
+
+		if (s.speed_x < 0.5) {
+			cubic_bezier = cubic_beziers[0]
+			console.log("0.5")
+		} else if (s.speed_x < 0.8) {
+			console.log("0.8")
+			cubic_bezier = cubic_beziers[1]
+		} else if (s.speed_x < 1.2) {
+			console.log("1.2")
+			cubic_bezier = cubic_beziers[2]
+		} else if (s.speed_x < 1.8) {
+			console.log("1.8")
+			cubic_bezier = cubic_beziers[3]
+		} else {
+			console.log("greater 1.8")
+			cubic_bezier = cubic_beziers[4]
+		}
+		*/
     }
 
 

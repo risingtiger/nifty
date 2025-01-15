@@ -1,12 +1,10 @@
 
 
-declare var INSTANCE:INSTANCE_T // for LSP only
 
-import { str, INSTANCE_T, ServerMainsT } from "./defs_server.js"
+import { str, ServerInstanceT, ServerMainsT } from "./defs.js"
 
-import fs from "fs";
-import https from 'https';
 import express from "express";
+
 import bodyParser from 'body-parser'
 
 import { initializeApp, cert }  from "firebase-admin/app";
@@ -25,6 +23,11 @@ import Notifications from "./notifications.js"
 import FileRequest from "./filerequest.js"
 import Entry from "./entry.js"
 import HTMLStr from "./htmlstr.js"
+import Logger from "./logger.js"
+import Emailing from "./emailing.js"
+
+
+declare var INSTANCE:ServerInstanceT // for LSP only
 
 
 //{--index_instance.js--} 
@@ -34,10 +37,9 @@ const STATIC_PREFIX = "static_";
 const APPVERSION=0; 
 
 
-const VAR_NODE_ENV = process.env.NODE_ENV || 'dev';
-const VAR_PORT = process.env.NIFTY_PORT || process.env.PORT;
+const VAR_NODE_ENV        = process.env.NODE_ENV || 'dev';
+const VAR_PORT            = process.env["NIFTY_INSTANCE_"+INSTANCE.INSTANCEID.toUpperCase()+"_PORT"] || process.env.PORT;
 const VAR_OFFLINEDATE_DIR = VAR_NODE_ENV === "dev" && process.env.NIFTY_OFFLINEDATA_DIR
-const VAR_USE_LOCAL_HTTPS = VAR_NODE_ENV !== "dev" ? true : process.env.NIFTY_USE_LOCAL_HTTPS ? true : false;
 
 const app = express()
 
@@ -71,7 +73,6 @@ app.get([
 
 
 
-app.get('/api/latest_app_version', latest_app_version)
 
 app.post('/api/refresh_auth', refresh_auth)
 
@@ -94,6 +95,11 @@ app.post('/api/influxdb_retrieve_medians', influxdb_retrieve_medians)
 
 
 app.get("/api/sse_add_listener", sse_add_listener)
+
+
+
+app.post("/api/logger/save", logger_save)
+app.get("/api/logger/get",   logger_get)
 
 
 
@@ -122,13 +128,6 @@ app.get('/v', htmlstr)
 async function assets_general(req:any, res:any) {
 	const fileurl = req.url
     FileRequest.runit(fileurl, res, VAR_NODE_ENV, STATIC_PREFIX);
-}
-
-
-
-
-async function latest_app_version(_req:any, res:any) {
-	res.status(200).send(APPVERSION.toString())
 }
 
 
@@ -293,6 +292,31 @@ async function sse_add_listener(req:any, res:any) {
 
 
 
+async function logger_save(req:any, res:any) {
+
+	Logger.Save(
+		db, 
+		req.body.user_email, 
+		req.body.device, 
+		req.body.browser, 
+		req.body.logs, 
+		req.body.is_localhost)
+
+	res.status(200).send("")
+}
+
+
+
+
+async function logger_get(req:any, res:any) {
+
+	const logs = await Logger.Get(db, req.query.user_email, req.query.is_localhost)
+	res.status(200).send(logs)
+}
+
+
+
+
 async function notifications_add_subscription(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
@@ -345,9 +369,8 @@ async function entry(req:any, res:any) {
 
 
 
-async function htmlstr(req:any, res:any) {
+async function htmlstr(_req:any, res:any) {
 
-	debugger
 	//res.set('Cache-Control', 'private, max-age=300');
 	res.set('Content-Type', 'text/html; charset=UTF-8');
 	res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
@@ -422,22 +445,12 @@ async function startit() {
         })
     }
 
-	else if ( VAR_USE_LOCAL_HTTPS )  {
-
-		const https_options = {
-			key: fs.readFileSync("/Users/dave/.ssh/localhost-key.pem"),
-			cert: fs.readFileSync("/Users/dave/.ssh/localhost.pem")
-		}
-		
-		https.createServer(https_options, app).listen( Number(VAR_PORT), () => {
-			console.info(`HTTPS App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
-		})
-	}
-
 	else {
 
-		app.listen( Number(VAR_PORT), () => {
-			console.info(`HTTP App version ( ${APPVERSION} ) listening on port ${(VAR_PORT)}`);
+		const port_num = VAR_NODE_ENV === "dev" ? Number(VAR_PORT) : Number(VAR_PORT)+1
+
+		app.listen( port_num, () => {
+			console.info(`HTTP App version ( ${APPVERSION} ) listening on port ${(port_num)}`);
 		})
     } 
 
@@ -447,7 +460,7 @@ async function startit() {
 
 function validate_request(res:any, req:any) {   return new Promise((promiseres)=> {
 
-	if (VAR_NODE_ENV === "dev" && VAR_OFFLINEDATE_DIR) {
+	if ( (VAR_NODE_ENV === "dev" && VAR_OFFLINEDATE_DIR) || APPVERSION===0 ) {
 		promiseres(true)
 	}
 
@@ -486,12 +499,39 @@ async function bootstrapit() {
 
     await init()
 
-	let servermains:ServerMainsT = {app, db, appversion:APPVERSION, sheets, notifications:Notifications, firestore:Firestore, influxdb:InfluxDB, validate_request}
+	let servermains:ServerMainsT = {
+		app, 
+		db, 
+		appversion:APPVERSION, 
+		sheets, 
+		notifications:Notifications, 
+		firestore:Firestore, 
+		influxdb:InfluxDB, 
+		emailing:Emailing,
+		sse:SSE,
+		validate_request
+	}
+
     INSTANCE.Set_Server_Mains(servermains)
     INSTANCE.Set_Routes()
 
     startit()
 }
+
+
+
+
+(process.openStdin()).addListener("data", async (a:any) => {
+
+	let data = (Buffer.from(a, 'base64').toString()).trim();
+
+	if (data == "start") {
+		bootstrapit()
+	}
+})
+
+
+
 
 bootstrapit()
 

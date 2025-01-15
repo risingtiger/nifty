@@ -1,15 +1,15 @@
 
-import { str } from "../../defs.js";
-import { IndexedDBStoreMetaT } from "../defs_client.js";
+import { str, num  } from "../defs_server_symlink.js";
+import { IndexedDBStoreMetaT  } from "../defs.js";
 
 
 let DBNAME:str = ""
-let DBVERSION:int = 0
+let DBVERSION:num = 0
 let STORE_METAS:IndexedDBStoreMetaT[] = []
 
 
 
-function Init(store_metas: IndexedDBStoreMetaT[], db_name: str, db_version: int) {   
+function Init(store_metas: IndexedDBStoreMetaT[], db_name: str, db_version: num) {   
 
     return new Promise(async (res, _rej) => {
 

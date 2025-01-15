@@ -1,6 +1,7 @@
 
 
-import {str, $NT, FetchLassieHttpOptsT } from "../../../defs_client";
+import {$NT, FetchLassieHttpOptsT } from "../../../defs.js";
+import {str } from "../../../defs_server_symlink.js";
 
 
 declare var Lit_Render: any;

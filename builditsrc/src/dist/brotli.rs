@@ -7,13 +7,14 @@ use std::path::Path;
 use brotli::CompressorWriter;
 use glob::glob;
 
+use crate::common_helperfuncs::path;
+use crate::common_helperfuncs::PathE;
 
 
 
 pub fn runit() -> Result<()> {
 
-    let folder  = crate::CLIENT_OUTPUT_DIST_PATH.clone();
-    let folder  = Path::new(&folder);
+    let folder  = path(PathE::ClientOutputDist);
 
     let glob_str = &format!("{}/**/*", folder.to_str().unwrap());
 

@@ -1,6 +1,7 @@
 
 
-import { LazyLoadT, bool, str } from "../defs_client.js";
+import { bool, str } from "../defs_server_symlink.js";
+import { LazyLoadT } from "../defs.js";
 
 
 const TIMEOUT_TS = 9000;

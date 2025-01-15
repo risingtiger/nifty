@@ -2,7 +2,7 @@
 :host {
     --textcolor: #565656;
     --textcolor-fade: #818181;
-    --textsize: 14px;
+    --textsize: 14px;+
     --actioncolor: #0091e8;
     --background: white;
     --background-highlight: #f9f9f9;
@@ -169,7 +169,7 @@ ul.items {
 
         & > i.action {
             display: block;
-            padding: 20px 8px 0 13px;
+            padding: 17px 8px 0 13px;
             color: #c1c1c1;
             font-size: 18px;
             width: 20px;
@@ -192,10 +192,36 @@ ul.items {
             & > h6 {
                 font-weight: 500;
             }
+            & > h6.bits {
+				display: flex;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow:clip;
+				margin-bottom: 0px;
+				
 
-            & > p {
+				& > span.bit {
+					display: block;
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow:clip;
+				}
+            }
+
+            & > h6 + p {
                 font-weight: 300;
-                color: var(--textcolor-fade);
+            }
+            & > h6 + p.bitslegend {
+				display: flex;
+
+				&> span.bit {
+					color: var(--textcolor-fade);
+					display: block;
+					font-size: 11px;
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow:clip;
+				}
             }
 
             & > i[class*=" icon-"].action {
@@ -451,6 +477,10 @@ i[class*=" icon-"]:before {
 
 .icon-burger:before {
     content: "\f114";
+}
+
+.icon-save:before {
+    content: "\f115";
 }
 
 @media only screen and (max-device-width: 767px) {

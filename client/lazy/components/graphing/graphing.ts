@@ -1,6 +1,7 @@
 
 
-import { num, bool, str, $NT } from "../../../defs_client.js"
+import { $NT } from "../../../defs.js"
+import { num, bool, str } from "../../../defs_server_symlink.js"
 
 declare var Chartist_LineChart: any;
 declare var Chartist_BarChart: any;

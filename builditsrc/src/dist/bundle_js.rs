@@ -6,6 +6,9 @@ use std::path::{Path, PathBuf};
 use serde_json;
 use std::process::Command;
 
+use crate::common_helperfuncs::PathE;
+use crate::common_helperfuncs::path;
+use crate::common_helperfuncs::pathp;
 
 
 
@@ -13,17 +16,16 @@ use std::process::Command;
 
 pub fn runit() -> Result<()> {
 
-    let instance_name      = crate::INSTANCE_DIR_NAME.clone();
+    //let instance_name      = crate::INSTANCE_DIR_NAME.clone();
     let tmp_path           = crate::TMP_PATH.clone();
     let tmp_path           = Path::new(&tmp_path);
     let main_path          = crate::MAIN_PATH.clone();
     let main_path          = Path::new(&main_path);
-    let dist_path          = crate::CLIENT_OUTPUT_DIST_PATH.clone();
+    let dist_path          = path(PathE::ClientOutputDist);
     let dist_path          = Path::new(&dist_path);
     let lazy_path          = crate::TMP_PATH.clone() + "lazy";
     let lazy_path          = Path::new(&lazy_path);
-    let lazy_instance_path = crate::TMP_PATH.clone() + &instance_name + "lazy";
-    let lazy_instance_path = Path::new(&lazy_instance_path);
+    let lazy_instance_path = pathp(PathE::InstanceClientOutputTMP, "lazy");
        
     let lazy_list          = generate_lazy_list(&lazy_path)?;
     let lazy_instance_list = generate_lazy_list(&lazy_instance_path)?;
@@ -64,7 +66,7 @@ fn generate_lazy_list(start_path: &Path) -> Result<Vec<PathBuf>> {
 
             let path_str = subpath.file_name().unwrap().to_str().unwrap().to_string();
 
-            if path_str.ends_with(".min.js") {
+            if path_str.ends_with(".js") {
                 list.push(subpath);
 
             } else if subpath.is_dir() {
