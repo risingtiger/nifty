@@ -22,6 +22,7 @@ import './alwaysload/indexeddb.js';
 import './alwaysload/datasync.js';
 import './alwaysload/logger.js';
 import './alwaysload/utils.js';
+import './alwaysload/abc.js';
 
 
 //{--main_instance.js--}
