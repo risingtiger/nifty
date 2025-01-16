@@ -2,8 +2,8 @@
 
 import { str, bool } from "../../../defs_server_symlink.js";
 
-declare var Lit_Render: any;
-declare var Lit_Html: any;
+declare var render: any;
+declare var html: any;
 
 enum ModeE { CLOSED = 0, OPEN = 1 }
 enum TypeE { SELECTBOX = 0, MENU = 1, GENERAL = 1 }
@@ -150,7 +150,7 @@ class CDselect extends HTMLElement {
         }
     }
 
-    sc() { Lit_Render(this.template(this.s), this.shadow); }
+    sc() { render(this.template(this.s), this.shadow); }
 
     dialog_clicked(e: MouseEvent) {
         if (e.target === this.els.dialog_view && this.s.mode === ModeE.OPEN) {
@@ -392,7 +392,7 @@ class CDselect extends HTMLElement {
 
     }
 
-    template = (_s: StateT) => { return Lit_Html`{--css--}{--html--}`; };
+    template = (_s: StateT) => { return html`{--css--}{--html--}`; };
 }
 
 customElements.define('c-dselect', CDselect);
