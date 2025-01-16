@@ -3,8 +3,8 @@
 
 import { str, num, bool } from "../../../defs_server_symlink.js";
 
-declare var Lit_Render: any;
-declare var Lit_Html: any;
+declare var render: any;
+declare var html: any;
 
 
 
@@ -130,12 +130,12 @@ class CBtn extends HTMLElement {
 
 
 
-    sc() {   Lit_Render(this.template(), this.shadow);   }
+    sc() {   render(this.template(), this.shadow);   }
 
 
 
 
-    template = () => { return Lit_Html`{--css--}{--html--}`; }; 
+    template = () => { return html`{--css--}{--html--}`; }; 
 }
 
 
