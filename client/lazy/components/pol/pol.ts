@@ -1,8 +1,8 @@
 
 import { str, num, bool, } from '../../../defs_server_symlink.js';
 
-declare var Lit_Render: any;
-declare var Lit_Html: any;
+declare var render: any;
+declare var html: any;
 
 enum ShapeE {
 	NOT_APPLICABLE,
@@ -427,11 +427,11 @@ class CPOl extends HTMLElement {
 	}
 
 	private stateChange() {
-		Lit_Render(this.template(this.state, this.model), this.shadow);
+		render(this.template(this.state, this.model), this.shadow);
 	}
 
 	private template (_state: StateT, _model: ModelT) {
-		return Lit_Html`{--css--}{--html--}`;
+		return html`{--css--}{--html--}`;
 	}
 }
 
