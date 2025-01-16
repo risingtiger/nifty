@@ -10,8 +10,8 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 
 
 
-(window as any).Lit_Render        = render;
-(window as any).Lit_Html          = html;
+(window as any).render        = render;
+(window as any).html          = html;
 (window as any).Lit_Element       = LitElement;
 (window as any).Lit_UnsafeHtml    = unsafeHTML;
 (window as any).Lit_Css           = css;
