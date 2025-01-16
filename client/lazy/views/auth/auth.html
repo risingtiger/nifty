@@ -26,7 +26,7 @@
         </ul>
     </form>
 
-    ${_s.error_msg ? Lit_Html`<div class="error">${_s.error_msg}</div>` : ''}
+    ${_s.error_msg ? html`<div class="error">${_s.error_msg}</div>` : ''}
 
     <button class="btn" @click="${()=>this.Login()}">login</span>
 
