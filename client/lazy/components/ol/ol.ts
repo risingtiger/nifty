@@ -3,8 +3,8 @@
 import { str, num, bool } from "../../../defs_server_symlink.js";
 
 
-declare var Lit_Render: any;
-declare var Lit_Html: any;
+declare var render: any;
+declare var html: any;
 
 
 
@@ -148,7 +148,7 @@ class COl extends HTMLElement {
 
 
 
-    sc() {   Lit_Render(this.template(this.s, this.m), this.shadow);   }
+    sc() {   render(this.template(this.s, this.m), this.shadow);   }
 
 
 
@@ -375,7 +375,7 @@ class COl extends HTMLElement {
 
 
 
-    template = (_s:StateT, _m:ModelT) => { return Lit_Html`{--css--}{--html--}`; }; 
+    template = (_s:StateT, _m:ModelT) => { return html`{--css--}{--html--}`; }; 
 }
 
 
