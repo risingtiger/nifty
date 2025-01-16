@@ -4,8 +4,8 @@
 import { str, num, bool } from "../../../defs_server_symlink.js";
 
 declare var Lit_Element: any;
-declare var Lit_Render: any;
-declare var Lit_Html: any;
+declare var render: any;
+declare var html: any;
 //declare var Lit_Css: any;
 
 
@@ -622,13 +622,13 @@ class CIn extends Lit_Element {
 
 
     sc() {   
-		Lit_Render(this.template(), this.shadow);   
+		render(this.template(), this.shadow);   
 	}
 
 
 
 
-    template = () => { return Lit_Html`{--css--}{--html--}`; }; 
+    template = () => { return html`{--css--}{--html--}`; }; 
 }
 
 
