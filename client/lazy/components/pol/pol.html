@@ -1,7 +1,7 @@
 <div class="wrapper ${_state.isMinimizable ? 'minimizable' : ''} ${_state.isMinimized ? 'collapsed' : 'expanded'}">
-	${_state.showHeader ? Lit_Html`
+	${_state.showHeader ? html`
 	<header @click="${ () => this.toggleCollapseExpand() }">
-		<div class="left">${_state.isMinimizable ? Lit_Html`
+		<div class="left">${_state.isMinimizable ? html`
 			<div class="collapse">
 			</div>
 			<div class="expand">
