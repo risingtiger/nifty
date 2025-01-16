@@ -4,8 +4,8 @@ import {$NT, FetchLassieHttpOptsT } from "../../../defs.js";
 import {str } from "../../../defs_server_symlink.js";
 
 
-declare var Lit_Render: any;
-declare var Lit_Html: any;
+declare var render: any;
+declare var html: any;
 declare var $N: $NT;
 
 
@@ -54,7 +54,7 @@ class VAuth extends HTMLElement {
 
 	sc() {
 
-		Lit_Render(this.template(this.s), this.shadow);
+		render(this.template(this.s), this.shadow);
 
 	}
 
@@ -148,7 +148,7 @@ async Login() {
 
 
 
-template = (_s:State) => { return Lit_Html`{--css--}{--html--}`; }; 
+template = (_s:State) => { return html`{--css--}{--html--}`; }; 
 
 }
 
