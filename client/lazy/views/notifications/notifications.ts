@@ -11,8 +11,8 @@ import { bool } from '../../../defs_server_symlink.js'
 
 
 
-declare var Lit_Render: any;
-declare var Lit_Html: any;
+declare var render: any;
+declare var html: any;
 declare var FetchLassie: any;
 
 
@@ -95,7 +95,7 @@ class VNotifications extends HTMLElement {
 
 
     sc() {
-        Lit_Render(this.template(this.s), this.shadow);
+        render(this.template(this.s), this.shadow);
     }
 
 
@@ -244,7 +244,7 @@ class VNotifications extends HTMLElement {
 
 
 
-    template = (_s:State) => { return Lit_Html`{--css--}{--html--}`; }; 
+    template = (_s:State) => { return html`{--css--}{--html--}`; }; 
 
 }
 
