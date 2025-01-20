@@ -59,9 +59,9 @@ function Add_Listener(req:any, res:any) {
 
 
 	function keepalive(res_ref:any) {
-		if ()
-		res_ref.write(':\n\n'); // Send a comment to keep the connection alive
-
+		if (res_ref.writable && !res_ref.destroyed) {
+			res_ref.write(':\n\n'); // Send a comment to keep the connection alive
+		}
 	}
 }
 
