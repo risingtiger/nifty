@@ -33,6 +33,8 @@ function Add_Listener(req:any, res:any) {
         }
     })
 
+	console.info(`New SSE listener: ${id} with listeners count: ${listeners.size}`)
+
 	res.socket.setNoDelay(true); 
 
     res.writeHead(200, {
@@ -43,24 +45,29 @@ function Add_Listener(req:any, res:any) {
 
     res.write('event: connected\n')
     res.write('data: { "message": "hey connected" }\n')
-	res.write('retry: 60000\n')
+	res.write('retry: 15000\n')
     res.write('\n')
 
+    req.on('close', cleanUp)
+	res.on('close', cleanUp)
+	res.on('finish', cleanUp)
+	res.on('error', cleanUp)
+
+	setTimeout(routinemaintenance, 60000, res)
 
 
-	const keepAliveInterval = setInterval(() => {
-		res.write(':\n\n'); // Send a comment to keep the connection alive
-	}, 60000); // 1 minute
+	function cleanUp() {
+		listeners.delete(id)
+		res.end()
+		res.destroy()
+	}
 
-    req.on('close', () => {
-		clearInterval(keepAliveInterval); // Clean up when the connection closes
-        listeners.delete(id)
-    })
-
-
-	function keepalive(res_ref:any) {
-		if (res_ref.writable && !res_ref.destroyed) {
+	function routinemaintenance(res_ref:any) {
+		if (res_ref.writable && !res_ref.destroyed && !res_ref.finished && !res_ref.writableEnded) {
 			res_ref.write(':\n\n'); // Send a comment to keep the connection alive
+			setTimeout(routinemaintenance, 60000, res_ref)
+		} else {
+			cleanUp()
 		}
 	}
 }
