@@ -59,7 +59,6 @@ function Add_Listener(req:any, res:any) {
 	function cleanUp() {
 		listeners.delete(id)
 		res.end()
-		res.destroy()
 	}
 
 	function routinemaintenance(res_ref:any) {
