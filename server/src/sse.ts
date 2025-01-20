@@ -105,7 +105,28 @@ function remove_listener(l:Listener) {
 
 
 
-export default { Add_Listener, TriggerEvent }
+// Handle SIGTERM signal for graceful shutdown
+process.on('SIGTERM', handleSigTerm);
 
+function handleSigTerm() {
+    console.info('Received SIGTERM signal. Cleaning up SSE listeners.');
+
+    // End all SSE responses gracefully
+    listeners.forEach((listener) => {
+        try {
+            listener.endit();
+        } catch (e) {
+            console.error(`Error while ending listener ${listener.id}:`, e);
+        }
+    });
+
+    // Clear the listeners map
+    listeners.clear();
+
+    // Exit the process after cleanup
+    process.exit(0);
+}
+
+export default { Add_Listener, TriggerEvent }
 
 
