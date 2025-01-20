@@ -48,6 +48,7 @@ function Add_Listener(req:any, res:any) {
     res.write('data: { "message": "hey connected" }\n')
 	res.write('retry: 15000\n')
     res.write('\n\n')
+    res.flush()
 
 	const keepAliveInterval = setInterval(() => {                                                        
 		res.write(':\n\n'); // Send a comment to keep the connection alive                                 
