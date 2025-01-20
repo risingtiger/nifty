@@ -8,7 +8,8 @@ import { SSETriggersE, str  } from './defs.js'
 
 type ListenerT = {
     id:str,
-    cb:(trigger:SSETriggersE, obj:any)=>void
+    cb:(trigger:SSETriggersE, obj:any)=>void,
+	endit:()=>void
 }
 
 const listeners:Map<str,ListenerT> = new Map()
@@ -30,7 +31,10 @@ function Add_Listener(req:any, res:any) {
             res.write(`event: a_${trigger}\n`)
             res.write(`data: ${JSON.stringify(data)}\n`)
             res.write('\n')
-        }
+        },
+		endit: ()=> {
+			res.end()
+		}
     })
 
 	console.info(`New SSE listener: ${id} with listeners count: ${listeners.size}`)
@@ -57,8 +61,9 @@ function Add_Listener(req:any, res:any) {
 
 
 	function cleanUp() {
+		const listener = listeners.get(id)
+		listener?.endit()
 		listeners.delete(id)
-		res.end()
 	}
 
 	function routinemaintenance(res_ref:any) {
