@@ -30,11 +30,13 @@ function Add_Listener(req:any, res:any) {
         id, 
         cb: (trigger:SSETriggersE, data:any)=> {
             res.write(`event: a_${trigger}\n`)
-            res.write(`data: ${JSON.stringify(data)}\n`)
-			res.write('retry: 15000\n')
+            res.write(`data: ${JSON.stringify(data)}`)
             res.write('\n\n')
+
         }
     })
+
+	res.socket.setTimeout(0); // Disable the timeout for this connection                                 
 
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -47,7 +49,13 @@ function Add_Listener(req:any, res:any) {
 	res.write('retry: 15000\n')
     res.write('\n\n')
 
+	const keepAliveInterval = setInterval(() => {                                                        
+		res.write(':\n\n'); // Send a comment to keep the connection alive                                 
+	}, 15000); // Every 15 seconds                                                                       
+
     req.on('close', () => {
+		clearInterval(keepAliveInterval); // Clean up when the connection closes                           
+		console.info(`SSE listener closed: ${id}`)
         listeners.delete(id)
     })
 }
