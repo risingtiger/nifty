@@ -67,9 +67,11 @@ self.addEventListener('fetch', (e:any) => {
 		if (match_r) { 
 			res(match_r) 
 
-		} else {
+		} else if (e.request.url.includes('/api/sse_add_listener')) {
+			// Pass through SSE requests untouched
+			res(fetch(e.request))
 
-			if (should_url_be_cached(e.request)) {
+		} else if (should_url_be_cached(e.request)) {
 				const r = await fetch(e.request)
 
 				if (r.ok)
