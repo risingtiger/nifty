@@ -47,13 +47,20 @@ function Add_Listener(el:HTMLElement, name:str, triggers:SSETriggersE[], callbac
 		}
 	}
 
-    const is_already_listener = sse_listeners.find(l=> l.name === name && l.el === el) ? true : false
+    const existing_listener_index = sse_listeners.findIndex(l=> l.name === name && l.el === el)
 
-    if (is_already_listener) {
-
+    const new_listener = {
+        name: name,
+        el: el,
+        triggers,
+        cb: callback_
     }
 
-    sse_listeners.push({
+    if (existing_listener_index >= 0) {
+        sse_listeners[existing_listener_index] = new_listener
+    } else {
+        sse_listeners.push(new_listener)
+    }
         name: name,
 		el: el,
         triggers,
