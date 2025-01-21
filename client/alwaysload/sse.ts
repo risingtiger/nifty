@@ -43,15 +43,14 @@ function Add_Listener(el:HTMLElement, name:str, triggers:SSETriggersE[], callbac
 
 	for (const s of sse_listeners) {
 		if (!s.el.parentElement) {
-			sse_listeners.splice(sse_listeners.indexOf(s), 1)
+			sse_listeners.splice(sse_listeners.indexOf(s), 1) // just a little cleanup. if the element is gone, remove the listener
 		}
 	}
 
     const is_already_listener = sse_listeners.find(l=> l.name === name && l.el === el) ? true : false
 
     if (is_already_listener) {
-        redirect_from_error("sse_listner_already_exists","SSE Listener with that name already exists")
-        return
+
     }
 
     sse_listeners.push({
@@ -123,14 +122,22 @@ function boot_up() {
 		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_firestore, ``)
 		console.log(`SSE Received Firestore: ${e.data}`)
 
-		if (document.hasFocus()) {
+		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_withfocus, ``)
+		console.log(`SSE Received With Focus: `)
 
-			$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_withfocus, ``)
-			console.log(`SSE Received With Focus: `)
+		const data = JSON.parse(e.data)
+		sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE)).forEach(l=> l.cb(data))
+    }) 
 
-			const data = JSON.parse(e.data)
-			sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE)).forEach(l=> l.cb(data))
-		}
+    evt.addEventListener("a_"+101, (e) => { // i need to fix this. 101 is for machine status of PWT. I need to erradicate enum SSETriggersE and use strings instead or maybe a Map or Set
+
+		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_machinestatus, ``)
+		console.log(`SSE Received Machine Status `)
+
+		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_withfocus, ``)
+
+		const data = JSON.parse(e.data)
+		sse_listeners.filter(l=> l.triggers.includes(101 as SSETriggersE)).forEach(l=> l.cb(data)) // ya, dis be fucked. gotta get rid of SSETriggersE and stick with strings
     }) 
 
     // lets just see if the browser will take care of when user goes in and out of focus on window / app
