@@ -3,6 +3,83 @@ import { num, str } from "../defs_server_symlink.js"
 import { FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs.js"
 
 
+const enum RequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
+
+
+type RequestT = {
+    url: str,
+    ts: num,
+    http_opts: FetchLassieHttpOptsT,
+    opts: FetchLassieOptsT,
+    state: RequestStateE,
+    cb: (_:any)=>void,
+}
+
+
+
+
+function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts:FetchLassieOptsT|null|undefined) { return new Promise(async (response_callback:(_:any)=>void)=> { 
+
+    http_optsP = http_optsP || { method: "GET", headers: {}, body: null }
+    opts = opts || { isbackground: false, timeout: 9000 }
+
+    opts.isbackground = typeof opts.isbackground !== "undefined" ? opts.isbackground : false
+	opts.timeout = typeof opts.timeout !== "undefined" ? opts.timeout : 9000
+
+    let http_opts:FetchLassieHttpOptsT = {
+        method: typeof http_optsP.method !== "undefined" ? http_optsP.method : "GET",
+        headers: typeof http_optsP.headers !== "undefined" ? http_optsP.headers : {},
+        body: typeof http_optsP.body !== "undefined" ? http_optsP.body : null
+    }
+
+    http_opts.method  = typeof http_opts.method !== "undefined" ? http_opts.method : "GET"
+    http_opts.headers = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
+    http_opts.body    = typeof http_opts.body !== "undefined" ? http_opts.body : null
+
+    if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
+    if(!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
+
+	setBackgroundOverlay(opts.isbackground)
+
+	const controller = new AbortController();
+	const { signal } = controller;
+
+	const fetchPromise = fetch(url, { ...http_opts, signal });
+
+	const timeoutControllerId     = setTimeout(() => {   controller.abort();        }, opts.timeout);
+	const timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 600);
+
+	fetchPromise.finally(() => { 
+		clearTimeout(timeoutControllerId)
+		clearTimeout(timeoutWaitingAnimateId)
+
+		setBackgroundOverlay(false)
+		setWaitingAnimate(false)
+	});
+
+	return fetchPromise
+})}
+
+
+
+
+function setBackgroundOverlay(ison:boolean) {
+    const xel = document.getElementById("fetchlassy_overlay")!
+    if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
+}
+
+
+
+
+function setWaitingAnimate(ison:boolean) {
+    const xel = document.getElementById("fetchlassy_overlay .waiting_animate")!
+    if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
+}
+
+
+
+
+/*
 enum QueRequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
 
 
@@ -17,7 +94,6 @@ type QueRequestT = {
 
 
 const ques:QueRequestT[] = []
-
 
 
 
@@ -43,16 +119,6 @@ function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts
 
     if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
     if(!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
-
-	/*
-    if (url.startsWith("/api/"))
-        http_opts.headers["appversion"] = (window as any).APPVERSION
-
-    if (url.startsWith("/api/") && !opts.disable_auth) {
-        let id_token = await authrequest()
-        http_opts.headers["Authorization"] = `Bearer ${id_token}`
-    }
-	*/
 
     set_que(url, opts, http_opts, (r)=>response_callback(r))
 })}
@@ -101,58 +167,6 @@ function set_que(url:string, opts:FetchLassieOptsT, http_opts:FetchLassieHttpOpt
 
 
 
-/*
-function authrequest() { return new Promise<string>(async (res,_rej)=> { 
-
-    let id_token = localStorage.getItem('id_token')
-    let refresh_token = localStorage.getItem('refresh_token')
-    let token_expires_at = localStorage.getItem('token_expires_at')!
-
-    if (!id_token) {
-        error_out("fetchlassie_id_token_missing", "Fetchlassie - ID token missing in browser storage")
-        return
-    }
-
-
-    if (Date.now()/1000 > parseInt(token_expires_at)-30) {
-
-        const body = { refresh_token }
-
-        fetch('/api/refresh_auth', {
-
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
-
-        }).then(async r=> {
-
-            let data = await r.json()
-
-            if (data.error) {
-                error_out("fetchlassie_refresh_auth_failed", "Fetchlassie Refresh Auth Failed - " + data.error.message)
-            }
-
-            else {
-                localStorage.setItem('id_token', data.id_token)
-                localStorage.setItem('refresh_token', data.refresh_token)
-                localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expires_in) ).toString() )
-
-                res(data.id_token)
-            }
-
-        }).catch(err=> {
-			error_out("fetchlassie_network_refresh_auth_failed", "Fetchlassie Network Refresh Auth Failed - " + err.message)
-        })
-    }
-
-    else {
-        res(id_token)
-    }
-})}
-*/
-
 
 
 
@@ -198,6 +212,7 @@ function fetch_lassie_ticktock() {
 
 }
 
+*/
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
