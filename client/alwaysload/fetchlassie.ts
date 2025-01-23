@@ -18,47 +18,55 @@ type RequestT = {
 
 
 
-function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts:FetchLassieOptsT|null|undefined) { return new Promise(async (response_callback:(_:any)=>void)=> { 
-
+async function FetchLassie(url: string, http_optsP: FetchLassieHttpOptsT | undefined, opts: FetchLassieOptsT | null | undefined): Promise<any> {
     http_optsP = http_optsP || { method: "GET", headers: {}, body: null }
     opts = opts || { isbackground: false, timeout: 9000 }
 
     opts.isbackground = typeof opts.isbackground !== "undefined" ? opts.isbackground : false
-	opts.timeout = typeof opts.timeout !== "undefined" ? opts.timeout : 9000
+    opts.timeout = typeof opts.timeout !== "undefined" ? opts.timeout : 9000
 
-    let http_opts:FetchLassieHttpOptsT = {
+    let http_opts: FetchLassieHttpOptsT = {
         method: typeof http_optsP.method !== "undefined" ? http_optsP.method : "GET",
         headers: typeof http_optsP.headers !== "undefined" ? http_optsP.headers : {},
         body: typeof http_optsP.body !== "undefined" ? http_optsP.body : null
     }
 
-    http_opts.method  = typeof http_opts.method !== "undefined" ? http_opts.method : "GET"
+    http_opts.method = typeof http_opts.method !== "undefined" ? http_opts.method : "GET"
     http_opts.headers = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
-    http_opts.body    = typeof http_opts.body !== "undefined" ? http_opts.body : null
+    http_opts.body = typeof http_opts.body !== "undefined" ? http_opts.body : null
 
-    if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
-    if(!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
+    if (!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
+    if (!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
 
-	setBackgroundOverlay(opts.isbackground)
+    setBackgroundOverlay(opts.isbackground)
 
-	const controller = new AbortController();
-	const { signal } = controller;
+    const controller = new AbortController();
+    const { signal } = controller;
 
-	const fetchPromise = fetch(url, { ...http_opts, signal });
+    let timeoutControllerId: number;
+    let timeoutWaitingAnimateId: number;
 
-	const timeoutControllerId     = setTimeout(() => {   controller.abort();        }, opts.timeout);
-	const timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 600);
+    try {
+        timeoutControllerId = setTimeout(() => { controller.abort(); }, opts.timeout);
+        timeoutWaitingAnimateId = setTimeout(() => { setWaitingAnimate(true); }, 600);
 
-	fetchPromise.finally(() => { 
-		clearTimeout(timeoutControllerId)
-		clearTimeout(timeoutWaitingAnimateId)
+        const fetchResponse = await fetch(url, { ...http_opts, signal });
 
-		setBackgroundOverlay(false)
-		setWaitingAnimate(false)
-	});
+        if (!fetchResponse.ok) {
+            throw new Error(`Network response was not ok: ${fetchResponse.status} ${fetchResponse.statusText}`);
+        }
 
-	return fetchPromise
-})}
+        const data = await (http_opts.headers["Accept"] === "application/json" ? fetchResponse.json() : fetchResponse.text());
+        return data;
+    } catch (error) {
+        throw error;
+    } finally {
+        clearTimeout(timeoutControllerId);
+        clearTimeout(timeoutWaitingAnimateId);
+        setBackgroundOverlay(false);
+        setWaitingAnimate(false);
+    }
+}
 
 
 
