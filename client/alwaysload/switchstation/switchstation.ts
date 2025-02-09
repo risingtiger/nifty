@@ -7,7 +7,7 @@ import SwitchStationDragBack from "./dragback.js"
 declare var $N:any
 
 const hstack:Array<str> = [];
-
+let   cancelhashload = false;
 const view_load_done_event = new Event("view_load_done");
 
 
@@ -23,6 +23,9 @@ class Route {
 
     constructor(lazyload_view_: LazyLoadT) {
         this.lazyload_view = lazyload_view_
+
+		const s = lazyload_view_.urlmatch!.split[":"]
+
         this.path_regex     = new RegExp(this.lazyload_view.urlmatch!)
     }
 
@@ -31,7 +34,7 @@ class Route {
 
     load(urlm:Array<str>, views_attach_point:"beforeend"|"afterbegin") { 
 
-        return new Promise<any>( async (res, _rej) => {
+        return new Promise<string>( async (res, _rej) => {
 
             await $N.LazyLoad.Run([this.lazyload_view]);
 
@@ -46,6 +49,7 @@ class Route {
             const el = els[els.length-1]
 
             el.addEventListener("hydrated", hydrated)
+            el.addEventListener("failed", failed)
 
             el.addEventListener("touchstart", SwitchStationDragBack.TouchDown)
             el.addEventListener("touchend", SwitchStationDragBack.TouchUp)
@@ -58,14 +62,20 @@ class Route {
                 // TODO: - Need to have display set to block from the get go and use visibility hidden instead
 
                 if (viewname.includes("machinetelemetry")) {
-                    res(1)
+                    res('success')
                 } else {
                     setTimeout(()=> { //Flashes before css is loaded ... this is for development environment where the css is being linked in (allowing for chrome css edit). In prod its all bundled together, so there won't be a separate css file load
-                        res(1)
+                        res('success')
                     }, 10)
                 }
 
 				el.removeEventListener("hydrated", hydrated)
+			}
+
+			function failed() {
+				el.removeEventListener("failed", failed)
+				el.remove()
+				res('failed')
 			}
         })
     }
@@ -88,6 +98,10 @@ const InitInterval = ()=> {
     */
 
     window.addEventListener('hashchange', (e)=> {
+		if (cancelhashload) {
+			cancelhashload = false
+			return
+		}
         hash_changed(e)
     })
 
@@ -115,17 +129,26 @@ function Back() {
 
 
 
-function load_and_attach_route(url: str, views_attach_point:"beforeend"|"afterbegin") {   return new Promise<any>(async (res, _rej)=> {
+function load_and_attach_route(url: str, views_attach_point:"beforeend"|"afterbegin") {   return new Promise<string>(async (res, _rej)=> {
 
     const [ urlm, route ] = load_and_attach_route___set_match_and_get_match_and_route(url);
 
-    route.load(urlm, views_attach_point).then(()=> {   res(1)   })
+    route.load(urlm, views_attach_point).then((result:string)=> {   
+		if (result === 'failed') {
+			res('failed')
+		} else if ( result === 'success' ) {
+			res('success')   
+		} else {
+			throw new Error("Unknown result")
+		}
+	})
 })}
 
 
 
 
 function load_and_attach_route___set_match_and_get_match_and_route(url: str) : [Array<str>, Route] {
+
 
     for (let i = 0; i < _routes.length; i++) {
 
@@ -147,12 +170,7 @@ async function hash_changed(e:Event|null = null) {
     const overlayel = document.getElementById("switchstation_overlay") as HTMLElement
 
     if (overlayel.style.display === "block") {
-
-        if ((window as any).APPVERSION !== 0) { 
-            window.location.href = `/?errmsg=${encodeURIComponent('switchstation already in transition')}`; 
-        }   
-        console.error("switchstation already in transition")
-
+		window.location.href = `/?errmsg=${encodeURIComponent('switchstation already in transition')}`; 
         return
     } 
 
@@ -184,15 +202,15 @@ async function hash_changed(e:Event|null = null) {
         hash_changed___posthash()
     }
 
-    else if (!hstack.length) {
+    else if (!hstack.length) { // first time load in browser
 
-        if (window.location.hash === "") {
-            await load_and_attach_route("home", "beforeend")
-        } 
+		const n = window.location.hash === "" ? "home" : window.location.hash.substring(1)
+		const loadresult = await load_and_attach_route(n, "beforeend")
 
-        else {
-            await load_and_attach_route(window.location.hash.substring(1), "beforeend")
-        }
+		if (loadresult === "failed") {
+			window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view')
+			return
+		}
 
         const view = document.querySelector("#views .view") as HTMLElement
 
@@ -204,14 +222,20 @@ async function hash_changed(e:Event|null = null) {
         hash_changed___posthash()
     } 
 
-    else if (window.location.hash.substring(1) === hstack[hstack.length-2]) {
+    else if (window.location.hash.substring(1) === hstack[hstack.length-2]) { // is going back
 
         const activeview = document.querySelector("#views .view[active]")
+        let   previousview = activeview?.previousElementSibling
 
-        let previousview = activeview?.previousElementSibling
+        if(!previousview) { // browser load at a particular page and then back button pressed. History exists in browser, but not previous view
 
-        if(!previousview) {
-            await load_and_attach_route(hstack[hstack.length-2], "afterbegin")
+            const loadresult  = await load_and_attach_route(hstack[hstack.length-2], "afterbegin")
+
+			if (loadresult === "failed") {
+				window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view')
+				return
+			}
+
             previousview = activeview?.previousElementSibling as HTMLDivElement
             previousview.classList.add("previous_endstate")
             //@ts-ignore
@@ -243,7 +267,12 @@ async function hash_changed(e:Event|null = null) {
 
     } else {   // is going forward
 
-        await load_and_attach_route(window.location.hash.substring(1), "beforeend")
+        const loadresult = await load_and_attach_route(window.location.hash.substring(1), "beforeend")
+
+		if (loadresult === "failed") {
+			has_changed___failed_posthash(false)
+			return
+		}
 
         const allviews = document.querySelectorAll("#views .view") as NodeListOf<HTMLElement>
         const activeview = allviews[allviews.length-1]
@@ -276,36 +305,6 @@ async function hash_changed(e:Event|null = null) {
             activeview.removeEventListener("transitionend", activeview_transition_end)
         }
     }
-
-    /*
-    if (document.querySelector("#views .view[active].dragging.released")) {
-
-        const activeview = document.querySelector("#views .view[active].dragging.released") as HTMLElement
-        const previousview = activeview.previousElementSibling as HTMLElement
-
-        activeview?.remove()
-        previousview.setAttribute("active", "")
-        previousview.className = "view"
-
-        document.getElementById("loadviewoverlay")!.style.display = "none"
-
-        posthash(window.location.hash.substring(1))
-    }
-    */
-
-
-
-    /*
-    function previous_backin_transitionend() {
-
-        const previousview_el = document.querySelector("#views .view.transition_backin") as HTMLElement
-
-        previousview_el.classList.remove("transition_backin")
-        previousview_el.setAttribute("deactive", "")
-
-        previousview_el.removeEventListener("transitionend", previous_backin_transitionend)
-    }
-    */
 }
 
 
@@ -322,6 +321,25 @@ function hash_changed___posthash() {
 
 
 
+
+function has_changed___failed_posthash(showhomebtn=true) {
+    document.getElementById("switchstation_overlay")!.style.display = "none"
+
+	if (showhomebtn) {
+		document.body.insertAdjacentHTML("beforeend", `<button id="gohomebtn" style="cursor:pointer;position: absolute;top: 20px;left: 50%;width: 200px;margin-left: -100px;">Reload Home Page</button>`)
+		const el = document.getElementById("gohomebtn") as HTMLButtonElement
+		el.addEventListener("click", ()=> { 
+			window.location.href = "/index.html" 
+		})
+	}
+	cancelhashload = true
+	window.location.hash = hstack[hstack.length-1]
+	alert ("Network error. failed to load view")
+}
+
+
+
+console.log("Now I need to deal with the whole hash in the URL thing. Click 'View Machines' button. The alert happens. All is well. But the url has v#machines hash. No bueno. No clicking the button again, nuten happens cause hash already at machines. So, need to do something. Not sure what. MIGHT BE A GOOD TIME TO FUCK THE HASH AND GO CLEAN ON HISTORY API")
 
 
 
