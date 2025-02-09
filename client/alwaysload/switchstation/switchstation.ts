@@ -17,6 +17,7 @@ class Route {
 
     lazyload_view: LazyLoadT
     path_regex: RegExp
+    paramNames: Array<str>
 
 
 
@@ -24,9 +25,20 @@ class Route {
     constructor(lazyload_view_: LazyLoadT) {
         this.lazyload_view = lazyload_view_
 
-		const s = lazyload_view_.urlmatch!.split[":"]
+        // Initialize an array to hold parameter names
+        const paramNames: Array<str> = [];
 
-        this.path_regex     = new RegExp(this.lazyload_view.urlmatch!)
+        // Replace placeholders like ':id' with '([a-z_0-9]+)' and collect parameter names
+        const pattern = this.lazyload_view.urlmatch!.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, paramName) => {
+            paramNames.push(paramName);
+            return '([a-z_0-9]+)';
+        });
+
+        // Create the regex with the modified pattern
+        this.path_regex = new RegExp(pattern);
+
+        // Store the parameter names
+        this.paramNames = paramNames;
     }
 
 
