@@ -530,7 +530,7 @@ const getPathDatasFromIndexedDB = (pathspecs: PathSpecT[]) => new Promise<Firest
 
 		getrequest.onsuccess = (_event) => {
 			const data = getrequest.result;
-			store_datas[i] = data
+			store_datas.set(p.path, data);
 		};
 	}
 
