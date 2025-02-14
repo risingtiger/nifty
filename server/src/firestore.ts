@@ -11,7 +11,7 @@ const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
 
 
 
-type RetrieveOptsT = { order_by:str|null, ts:int|null, limit:int|null }
+type RetrieveOptsT = { order_by:str|null, ts:int|null, limit:int|null, startby?: number|null }
 
 /*
 */
@@ -20,14 +20,20 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 
     const promises:any = []
 
-    if (!opts) opts = [{order_by: null, ts: null, limit: null}]
+    if (!opts) opts = [{ order_by: null, ts: null, limit: null, startby: null }];
 
-    for(let i = opts.length; i < pathstr.length; i++) opts.push(opts[opts.length-1])
-	opts.forEach((o:any)=> { 
-		if (o.order_by === undefined) o.order_by = null
-		if (o.ts === undefined) o.ts = null
-		if (o.limit === undefined) o.limit = null
-	})
+    for (let i = opts.length; i < pathstr.length; i++) {
+        opts.push({ ...opts[opts.length - 1] });
+    }
+    opts.forEach((o: any) => {
+        if (o.order_by === undefined) o.order_by = null;
+        if (o.ts === undefined) o.ts = null;
+        if (o.limit === undefined) o.limit = null;
+        if (o.startby === undefined) o.startby = null;
+        if (o.startby !== null && (o.order_by === null || o.limit === null)) {
+            throw new Error("When startby is set, both order_by and limit must be provided.");
+        }
+    });
 
 	if (!db) {
 		const r = get_jsons(pathstr, opts)
@@ -39,8 +45,16 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
     for (let i = 0; i < pathstr.length; i++) {
         let d = parse_request(db, pathstr[i], opts[i].ts)
 
-        if (opts[i].order_by) d = d.orderBy(opts[i].order_by!.split(":")[0], opts[i].order_by!.split(":")[1])
-        if (opts[i].limit) d = d.limit(opts[i].limit)
+        if (opts[i].order_by) {
+            const [field, direction] = opts[i].order_by.split(":");
+            d = d.orderBy(field, direction);
+            if (opts[i].startby !== null) {
+                d = d.startAt(opts[i].startby);
+            }
+        }
+        if (opts[i].limit) {
+            d = d.limit(opts[i].limit);
+        }
 
         promises.push(d.get())
     }
