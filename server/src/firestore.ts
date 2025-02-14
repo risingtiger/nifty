@@ -1,11 +1,11 @@
 
 
-import { SSETriggersE  } from './defs.js'
-import SSE from './sse.js'
+import { SSETriggersE } from './defs.js'
 
 type str = string; type int = number; type bool = boolean;
 
 import { readFileSync, writeFileSync } from "fs"
+import zlib from 'node:zlib'
 
 const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
 
@@ -13,15 +13,21 @@ const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
 
 type RetrieveOptsT = { order_by:str|null, ts:int|null, limit:int|null }
 
-function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   return new Promise<any|any[]>(async (res, _rej) => {
+/*
+*/
+
+function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) {   return new Promise<Array<object[]>>(async (res, _rej) => {
 
     const promises:any = []
 
-    pathstr = Array.isArray(pathstr) ? pathstr : [pathstr]
-
-    if (!opts) opts = [{order_by: "", ts: null, limit: null}]
+    if (!opts) opts = [{order_by: null, ts: null, limit: null}]
 
     for(let i = opts.length; i < pathstr.length; i++) opts.push(opts[opts.length-1])
+	opts.forEach((o:any)=> { 
+		if (o.order_by === undefined) o.order_by = null
+		if (o.ts === undefined) o.ts = null
+		if (o.limit === undefined) o.limit = null
+	})
 
 	if (!db) {
 		const r = get_jsons(pathstr, opts)
@@ -33,7 +39,7 @@ function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   retu
     for (let i = 0; i < pathstr.length; i++) {
         let d = parse_request(db, pathstr[i], opts[i].ts)
 
-        if (opts[i].order_by) d = d.orderBy(opts[i].order_by!.split(",")[0], opts[i].order_by!.split(",")[1])
+        if (opts[i].order_by) d = d.orderBy(opts[i].order_by!.split(":")[0], opts[i].order_by!.split(":")[1])
         if (opts[i].limit) d = d.limit(opts[i].limit)
 
         promises.push(d.get())
@@ -55,7 +61,7 @@ function Retrieve(db:any, pathstr:str[]|str, opts:RetrieveOptsT[]|null) {   retu
             } 
 
             else {
-                returns.push({id: results[i].id, ...results[i].data()})
+                returns.push([{id: results[i].id, ...results[i].data()}])
             }
         }
         res(returns)
@@ -79,8 +85,6 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
 
     await batch.commit().catch((_err:any)=> { res({err:"batch commit failed"}) })
 
-	SSE.TriggerEvent(SSETriggersE.FIRESTORE, {paths: [path] } )
-
     res({ok: true})
 })}
 
@@ -103,7 +107,6 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
 
 	if (!db) {
 		const returns = patch_jsons(pathstr, data, opts)
-		SSE.TriggerEvent(SSETriggersE.FIRESTORE, {paths: pathstr})
 		res(returns)
 		return
 	}
@@ -121,12 +124,141 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
             returns.push({ok: true})
         }
 
-		SSE.TriggerEvent(SSETriggersE.FIRESTORE, {paths: pathstr } )
-
         res(returns)
     })
 })}
 
+
+
+
+/*
+async function InitBatches(db:any, sse:any, pathstr:str[], tses:number[], sse_id:str, instance_id:str) {
+
+	if (pathstr.length === 0) throw "pathstr needs at least one path in Firestore.InitBatches"
+	if (tses.length !== pathstr.length) throw "tses needs to be same length as pathstr in Firestore.InitBatches"
+
+	let batchnumber = 0
+
+	for(let i = 0; i < pathstr.length; i++) {
+		const path = pathstr[i]
+		const ts   = tses[i]
+
+		const limit = 200
+		let   ismore = true
+		let   lastdoc = null
+		
+		while(ismore) {
+			let d  = db.collection(path)
+			if (ts) d = d.where("ts", ">", ts)
+			d = d.orderBy("ts")
+			if(lastdoc) d = d.startAfter(lastdoc)
+			d = d.limit(limit)
+			const snapshot = await d.get()
+
+			const docs = snapshot.docs.map((doc:any)=> ( {id: doc.id, ...doc.data() } ) )
+
+			ismore = (snapshot.docs.length === limit) // could be no more docs, cause batch size lands on boundary of docs, but well keep going to next while, in that case next will be empty
+
+			const isend = !ismore && i === pathstr.length - 1
+
+			batchnumber++
+
+			const r = sse.TriggerEventOne(SSETriggersE.FIRESTORE_BATCH, sse_id, { path, docs, instance_id, batchnumber, isend })
+			await new Promise((res, _rej)=> setTimeout(res, 50))
+			if (!r) return // BAIL OUT. Listener was gone, so DONT blast into the void
+
+			lastdoc = snapshot.docs[snapshot.docs.length - 1]
+		}
+	}
+}
+*/
+
+
+
+
+async function InitBatches(db:any, res:any, pathstr:str[], tses:number[]) {
+
+	const pstr = pathstr.join(",")
+
+	const gzip_compressor = zlib.createGzip()
+	gzip_compressor.pipe(res)
+
+	res.setHeader('Content-Type', 'text/plain')
+	res.setHeader('Transfer-Encoding', 'chunked')
+	res.set('Content-Encoding', 'gzip');
+
+	if (pathstr.length === 0) throw "pathstr needs at least one path in Firestore.InitBatches"
+	if (tses.length !== pathstr.length) throw "tses needs to be same length as pathstr in Firestore.InitBatches"
+
+	try {
+		let batchnumber = 0
+
+		for(let i = 0; i < pathstr.length; i++) {
+			const path = pathstr[i]
+			const ts   = tses[i]
+
+			const limit = 2
+			let   ismore = true
+			let   lastdoc = null
+			
+			while(ismore) {
+				let d  = db.collection(path)
+
+				if (ts) d = d.where("ts", ">", ts)
+
+				d = d.orderBy("ts")
+
+				if(lastdoc) d = d.startAfter(lastdoc)
+
+				d = d.limit(limit)
+
+				const snapshot = await d.get()
+
+				const docs = snapshot.docs.map((doc:any)=> ( {id: doc.id, ...doc.data() } ) )
+
+				ismore = (snapshot.docs.length === limit) // could be no more docs, cause batch size lands on boundary of docs, but well keep going to next while, in that case next will be empty
+
+				const isend = !ismore && i === pathstr.length - 1
+
+				batchnumber++
+
+				const chunk = JSON.stringify({ batchnumber, path, isend, docs  }) + "\n"
+
+				//const compressed = await compressit(chunk)
+
+				if (!gzip_compressor.write(chunk)) {
+					await new Promise((resolve) => gzip_compressor.once('drain', resolve))
+				}
+				//res.write(chunk)
+
+				lastdoc = snapshot.docs[snapshot.docs.length - 1]
+			}
+		}
+		console.log("pstr: ", pstr, " res.end(): ")
+		gzip_compressor.end()
+	}
+	catch(e) {
+		res.status(500).end()
+	}
+}
+
+
+
+
+/*
+const compressit = (chunk:string) => new Promise<any>((response, _rej)=> {
+	zlib.createGunzip()
+	zlib.com(chunk, {
+		params: {
+			[zlib.constants.BROTLI_PARAM_QUALITY]: 4,
+			[zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
+		},
+
+	}, (_err:any, result:any) => {
+			response(result)
+	})
+})
+*/
 
 
 
@@ -231,7 +363,7 @@ function parse_request(db:any, pathstr:str, ts:int|null) : any {
                 d = d.where(field, op, val)
             }
 
-            else if (ts !== null) {
+            else if (ts !== null && i === pathsplit.length - 1) {
                 d = d.collection(pathsplit[i]).where("ts", ">", ts)
 
             } else {
@@ -326,7 +458,7 @@ function patch_jsons(pathstr:str[]|str, data:any|any[], _opts:PatchOptsT[]|null)
 
 
 
-const Firestore = { Retrieve, Add, Patch }
+const Firestore = { Retrieve, Add, Patch, InitBatches }
 export { Firestore }
 
 
