@@ -382,64 +382,75 @@ const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
 
 
 
-const load_into_synccollections = (synccollections:SyncCollectionT[]) => new Promise<num|null>(async (res,_rej)=> {
+const load_into_synccollections = (synccollections:SyncCollectionT[]) => 
+  new Promise<num|null>(async (res,_rej)=> {
 
-	let iscomplete  = false
-	let batchnumber = 0
-	const listran   = Math.random().toString(36).substring(2, 10)
+    let iscomplete = false;
+    const listran = Math.random().toString(36).substring(2, 10);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+        if (!iscomplete) {
+            controller.abort();
+            cleanup();
+            res(null);
+        }
+    }, 30000);
 
-	synccollections.forEach(dc=> dc.lock = true)
+    synccollections.forEach(dc => dc.lock = true);
 
-	const sr        = await $N.SSEvents.WaitTilConnectedOrTimeout()
+    try {
+        const body = { 
+            paths: synccollections.map(dc => dc.name),
+            tses: synccollections.map(dc => dc.ts || null),
+            instance_id: listran 
+        };
 
-	if (!sr) { res(null); return; }
+        const response = await fetch('/api/firestore_init_batches', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: controller.signal
+        });
 
-	const paths     = synccollections.map(dc=> dc.name)
-	const tses      = synccollections.map((dc)=> (dc.ts ? dc.ts : null) )
+        if (!response.body) throw new Error('No readable stream received');
 
+        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+        
+        while(true) {
+            const { done, value } = await reader.read();
+            
+            if(done) {
+                const newts = Math.floor(Date.now()/1000);
+                synccollections.forEach(dc => dc.ts = newts);
+                localStorage.setItem("synccollections", JSON.stringify(_synccollections
+                    .map(dc => ({ name: dc.name, ts: dc.ts }))));
+                cleanup();
+                res(1);
+                return;
+            }
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_batch"+listran, [SSETriggersE.FIRESTORE_BATCH], null, async (event:{path:string,docs:object[], instance_id:str, batchnumber:num, isend:bool})=> {
+            const event = JSON.parse(value);
+            if(event.instance_id !== listran) continue;
 
-		if (event.instance_id !== listran) return
+            const synccollection = synccollections.find(dc => dc.name === event.path);
+            if(!synccollection) throw Error("Invalid collection in stream");
+            
+            await write_to_indexeddb_store([synccollection], [event.docs]);
+        }
 
-		batchnumber++
-		console.log("firestore_batch_event: ", event)
-		if (event.batchnumber !== batchnumber) {
-			cleanup()
-			res(null)
-			return
-		}
+    } catch(err) {
+        if((err as Error).name !== 'AbortError') {
+            redirect_from_error(`Stream error: ${(err as Error).message}`);
+        }
+        cleanup();
+        res(null);
+    }
 
-		const synccollection = synccollections.find(dc=> dc.name === event.path)
-		if (!synccollection) throw new Error("datasync collection not found from sse firestore batch event")
-		await write_to_indexeddb_store([synccollection], [ event.docs ])
-
-		if (event.isend) {
-			const newts = Math.floor( Date.now()  / 1000)
-			synccollections.forEach(dc=> dc.ts = newts)
-			localStorage.setItem("synccollections", JSON.stringify(_synccollections.map(dc=> ({ name: dc.name, ts: dc.ts }))))
-			cleanup()
-			res(1)
-		}
-	});
-
-
-	const timeout = setTimeout(() => { if (!iscomplete) { cleanup(); res(null); }; }, 30000);
-
-    const body = { paths, tses, sse_id: localStorage.getItem("sse_id"), instance_id: listran }
-    const fetchopts:any = { method: "POST", body: JSON.stringify(body) }
-    const rs = await $N.FetchLassie('/api/firestore_init_batches', fetchopts, null) as Promise<Array<object[]>|null>
-
-	if (rs === null) { cleanup(); res(null); return; }
-
-
-
-	function cleanup() {
-		iscomplete = true; 
-		clearTimeout(timeout);
-		$N.SSEvents.Remove_Listener(document.body, "firestore_batch"+listran)
-		synccollections.forEach(dc=> dc.lock = false)
-	}
+    function cleanup() {
+        iscomplete = true;
+        clearTimeout(timeout);
+        synccollections.forEach(dc => dc.lock = false);
+    }
 })
 
 
