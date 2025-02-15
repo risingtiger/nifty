@@ -23,7 +23,9 @@ pub mod setinstance;
 
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ManifestIconT {   src: String, sizes: String  }
+struct ManifestIconT {   purpose: String, src: String, sizes: String  }
+#[derive(Serialize, Deserialize, Debug)]
+struct ManifestScreenshotT {   src: String, sizes: String, form_factor: String  }
 #[derive(Serialize, Deserialize, Debug)]
 struct ManifestT {   
     name: String, 
@@ -32,6 +34,7 @@ struct ManifestT {
     theme_color: String, 
     background_color: String, 
     icons: Vec<ManifestIconT>, 
+    screenshots: Vec<ManifestScreenshotT>,
     scope: String, 
     start_url: String, 
     version: String, 
@@ -166,6 +169,7 @@ fn handle_manifest() -> Result<ManifestT> {
     manifest.short_name = manifest_instance.short_name;
     manifest.description = format!("App Version: {}", manifest_instance.description);
     manifest.icons = manifest_instance.icons;
+    manifest.screenshots = manifest_instance.screenshots;
     manifest.theme_color = manifest_instance.theme_color;
     manifest.background_color = manifest_instance.background_color;
     manifest.version = manifest_instance.version;
