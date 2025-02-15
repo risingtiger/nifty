@@ -281,6 +281,7 @@ pub fn handle_set_instance(instance:&str) -> Result<()> {
 
 
 pub fn handle_set_devappversion(devappversion:&str) -> Result<()> {
+    std::fs::create_dir_all("/tmp/niftybuildit")?;
     fs::write("/tmp/niftybuildit/devappversion.txt", devappversion.to_string())?;
     Ok(())
 }
