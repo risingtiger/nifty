@@ -20,7 +20,7 @@ const Init = () => {}
 
 
 
-const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, opts?:ComponentMechanicsOptsT|undefined|null) => new Promise<void>(async (res, rej)=> {
+const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, opts?:ComponentMechanicsOptsT|undefined|null, firestore_cb?:(r:FirestoreFetchResultT)=>void) => new Promise<void>(async (res, rej)=> {
 
 
 	let   lhydrations:{ el:HTMLElement }[] = []
