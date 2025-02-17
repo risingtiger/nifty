@@ -1,6 +1,7 @@
 
 
 import { num, str } from "../defs_server_symlink.js"
+
 import { 
 	$NT, 
 	ComponentMechanicsT, 
@@ -8,6 +9,8 @@ import {
 	EngagementListenerTypeT, 
 	FirestoreFetchResultT,
 	FirestoreLoadSpecT,
+    LazyLoadT,
+	URIDetailT
 } from "../defs.js"
 
 declare var $N: $NT;
@@ -15,18 +18,90 @@ declare var $N: $NT;
 
 
 
-const Init = () => {}
+let _c:{lazyload:LazyLoadT, uridetails:URIDetailT, data:any|null}|null = null
 
 
 
 
-const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, opts?:ComponentMechanicsOptsT|undefined|null, firestore_cb?:(r:FirestoreFetchResultT)=>void) => new Promise<void>(async (res, rej)=> {
+const Init = (lazyloads_:LazyLoadT[]) => {
+}
 
 
-	let   lhydrations:{ el:HTMLElement }[] = []
+
+
+const RouteChanged = (uridetails:URIDetailT, lazyload:LazyLoadT) => new Promise<void>(async (res, _rej)=> {
+
+	console.log("RouteChanged uridetails lazyload ", uridetails, lazyload)
+	 
+	_c = { lazyload, uridetails, data: null }
+
+	if (!lazyload.loadspecs || !lazyload.loadspecs.length) { res(); return; }
+
+	const loadspecs:FirestoreLoadSpecT[] = []
+	for(const ls of lazyload.loadspecs) {
+		let p = ''
+		for(const param of uridetails.params) {
+			p = p.replace(':'+param.key, param.value)
+		}
+	}
+
+	const ls = lazyload.loadspecs.map(l=> {path:l.path}) : null
+
+	if (loadspecs && loadspecs.length) {
+
+		const r = await datagrab(loadspecs)
+		if (r === null) { res(); return; }
+	}
+
+	res()
+})
+
+
+
+
+const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, opts?:ComponentMechanicsOptsT|undefined|null) => new Promise<void>(async (res, rej)=> {
+
+	const rawtagname    = component.tagName.toLowerCase()
+	const prefixsplit   = rawtagname.split("-")
+	const tagnameprefix = prefixsplit[0]
+	const tagname       = prefixsplit[0]
+	let   type          = ""
+	let   data:any|null = null
+
+	switch(tagnameprefix) {
+		case "v":  type = "view";      break;
+		case "c":  type = "component"; break;
+		case "vp": type = "viewpart";  break;
+	}
+
+	const lazyload = lazyloads.find(l=> l.name === tagname && l.type === type)
+
+	if (!lazyload) throw new Error("Lazyload not found for " + tagname)
+
+
+	{
+		const loadspecs = lazyload.loadspecs
+		if (loadspecs && loadspecs.length) {
+			data = await datagrab(loadspecs)
+			if (data === null) { hydratedfailedevent(); return; }
+		}
+
+		if (component.knitdata) component.knitdata()
+		component.sc()
+	}
+	
+
+	//let   lhydrations:{ el:HTMLElement }[] = []
 
 	for(const prop in component.a) component.a[prop] = component.getAttribute(prop)
-	component.sc()
+
+
+
+
+	//component.sc()
+
+
+
 
 
 	{
@@ -37,6 +112,10 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 	}
 
 
+
+
+
+	/*
 	{
 		lhydrations = opts.hydrates.map(l=> {
 			const el = ( component as any ).shadow.querySelector(l)
@@ -48,8 +127,14 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 			l.el.addEventListener('failed',   checkhydration)
 		})
 	}
+	*/
 
 
+
+
+
+
+	/*
 	{
 		const loadspecs = component.getloadspecs ? component.getloadspecs() : []
 		if (loadspecs.length) {
@@ -60,8 +145,10 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 		if (component.knitdata) component.knitdata()
 		component.sc()
 	}
+	*/
 
 
+	/*
 	if (component.getloadspecs) {
 		$N.Firestore.Add_Listener(
 			component, 
@@ -70,6 +157,7 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 			(r:FirestoreFetchResultT)=> handle_firestore_listener(component, r)
 		) 
 	}
+	*/
 
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {
@@ -77,10 +165,18 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 	})
 
 
+	function hydratedfailedevent() {
+		component.dataset.hydratestate = "err"
+		component.dispatchEvent(new Event('failed'))
+		rej()
+	}
+
+	/*
 	component.dataset.hydratestate = "ok"
 	checkhydration()
-	
+	*/	
 
+	/*
 	function checkhydration() {
 
 		const is_any_subcomponentserr = lhydrations.some(l=> l.el.dataset.hydratestate === "err")
@@ -105,44 +201,47 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 	}
 
 
-	function hydratedfailedevent() {
-		component.dataset.hydratestate = "err"
-		component.dispatchEvent(new Event('failed'))
-		rej()
-	}
+	*/
 })
 
 
 
 
-const AttributeChangedCallback = (component:HTMLElement & ComponentMechanicsT, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
+const AttributeChangedCallback = (a:any, sc:()=>void, knitdata:( ()=>void )|null, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
 
 	console.log("REMOVE ONCE DONE TESTING. I THINK THIS WILL SHOW UP INIT OF COMPONENT. NEED TO FILTER OUT FIRST CALLS. I THINK BY TESTING FOR NULL OF OLDVAL")
 	if (oldval === null) return
 
-	component.a[name] = newval
+	a[name] = newval
 
-	clearTimeout(component.a.lastupdatedtimeout)
-	component.a.lastupdatedtimeout = setTimeout(()=> {
-		if (component.knitdata) component.knitdata()
-		component.sc()
+	clearTimeout(a.lastupdatedtimeout)
+	a.lastupdatedtimeout = setTimeout(()=> {
+		if (knitdata) knitdata()
+		sc()
 	}, 100)
 }
 
 
 
 
-const DataGrab = async (model:any, loadspecs:FirestoreLoadSpecT[]) => new Promise<num|null>(async (res, _rej)=> {
+const datagrab = async (loadspecs:FirestoreLoadSpecT[]) => new Promise<FirestoreFetchResultT|null>(async (res, _rej)=> {
 
 	const r = await $N.Firestore.DataGrab(loadspecs)
 	if (r === null) { res(null); return; }
 
+	res(r)
+
+	/*
+	const d = {}
+
 	for(let i = 0; i < loadspecs.length; i++) {
+		const isdoc = loadspecs[i].path.split("/").length % 2 === 0
 		const m = r.get(loadspecs[i].path) as Array<object>|object
-		model[loadspecs[i].name] = Array.isArray(model[loadspecs[i].name]) ? m : m[0]
+		d[loadspecs[i].name] = isdoc ? m : m[0]
 	}
 
-	res(1)
+	res(d)
+	*/
 })
 
 
@@ -192,9 +291,10 @@ function handle_firestore_listener(component:HTMLElement & ComponentMechanicsT, 
 
 
 
+export { Init, RouteChanged }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).ComponentMechanics = { Init, ConnectedCallback, AttributeChangedCallback, DataGrab };
+((window as any).$N as any).ComponentMechanics = { ConnectedCallback, AttributeChangedCallback };
 
 
 
