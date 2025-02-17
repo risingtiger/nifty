@@ -58,9 +58,9 @@ const RouteChanged = (uridetails:URIDetailT, lazyload:LazyLoadT) => new Promise<
 	const r = await datagrab(loadspecs)
 	if (r === null) { _isgrabbingdata = false; res(); return; }
 
-	for(const [key, value] of Object.entries(r)) {
-		_data!.set(key, value)
-	}
+	r.forEach((value, key) => {
+		_data.set(key, value)
+	})
 
 	Listen_to_Loadspecs(loadspecs)
 
