@@ -275,6 +275,9 @@ const datagrab = async (loadspecs:FirestoreLoadSpecT[]) => new Promise<Firestore
 	const r = await $N.Firestore.DataGrab(loadspecs)
 	if (r === null) { res(null); return; }
 
+	r.forEach((value, key) => {
+		_data.set(key, value);
+	});
 	res(r)
 
 	/*
