@@ -9,21 +9,29 @@ import {
 	EngagementListenerTypeT, 
 	FirestoreFetchResultT,
 	FirestoreLoadSpecT,
+	LazyLoadLoadSpecT,
     LazyLoadT,
 	URIDetailT
 } from "../defs.js"
+
+import { Listen_to_Loadspecs } from "./firestore.js"
+import { GetURIDetails } from "./switchstation/switchstation.js"
 
 declare var $N: $NT;
 
 
 
 
-let _c:{lazyload:LazyLoadT, uridetails:URIDetailT, data:any|null}|null = null
+//let _c:{lazyload:LazyLoadT, uridetails:URIDetailT}|null = null
 
+let _lazyloads:LazyLoadT[] = []
+let _data:Map<string, FirestoreFetchResultT> = new Map()
+let _isgrabbingdata = false
 
 
 
 const Init = (lazyloads_:LazyLoadT[]) => {
+	_lazyloads = lazyloads_
 }
 
 
@@ -33,26 +41,30 @@ const RouteChanged = (uridetails:URIDetailT, lazyload:LazyLoadT) => new Promise<
 
 	console.log("RouteChanged uridetails lazyload ", uridetails, lazyload)
 	 
-	_c = { lazyload, uridetails, data: null }
+	//_c = { lazyload, uridetails }
 
 	if (!lazyload.loadspecs || !lazyload.loadspecs.length) { res(); return; }
 
-	const loadspecs:FirestoreLoadSpecT[] = []
 	const loadspecs = lazyload.loadspecs.map(ls => {
 		let path = ls.path
-		for (const {key, value} of uridetails.params) {
-			path = path.replace(`:${key}`, value)
+		for (const [key, value] of Object.entries(uridetails.params)) {
+			path = path.replace(`:${key}`, `${value}`)
 		}
-		return {path}
+		return {path:path, opts:ls.opts}
 	})
 
-	const ls = loadspecs
+	_isgrabbingdata = true
 
-	if (loadspecs && loadspecs.length) {
+	const r = await datagrab(loadspecs)
+	if (r === null) { _isgrabbingdata = false; res(); return; }
 
-		const r = await datagrab(loadspecs)
-		if (r === null) { res(); return; }
+	for(const [key, value] of Object.entries(r)) {
+		_data!.set(key, value)
 	}
+
+	Listen_to_Loadspecs(loadspecs)
+
+	_isgrabbingdata = false
 
 	res()
 })
@@ -60,24 +72,60 @@ const RouteChanged = (uridetails:URIDetailT, lazyload:LazyLoadT) => new Promise<
 
 
 
+function FirestoreChanged() {
+	console.log("firestorechanged")
+}
+
+
+
+
 const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, opts?:ComponentMechanicsOptsT|undefined|null) => new Promise<void>(async (res, rej)=> {
 
-	const rawtagname    = component.tagName.toLowerCase()
-	const prefixsplit   = rawtagname.split("-")
-	const tagnameprefix = prefixsplit[0]
-	const tagname       = prefixsplit[0]
-	let   type          = ""
-	let   data:any|null = null
+	const rawtagname                         = component.tagName.toLowerCase()
+	const tagnamesplit                       = rawtagname.split("-")
+	let   type                               = ""
+	let   data:any|null                      = null
+	let   lazyload:LazyLoadT|null            = null
+	let   loadspecs:LazyLoadLoadSpecT[]|null = null
 
-	switch(tagnameprefix) {
-		case "v":  type = "view";      break;
-		case "c":  type = "component"; break;
-		case "vp": type = "viewpart";  break;
+	switch(tagnamesplit[0]) {
+		case "v":  
+			type = "view";      
+			lazyload = _lazyloads.find(l=> l.name === tagnamesplit[1] && l.type === type) || null
+			if (!lazyload) throw new Error("Lazyload not found for " + rawtagname)
+			loadspecs = lazyload.loadspecs || null
+			break;
+		case "c":  
+			type = "component"; 
+			break;
+		case "vp": 
+			type = "viewpart"; 
+
+			const viewsel   = document.getElementById("views") as HTMLElement
+			const viewel    = viewsel.getElementsByTagName("v-"+tagnamesplit[1])[0]
+			lazyload        = _lazyloads.find(l=> l.name === tagnamesplit[1] && l.type === type) as LazyLoadT
+			loadspecs = lazyload.loadspecs?.filter(l=> l.els!.includes(rawtagname)) || null
+			break;
 	}
 
-	const lazyload = lazyloads.find(l=> l.name === tagname && l.type === type)
 
-	if (!lazyload) throw new Error("Lazyload not found for " + tagname)
+	if (!lazyload) throw new Error("Lazyload not found for " + rawtagname)
+
+	if (loadspecs) {
+		const uridetails = GetURIDetails() as URIDetailT
+
+		const aloadspecs = loadspecs.map(ls => {
+			let path = ls.path
+			for (const [key, value] of Object.entries(uridetails.params)) {
+				path = path.replace(`:${key}`, `${value}`)
+			}
+			const pdata = _data.get(path)
+			console.log(pdata)
+			return {path:path, opts:ls.opts}
+		})
+
+
+	}
 
 
 	{
@@ -292,7 +340,7 @@ function handle_firestore_listener(component:HTMLElement & ComponentMechanicsT, 
 
 
 
-export { Init, RouteChanged }
+export { Init, RouteChanged, FirestoreChanged }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).ComponentMechanics = { ConnectedCallback, AttributeChangedCallback };
