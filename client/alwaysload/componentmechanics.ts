@@ -38,14 +38,15 @@ const RouteChanged = (uridetails:URIDetailT, lazyload:LazyLoadT) => new Promise<
 	if (!lazyload.loadspecs || !lazyload.loadspecs.length) { res(); return; }
 
 	const loadspecs:FirestoreLoadSpecT[] = []
-	for(const ls of lazyload.loadspecs) {
-		let p = ''
-		for(const param of uridetails.params) {
-			p = p.replace(':'+param.key, param.value)
+	const loadspecs = lazyload.loadspecs.map(ls => {
+		let path = ls.path
+		for (const {key, value} of uridetails.params) {
+			path = path.replace(`:${key}`, value)
 		}
-	}
+		return {path}
+	})
 
-	const ls = lazyload.loadspecs.map(l=> {path:l.path}) : null
+	const ls = loadspecs
 
 	if (loadspecs && loadspecs.length) {
 
