@@ -101,7 +101,7 @@ const ConnectedCallback = async (component:HTMLElement & CMechT, opts?:CMechOpts
 
 	else {
 		const viewsel = document.getElementById("views")!
-		const viewel  = viewsel.getElementsByTagName(`v-${tagnamesplit[1]}`)[0]
+		const viewel  = viewsel.querySelector(`v-${tagnamesplit[1]}.view[active]`) as HTMLElement
 
 		const loadspecs = _viewloadspecs.
 
