@@ -81,98 +81,59 @@ const AddView = (componentname:str, loadspecs:FirestoreLoadSpecT, views_attach_p
 
 const ConnectedCallback = async (component:HTMLElement & CMechT, opts?:CMechOptsT|undefined|null) => new Promise<void>(async (res, _rej)=> {
 
-	const tagname = component.tagName.toLowerCase()
-	const type = tagname.charAt(0) as 'v'|'c'|'vp'
-	const name = tagname.substring(2) // Skip the type and hyphen
+	const tagname       = component.tagName.toLowerCase()
+	const tagname_split = tagname.split("-")
+	let   loadspecs_view_to_load = ""
+	let   is_mainview   = true
 
-	if (type === 'v') {
-		const loadspecs = _viewloadspecs.get(name)
-
-		if (loadspecs && loadspecs.size > 0) {
-			const filtered_loadspecs = new Map([...loadspecs].filter(([_path, ls]) => ( !ls.els || (ls.els && ls.els.includes('this') ) ) ) )
-			const data = FirestoreGrabHoldData(filtered_loadspecs)
-			if (data === null) throw new Error("Data not found for " + rawtagname)
-
-			for (const [path, ls] of filtered_loadspecs) {
-				component.m[ls.name] = Array.isArray(component.m[ls.name]) ? data.get(path) : data.get(path)![0]
-			}
-		}
+	if   (tagname_split[0] === 'v') {
+		loadspecs_view_to_load = tagname_split[1]
 	}
-
 	else {
-		const viewsel = document.getElementById("views")!
-		const viewel  = viewsel.querySelector(`v-${name}.view[active]`) as HTMLElement
+		const rootnode                    = component.getRootNode()
+		//@ts-ignore
+		const host                        = rootnode.host as HTMLElement
+		const ancestor_view_tagname       = host.tagName.toLowerCase()
+		const ancestor_view_tagname_split = ancestor_view_tagname.split("-")
 
-		const ancestorview = component.closest('.view')
-		if (!ancestorview) throw new Error("ancestor view element not found of component")
+		loadspecs_view_to_load            = ancestor_view_tagname_split[1]
+		is_mainview                       = false
+	}
 
-		const loadspecs = _viewloadspecs.get(name)
+	const loadspecs = _viewloadspecs.get(loadspecs_view_to_load)
+	const loadspecs_array = loadspecs ? [...loadspecs] : []
 
-		if (loadspecs && loadspecs.size > 0) {
-			const filtered_loadspecs = new Map(
-				[...loadspecs].filter(([_path, ls]) => ls.els && ls.els.includes(rawtagname))
-			);
-			const data = FirestoreGrabHoldData(filtered_loadspecs);
-			if (data === null) throw new Error("Data not found for " + rawtagname);
+	if (loadspecs && loadspecs.size > 0) {
+		const filtered_loadspecs = new Map(
+			loadspecs_array.filter(([_path, ls]) => {
+				if (is_mainview) {
+					return !ls.els || ls.els.includes('this')
+				} else {
+					return ls.els && ls.els.includes(tagname)
+				}
+			})
+		);
+		const data = FirestoreGrabHoldData(filtered_loadspecs);
+		if (data === null) throw new Error("Data not found for " + loadspecs_view_to_load);
+
+		for (const [path, d] of data) {
+			const loadspec = loadspecs.get(path)!
+			component.m[loadspec.name] = Array.isArray(component.m[loadspec.name]) ? d : d[0]
 		}
 	}
 
-	res()
-
-/*
-		case "v":  
-			type = "view";      
-			lazyload = _lazyloads.find(l=> l.name === tagnamesplit[1] && l.type === type) || null
-			if (!lazyload) throw new Error("Lazyload not found for " + rawtagname)
-			loadspecs = lazyload.loadspecs || null
-			break;
-		case "c":  
-			type = "component"; 
-			break;
-		case "vp": 
-			type = "viewpart"; 
-
-			const viewsel   = document.getElementById("views") as HTMLElement
-			const viewel    = viewsel.getElementsByTagName("v-"+tagnamesplit[1])[0]
-			lazyload        = _lazyloads.find(l=> l.name === tagnamesplit[1] && l.type === "view") as LazyLoadT
-			loadspecs = lazyload.loadspecs?.filter(l=> l.els!.includes(rawtagname)) || null
-			break;
-	}
-*/
-
-	/*
-	if (!lazyload) throw new Error("Lazyload not found for " + rawtagname)
-
-	if (loadspecs) {
-		await new Promise<void>(res=> setTimeout(()=> { if(!_isgrabbingdata) res() }, 100) )
-		console.log("need to figure out how to wait until data shows up")
-		//await new Promise<void>(res=> setTimeout(()=> { _isgrabbingdata ? res() : res() }, 1) })
-		const uridetails = GetURIDetails() as URIDetailT
-
-		const aloadspecs = loadspecs.map(ls => {
-			let path = ls.path
-			for (const [key, value] of Object.entries(uridetails.params)) {
-				path = path.replace(`:${key}`, `${value}`)
-			}
-			const isdoc = path.split("/").length % 2 === 0
-			const d     = _data.get(path)!
-			component.m[ls.name] = isdoc ? d[0] : d
-			return {path:path, opts:ls.opts, name:ls.name, els:ls.els}
-		})
-
-		console.log("LOADSPECS ", aloadspecs)
-
-	}
-*/
+	for(const prop in component.a) component.a[prop] = component.getAttribute(prop)
 
 	if (component.knitdata) component.knitdata()
 	component.sc()
 	
+	const els = loadspecs_array.map(([_path, ls])=> ls.els).flat()
 
-	//let   lhydrations:{ el:HTMLElement }[] = []
+	if (is_mainview && loadspecs && loadspecs.size > 0 && loadspecs_array.some(( ls:any )=> ls.els)) {
+		for(const ls of loadspecs_array) {	
 
-	for(const prop in component.a) component.a[prop] = component.getAttribute(prop)
-
+		}
+	}
 
 
 
