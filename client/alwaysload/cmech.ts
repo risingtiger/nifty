@@ -81,12 +81,12 @@ const AddView = (componentname:str, loadspecs:FirestoreLoadSpecT, views_attach_p
 
 const ConnectedCallback = async (component:HTMLElement & CMechT, opts?:CMechOptsT|undefined|null) => new Promise<void>(async (res, _rej)=> {
 
-	const rawtagname   = component.tagName.toLowerCase()
-	const tagnamesplit = rawtagname.split("-")
-	let   type         = tagnamesplit[0] as 'v'|'c'|'vp'
+	const tagname = component.tagName.toLowerCase()
+	const type = tagname.charAt(0) as 'v'|'c'|'vp'
+	const name = tagname.substring(2) // Skip the type and hyphen
 
 	if (type === 'v') {
-		const loadspecs = _viewloadspecs.get(tagnamesplit[1])
+		const loadspecs = _viewloadspecs.get(name)
 
 		if (loadspecs && loadspecs.size > 0) {
 			const filtered_loadspecs = new Map([...loadspecs].filter(([_path, ls]) => ( !ls.els || (ls.els && ls.els.includes('this') ) ) ) )
@@ -101,14 +101,12 @@ const ConnectedCallback = async (component:HTMLElement & CMechT, opts?:CMechOpts
 
 	else {
 		const viewsel = document.getElementById("views")!
-		const viewel  = viewsel.querySelector(`v-${tagnamesplit[1]}.view[active]`) as HTMLElement
-
-		const loadspecs = _viewloadspecs.
+		const viewel  = viewsel.querySelector(`v-${name}.view[active]`) as HTMLElement
 
 		const ancestorview = component.closest('.view')
 		if (!ancestorview) throw new Error("ancestor view element not found of component")
 
-		const loadspecs = _viewloadspecs.get(tagnamesplit[1])
+		const loadspecs = _viewloadspecs.get(name)
 
 		if (loadspecs && loadspecs.size > 0) {
 			const filtered_loadspecs = new Map(
