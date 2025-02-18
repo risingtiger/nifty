@@ -127,7 +127,7 @@ const ConnectedCallback = async (component:HTMLElement & CMechT, opts?:CMechOpts
 	if (component.knitdata) component.knitdata()
 	component.sc()
 	
-	const els = loadspecs_array.map(([_path, ls])=> ls.els).flat()
+	const els = [...new Set(loadspecs_array.map(([_path, ls])=> ls.els).flat().filter(Boolean))] as string[]
 
 	if (is_mainview && loadspecs && loadspecs.size > 0 && loadspecs_array.some(( ls:any )=> ls.els)) {
 		for(const ls of loadspecs_array) {	
