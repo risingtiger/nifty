@@ -105,14 +105,16 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 		const loadspecs = _viewloadspecs.get(tagnamesplit[1])
 
 		if (loadspecs && loadspecs.size > 0) {
+			const filteredLoadspecs = new Map(
+				[...loadspecs].filter(([path, ls]) =>
+					ls.els && Array.isArray(ls.els) && ls.els.includes(rawtagname)
+				)
+			);
+			const data = FirestoreGrabHoldData(filteredLoadspecs);
+			if (data === null) throw new Error("Data not found for " + rawtagname);
 
-
-
-			const data = FirestoreGrabHoldData(filtered_loadspecs)
-			if (data === null) throw new Error("Data not found for " + rawtagname)
-
-			for (const [path, ls] of loadspecs) {
-				component.m[ls.name] = data.get(path)
+			for (const [path, ls] of filteredLoadspecs) {
+				component.m[ls.name] = data.get(path);
 			}
 		}
 	}
