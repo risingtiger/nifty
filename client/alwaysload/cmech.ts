@@ -4,8 +4,8 @@ import { num, str } from "../defs_server_symlink.js"
 
 import { 
 	$NT, 
-	ComponentMechanicsT, 
-	ComponentMechanicsOptsT, 
+	CMechT, 
+	CMechOptsT, 
 	EngagementListenerTypeT, 
 	FirestoreFetchResultT,
 	FirestoreLoadSpecT,
@@ -79,7 +79,7 @@ const AddView = (componentname:str, loadspecs:FirestoreLoadSpecT, views_attach_p
 
 
 
-const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, opts?:ComponentMechanicsOptsT|undefined|null) => new Promise<void>(async (res, _rej)=> {
+const ConnectedCallback = async (component:HTMLElement & CMechT, opts?:CMechOptsT|undefined|null) => new Promise<void>(async (res, _rej)=> {
 
 	const rawtagname   = component.tagName.toLowerCase()
 	const tagnamesplit = rawtagname.split("-")
@@ -89,33 +89,33 @@ const ConnectedCallback = async (component:HTMLElement & ComponentMechanicsT, op
 		const loadspecs = _viewloadspecs.get(tagnamesplit[1])
 
 		if (loadspecs && loadspecs.size > 0) {
-			const data = FirestoreGrabHoldData(loadspecs)
+			const filtered_loadspecs = new Map([...loadspecs].filter(([_path, ls]) => ( !ls.els || (ls.els && ls.els.includes('this') ) ) ) )
+			const data = FirestoreGrabHoldData(filtered_loadspecs)
 			if (data === null) throw new Error("Data not found for " + rawtagname)
 
-			for (const [path, ls] of loadspecs) {
-				component.m[ls.name] = data.get(path)
+			for (const [path, ls] of filtered_loadspecs) {
+				component.m[ls.name] = Array.isArray(component.m[ls.name]) ? data.get(path) : data.get(path)![0]
 			}
 		}
 	}
 
 	else {
+		const viewsel = document.getElementById("views")!
+		const viewel  = viewsel.getElementsByTagName(`v-${tagnamesplit[1]}`)[0]
+
+		const loadspecs = _viewloadspecs.
+
 		const ancestorview = component.closest('.view')
 		if (!ancestorview) throw new Error("ancestor view element not found of component")
 
 		const loadspecs = _viewloadspecs.get(tagnamesplit[1])
 
 		if (loadspecs && loadspecs.size > 0) {
-			const filteredLoadspecs = new Map(
-				[...loadspecs].filter(([path, ls]) =>
-					ls.els && Array.isArray(ls.els) && ls.els.includes(rawtagname)
-				)
+			const filtered_loadspecs = new Map(
+				[...loadspecs].filter(([_path, ls]) => ls.els && ls.els.includes(rawtagname))
 			);
-			const data = FirestoreGrabHoldData(filteredLoadspecs);
+			const data = FirestoreGrabHoldData(filtered_loadspecs);
 			if (data === null) throw new Error("Data not found for " + rawtagname);
-
-			for (const [path, ls] of filteredLoadspecs) {
-				component.m[ls.name] = data.get(path);
-			}
 		}
 	}
 
@@ -333,7 +333,7 @@ const datagrab = async (loadspecs:FirestoreLoadSpecT[]) => new Promise<Firestore
 
 
 
-function handle_firestore_listener(component:HTMLElement & ComponentMechanicsT, r:FirestoreFetchResultT) {
+function handle_firestore_listener(component:HTMLElement & CMechT, r:FirestoreFetchResultT) {
 
 	if (r === null) return
 
@@ -380,7 +380,7 @@ function handle_firestore_listener(component:HTMLElement & ComponentMechanicsT, 
 export { Init, AddView }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).ComponentMechanics = { ConnectedCallback, AttributeChangedCallback };
+((window as any).$N as any).CMech = { ConnectedCallback, AttributeChangedCallback };
 
 
 
