@@ -113,6 +113,9 @@ function Back() {
     history.back();
 }
 
+
+
+
 /**
  * Navigates to a new route by pushing a clean URL into the browser history.
  * Also triggers the route change handling (e.g., loading and animating the new view).
@@ -124,6 +127,8 @@ function navigateTo(path: string) {
     // Trigger handling of the new route
     routeChanged(path);
 }
+
+
 
 
 function grabregexparams(original_matchstr:string) {
@@ -198,29 +203,9 @@ async function routeChanged(path: string) {
 
     // Compute the route string from the path
     const route = path.startsWith('/') ? path.substring(1) : path;
-    const y = (route.split("--"))[0];
     
-    if (hstack.length === 1 && document.querySelector("#views .view[active]")?.getAttribute("backhash") === y) {
-        hstack.unshift(y)
-    }
 
-    if (document.querySelector("#views .view[active][draggedback]")) {
-        const activeview = document.querySelector("#views .view[active][draggedback]") as HTMLElement
-        const previousview = activeview.previousElementSibling as HTMLElement
-
-        activeview.remove()
-        previousview.removeAttribute("previous")
-        previousview.setAttribute("active", "")
-
-        previousview.style.transform = ""
-        previousview.classList.remove("previous_endstate")
-
-        hstack.pop()
-
-        hash_changed___posthash()
-    }
-
-    else if (!hstack.length) { // first time load in browser
+    if (!hstack.length) { // first time load in browser
 
         const n = route === "" ? "home" : route;
         const y = (n.split("--"))[0];
