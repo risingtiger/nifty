@@ -18,11 +18,10 @@ let loadstart_ts = 0;
 
 
 
-function Run(loads:LazyLoadT[]) {   return new Promise<bool>(async (res, _rej)=> {
+function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, _rej)=> {
 
     if (loadstart_ts > 0) {
-        console.log("LazyLoad loadstart_ts > 0, returning early.")
-        res(true)
+        res(1)
         return;
     }
 
@@ -38,7 +37,8 @@ function Run(loads:LazyLoadT[]) {   return new Promise<bool>(async (res, _rej)=>
 
         ticktock()
 
-        await retrieve_loadque(loadque)
+        const r = await retrieve_loadque(loadque)
+		if (r === null) { res(null); return; }
 
         loadstart_ts = 0
 
@@ -46,7 +46,7 @@ function Run(loads:LazyLoadT[]) {   return new Promise<bool>(async (res, _rej)=>
         console.log("LazyLoad loadque.length === 0, returning early.")
     }
 
-    res(true)
+    res(1)
 })}
 
 
@@ -81,24 +81,19 @@ function addtoque(load:LazyLoadT, loadque:LazyLoadT[]) {
 
 
 
-function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<bool>(async (res, _rej)=> {
+function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null>(async (res, _rej)=> {
 
     const promises:Promise<bool>[] = []
 
     const filepaths = loadque.map(l=> get_filepath(l.type, l.name, l.is_instance))
 
     for(const f of filepaths) {
-		//@ts-ignore
-        promises.push(import(f).catch((_e)=> { 
-			console.log("lazyload dynamic import error: ");
-			console.log(_e); 
-			throwup_and_leave("lazyload_server_error", `Failed to lazyload ${f}`); 
-		}))
+        promises.push(import(f).catch((_e)=> { res(null); }))
     }
 
     await Promise.all(promises)
 
-    res(true)
+    res(1)
 })}
 
 
@@ -159,7 +154,8 @@ function ticktock() {
             const now = Date.now()
 
             xel.classList.add("active")
-            xel.querySelector(".waiting_animate")!.classList.add("active")
+
+			xel.querySelector(".waiting_animate")!.classList.add("active")
 
             const istimedout = now - loadstart_ts > TIMEOUT_TS
 
@@ -172,13 +168,12 @@ function ticktock() {
             xel.classList.remove("active")
             xel.querySelector(".waiting_animate")!.classList.remove("active")
         }
-    }, 30)
+    }, 20)
 }
 
 
-if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).LazyLoad = { Run, Init };
 
+export { Run, Init }
 
 
 
