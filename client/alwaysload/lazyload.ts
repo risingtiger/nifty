@@ -155,7 +155,11 @@ function ticktock() {
 
             xel.classList.add("active")
 
-			xel.querySelector(".waiting_animate")!.classList.add("active")
+            if (now - loadstart_ts > 1000) {
+                xel.querySelector(".waiting_animate")!.classList.add("active")
+            } else {
+                xel.querySelector(".waiting_animate")!.classList.remove("active")
+            }
 
             const istimedout = now - loadstart_ts > TIMEOUT_TS
 
