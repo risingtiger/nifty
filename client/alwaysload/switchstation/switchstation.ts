@@ -1,12 +1,11 @@
 
 
 import { LazyLoadT, FirestoreLoadSpecT, URIDetailT } from  "../../defs.js" 
-import { str } from  "../../defs_server_symlink.js" 
+import { str, num } from  "../../defs_server_symlink.js" 
 import { Run as LazyLoadRun } from '../lazyload.js'
 import { AddView as CMechAddView } from "../cmech.js"
 
 
-let _currentHistoryIndex: number = 0;
 let _routes:Array<Route> = [];
 
 
@@ -77,17 +76,20 @@ class Route {
 
 
 
-const Init = ()=> {
+const Init = async ()=> {
 
     const initialPath = window.location.pathname.slice(3)
 
     if (!history.state || history.state.index === undefined) {
-        history.replaceState({ index: 0 }, '', initialPath);
-        _currentHistoryIndex = 0;
+		await routeChanged(initialPath, 'firstload');
+        history.replaceState({ index: 0, path: initialPath }, '', initialPath);
     } else {
-        _currentHistoryIndex = history.state.index;
+		await routeChanged(history.state.path, 'firstload');
     }
-    routeChanged(initialPath);
+
+	window.addEventListener("popstate", async (e) => {
+		if (e.state) routeChanged(e.state.path, 'back')
+	});
 }
 
 
@@ -100,40 +102,51 @@ const AddRoute = (lazyload_view:LazyLoadT)=> {
 
 
 
-async function routeChanged(path: string) {
+async function NavigateTo(newPath: string) {
+    const r = await routeChanged(newPath, 'forward');
+	if (r === null) { return; }
 
-	let   overlayel          = document.getElementById("switchstation_overlay") as HTMLElement
-    const newHistoryIndex    = history.state?.index ?? _currentHistoryIndex;
-	const viewsel            = document.getElementById("views") as HTMLElement;
-    const is_any_activeview  = viewsel.children.length > 0;
-    let   direction          = !is_any_activeview ? "firstload" : newHistoryIndex < _currentHistoryIndex ? "back" : "forward";
+    history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
+}
 
-	{
-		if (overlayel.style.display === "block") {
-			window.location.href = `/?errmsg=${encodeURIComponent('switchstation already in transition')}`;
-			return;
-		}
-		overlayel.style.display = "block";
+
+
+
+async function NavigateBack(opts:{ default:str}) {
+
+	if (history.state && history.state.index > 0) {
+		await routeChanged(opts.default, 'back');
+		history.back();
 	}
+	else {
+		await routeChanged(opts.default, 'back');
+		history.replaceState({ index: 0, path: opts.default }, '', opts.default);
+	}
+}
 
 
-    _currentHistoryIndex         = newHistoryIndex
+
+
+const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'firstload') => new Promise<num|null>(async (res, _rej) => {
+
+	const viewsel            = document.getElementById("views") as HTMLElement;
 
     const [urlMatches, routeObj] = get_route_uri(path);
-
 
     if (direction === "firstload") {
 
 		const loadresult = await routeObj.load(path, urlMatches, "beforeend");
 
 		if (loadresult === 'failed') {
-			overlayel.style.display = "none";
 			window.location.href = `/?errmsg=${encodeURIComponent('failed to load view')}`;
+			res(null);
 			return;
 		}
 
         viewsel.children[0].setAttribute("active", "");
 		( viewsel.children[0] as HTMLElement ).style.display = "block";
+
+		document.querySelector("#views")!.dispatchEvent(new Event("view_load_done"));
     }
 
     else if (direction === "forward") {
@@ -141,8 +154,8 @@ async function routeChanged(path: string) {
 		const loadresult = await routeObj.load(path, urlMatches, "beforeend");
 
 		if (loadresult === 'failed') {
-			overlayel.style.display = "none";
 			alert ("failed to load view")
+			res(null);
 			return;
 		}
 
@@ -164,6 +177,8 @@ async function routeChanged(path: string) {
                 previousview.setAttribute("previous", "");
             }
             activeview.removeEventListener("transitionend", activeTransitionEnd);
+
+			document.querySelector("#views")!.dispatchEvent(new Event("view_load_done"));
         });
     }
 
@@ -177,8 +192,8 @@ async function routeChanged(path: string) {
 			const loadresult = await routeObj.load(path, urlMatches, "afterbegin");
 
             if (loadresult === "failed") {
-                overlayel.style.display = "none";
                 window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view');
+				res(null);
                 return;
             }
             previousview = activeview?.previousElementSibling as HTMLElement;
@@ -197,12 +212,13 @@ async function routeChanged(path: string) {
                 previous_previousview.setAttribute("previous", "");
             }
             activeview.removeEventListener("transitionend", activeTransitionEnd);
+
+			document.querySelector("#views")!.dispatchEvent(new Event("view_load_done"));
         });
     }
 
-    overlayel.style.display = "none";
-    document.querySelector("#views")!.dispatchEvent(new Event("view_load_done"));
-}
+	res(1);
+})
 
 
 
@@ -241,20 +257,11 @@ function grabregexparams(original_matchstr:string) {
 
 
 
-export async function NavigateTo(newPath: string): Promise<void> {
-    // Increment history index so routeChanged can detect forward navigation.
-    _currentHistoryIndex++;
 
-    // Update the browser history to the new path.
-    history.pushState({ index: _currentHistoryIndex }, '', newPath);
-
-    // Call routeChanged with the new path.
-    await routeChanged(newPath);
-}
-
-export { Init, AddRoute, NavigateTo }
+export { Init, AddRoute }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
+((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack };
 
 
 
