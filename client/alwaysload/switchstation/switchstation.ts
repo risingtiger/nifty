@@ -1,10 +1,9 @@
 
 
-import { LazyLoadT } from  "../../defs.js" 
+import { LazyLoadT, FirestoreLoadSpecT, URIDetailT } from  "../../defs.js" 
 import { str } from  "../../defs_server_symlink.js" 
-import SwitchStationDragBack from "./dragback.js"
-
-declare var $N:any
+import { Run as LazyLoadRun } from '../lazyload.js'
+import { AddView as CMechAddView } from "../cmech.js"
 
 const hstack:Array<str> = [];
 let   cancelhashload = false;
@@ -13,11 +12,12 @@ const view_load_done_event = new Event("view_load_done");
 
 
 
+
 class Route {
 
     lazyload_view: LazyLoadT
     path_regex: RegExp
-    paramNames: Array<str>
+    path_paramnames: Array<str>
 
 
 
@@ -25,70 +25,48 @@ class Route {
     constructor(lazyload_view_: LazyLoadT) {
         this.lazyload_view = lazyload_view_
 
-        // Initialize an array to hold parameter names
-        const paramNames: Array<str> = [];
+		const {regex, paramnames} = grabregexparams(this.lazyload_view.urlmatch!)
 
-        // Replace placeholders like ':id' with '([a-z_0-9]+)' and collect parameter names
-        const pattern = this.lazyload_view.urlmatch!.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, paramName) => {
-            paramNames.push(paramName);
-            return '([a-z_0-9]+)';
-        });
-
-        // Create the regex with the modified pattern
-        this.path_regex = new RegExp(pattern);
-
-        // Store the parameter names
-        this.paramNames = paramNames;
+        this.path_regex      = regex
+        this.path_paramnames = paramnames
     }
 
 
 
 
-    load(urlm:Array<str>, views_attach_point:"beforeend"|"afterbegin") { 
+    load(uri:str, urlmatches:Array<str>, views_attach_point:"beforeend"|"afterbegin") { 
 
         return new Promise<string>( async (res, _rej) => {
 
-            await $N.LazyLoad.Run([this.lazyload_view]);
-
-            const parentEl = document.querySelector("#views")!;
-
-            let urstr = 'urlmatches = "' + urlm.join(",") + '"'
-
-            parentEl.insertAdjacentHTML(views_attach_point, `<v-${this.lazyload_view.name} class='view' ${urstr}></v-${this.lazyload_view.name}>`);
-
-            const viewname = this.lazyload_view.name
-            const els = parentEl.querySelectorAll(`v-${viewname}`) as NodeListOf<HTMLElement>
-            const el = els[els.length-1]
-
-            el.addEventListener("hydrated", hydrated)
-            el.addEventListener("failed", failed)
-
-            el.addEventListener("touchstart", SwitchStationDragBack.TouchDown)
-            el.addEventListener("touchend", SwitchStationDragBack.TouchUp)
-            el.addEventListener("touchmove", SwitchStationDragBack.TouchMove)
-            el.addEventListener("touchcancel", SwitchStationDragBack.TouchCancel)
-
-			function hydrated() {
-
-                // !! HACK !! - Making an exemption for machinetelemetry because chartist needs display to block in order to figure out offsets widths etc
-                // TODO: - Need to have display set to block from the get go and use visibility hidden instead
-
-                if (viewname.includes("machinetelemetry")) {
-                    res('success')
-                } else {
-                    setTimeout(()=> { //Flashes before css is loaded ... this is for development environment where the css is being linked in (allowing for chrome css edit). In prod its all bundled together, so there won't be a separate css file load
-                        res('success')
-                    }, 10)
-                }
-
-				el.removeEventListener("hydrated", hydrated)
+			let uriparams = {}
+			for (let i = 0; i < urlmatches.length; i++) {
+				const val = urlmatches[i]
+				const name = this.path_paramnames[i]
+				uriparams[name] = val
 			}
 
-			function failed() {
-				el.removeEventListener("failed", failed)
-				el.remove()
-				res('failed')
-			}
+			const uridetails:URIDetailT = { uri, params: uriparams }
+
+			const loadspecs:FirestoreLoadSpecT = new Map()
+			this.lazyload_view.loadspecs?.forEach(ls => {
+				let path = ls.path
+				for (const [key, value] of Object.entries(uridetails.params)) {
+					path = path.replace(`:${key}`, `${value}`)
+				}
+				loadspecs.set(path, {name:ls.name, opts:ls.opts, els:ls.els} )
+			})
+
+			const promises:Promise<any>[] = []
+
+            promises.push( LazyLoadRun([this.lazyload_view]) )
+			promises.push( CMechAddView(this.lazyload_view.name, loadspecs, views_attach_point) )
+
+
+			const r = await Promise.all(promises)
+
+			if (r[0] === null || r[1] === null) { res('failed'); return; }
+
+			res('success')
         })
     }
 }
@@ -100,8 +78,9 @@ let _routes:Array<Route> = [];
 
 
 
+let currenthash = "";
 
-const InitInterval = ()=> {
+const Init = ()=> {
 
     /*
     window.addEventListener("popstate", (e)=> {
@@ -114,7 +93,15 @@ const InitInterval = ()=> {
 			cancelhashload = false
 			return
 		}
-        hash_changed(e)
+
+        const m = (e as any).newURL.match(/#(.+)/)
+        const c = m[1] as str
+		const y = (c.split("--"))[0]
+
+		if (y !== currenthash) {
+			currenthash = y
+			hash_changed(e)
+		}
     })
 
     //history.replaceState({}, "", window.location.href)
@@ -133,9 +120,27 @@ const AddRoute = (lazyload_view:LazyLoadT)=> {
 
 function Back() {
 
-    const backhash = document.querySelector("#views .view[active]")!.getAttribute("backhash") as str
+	const m         = window.location.href.match(/#(.+)/)!
+	const c         = m[1] as str
+	const split     = c.split("/")
 
-    window.location.hash = backhash
+	const hashpath  = split.slice(0, split.length-1).join("/")
+
+    window.location.hash = hashpath
+}
+
+
+function grabregexparams(original_matchstr:string) {
+	const pathparamnames: Array<str> = [];
+	const pattern = original_matchstr.replace(/:([a-z][a-z_0-9]+)/g, (_match, pathparamname) => {
+		pathparamnames.push(pathparamname);
+		return '([a-zA-Z0-9_]+)';
+	});
+
+	const regex      = new RegExp(pattern);
+	const paramnames = pathparamnames;
+
+	return {regex, paramnames}
 }
 
 
@@ -145,7 +150,7 @@ function load_and_attach_route(url: str, views_attach_point:"beforeend"|"afterbe
 
     const [ urlm, route ] = load_and_attach_route___set_match_and_get_match_and_route(url);
 
-    route.load(urlm, views_attach_point).then((result:string)=> {   
+    route.load(url, urlm, views_attach_point).then((result:string)=> {   
 		if (result === 'failed') {
 			res('failed')
 		} else if ( result === 'success' ) {
@@ -164,14 +169,15 @@ function load_and_attach_route___set_match_and_get_match_and_route(url: str) : [
 
     for (let i = 0; i < _routes.length; i++) {
 
-    let urlmatchstr = url.match(_routes[i].path_regex)
+		let urlmatchstr = url.match(_routes[i].path_regex)
 
-        if (urlmatchstr) 
-            return [ urlmatchstr.slice(1), _routes[i] ]
+		if (urlmatchstr) { 
+			return [ urlmatchstr.slice(1), _routes[i] ]
+		}
     }
 
     // catch all -- just route to home
-    return [ ("home".match(/home/g) as RegExpMatchArray).slice(1), _routes.find(r=> r.lazyload_view.name==="home")! ]
+    return [ [], _routes.find(r=> r.lazyload_view.name==="home")! ]
 }
 
 
@@ -192,9 +198,10 @@ async function hash_changed(e:Event|null = null) {
     if (e && (e as any)!.newURL) {
         const m = (e as any).newURL.match(/#(.+)/)
         const c = m[1] as str
+		const y = (c.split("--"))[0]
 
-        if (hstack.length === 1 && document.querySelector("#views .view[active]")?.getAttribute("backhash") === c) {
-            hstack.unshift(c)
+        if (hstack.length === 1 && document.querySelector("#views .view[active]")?.getAttribute("backhash") === y) {
+            hstack.unshift(y)
         }
     }
 
@@ -217,10 +224,15 @@ async function hash_changed(e:Event|null = null) {
     else if (!hstack.length) { // first time load in browser
 
 		const n = window.location.hash === "" ? "home" : window.location.hash.substring(1)
-		const loadresult = await load_and_attach_route(n, "beforeend")
+		const y = (n.split("--"))[0]
+		const loadresult = await load_and_attach_route(y, "beforeend")
 
 		if (loadresult === "failed") {
-			window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view')
+			if (!window.location.href.includes("localhost")) 
+				window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view')
+			else 
+				throw new Error("switchstation - failed to load view")
+
 			return
 		}
 
@@ -279,7 +291,10 @@ async function hash_changed(e:Event|null = null) {
 
     } else {   // is going forward
 
-        const loadresult = await load_and_attach_route(window.location.hash.substring(1), "beforeend")
+		const c = window.location.hash.substring(1)
+		const y = (c.split("--"))[0]
+
+        const loadresult = await load_and_attach_route(y, "beforeend")
 
 		if (loadresult === "failed") {
 			has_changed___failed_posthash(false)
@@ -310,7 +325,9 @@ async function hash_changed(e:Event|null = null) {
             }
 
             //history.pushState({}, "", "#" + window.location.hash.substring(1))
-            hstack.push(window.location.hash.substring(1))
+			const c = window.location.hash.substring(1)
+			const y = (c.split("--"))[0]
+            hstack.push(y)
 
             hash_changed___posthash()
 
@@ -351,7 +368,6 @@ function has_changed___failed_posthash(showhomebtn=true) {
 
 
 
-console.log("Now I need to deal with the whole hash in the URL thing. Click 'View Machines' button. The alert happens. All is well. But the url has v#machines hash. No bueno. No clicking the button again, nuten happens cause hash already at machines. So, need to do something. Not sure what. MIGHT BE A GOOD TIME TO FUCK THE HASH AND GO CLEAN ON HISTORY API")
 
 
 
@@ -359,194 +375,11 @@ console.log("Now I need to deal with the whole hash in the URL thing. Click 'Vie
 
 
 
-/*
 
-// SWIPE BACK FUNCTIONALITY
-
-let _view_mousedown_x = 0
-let _view_mousedown_y = 0
-let _view_mx = 0
-let _view_move_ref = 0
-let _view_move_delta = 0
-let _view_move_current_el:HTMLElement|null = null
-let _view_move_previous_el:HTMLElement|null = null
-let _view_mousedown_mode: "up" | "down" | "drag" | "goingback" | "canceled" = "up"
-let _view_speed = 0
-let _view_speed_x = 0
-let _view_time = 0
-
-const X_SNAPSHOT_INTERVAL = 50
-const X_POSITIONS_COUNT = 20
-
-let _view_x_positions:Array<{x:number,time:number}> = []
-let _view_x_positions_index = 0
-
-for (let i = 0; i < X_POSITIONS_COUNT; i++) {
-    _view_x_positions.push({x:0, time:0})
-}
-
-
-
-function view_mousedown(e:TouchEvent) {
-
-    const mx = e.changedTouches[0].clientX; 
-    const my = e.changedTouches[0].clientY;
-
-    if (_view_mousedown_mode !== "up" || mx >=50 || my < 60) {
-        return;
-    }
-
-    _view_mousedown_x = mx;
-    _view_mousedown_y = my;
-
-    if (document.querySelectorAll("#views .view").length > 1)
-        _view_mousedown_mode = "down";
-
-    e.preventDefault()
-}
-
-function view_mouseup(e:TouchEvent) {
-
-    if (_view_mousedown_mode === "drag") {
-        dragreleased(e)
-    } else {
-        _view_mousedown_mode = "up";
-    }
-}
-
-function view_mousemove(e:TouchEvent) {
-
-    if (_view_mousedown_mode === "up" || _view_mousedown_mode === "canceled") {
-        return;
-    }
-
-    const mx = e.changedTouches[0].clientX;
-    const my = e.changedTouches[0].clientY;
-
-    _view_mx = mx;
-
-    if (_view_mousedown_mode === "down") {
-
-        if (Math.abs(my - _view_mousedown_y) > 10) {
-            _view_mousedown_mode = "canceled"
-
-            return;
-
-        } else if (   mx - _view_mousedown_x > 20) {
-            _view_mousedown_mode = "drag"
-            _view_move_ref = mx
-            _view_move_current_el = e.target as HTMLElement
-            _view_move_previous_el = _view_move_current_el.previousElementSibling as HTMLElement
-
-            _view_move_current_el!.classList.add("dragging")
-            _view_move_previous_el!.classList.add("dragging")
-
-            _view_move_delta = mx - _view_move_ref;
-
-            //const content_el = _view_move_current_el.shadowRoot!.querySelector(".content") as HTMLElement
-            //content_el.style.overflowY = "hidden"
-
-            document.getElementById("loadviewoverlay")!.style.display = "block"
-
-            window.requestAnimationFrame(view_move_step)
-
-            return
-        }
-    }
-
-    else if (_view_mousedown_mode === "drag") {
-        
-        _view_move_delta = mx - _view_move_ref;
-
-        e.preventDefault()
-    }
-}
-
-function view_mouseleave(e:MouseEvent) {
-
-    if (_view_mousedown_mode === "drag") {
-        dragreleased(e)
-    } else {
-        _view_mousedown_mode = "up";
-    }
-}
-
-function view_move_step(timestamp:number) {
-
-    if (_view_mousedown_mode === "drag") {
-
-        if (timestamp - _view_time > X_SNAPSHOT_INTERVAL) {
-
-            _view_x_positions[_view_x_positions_index] = {x:_view_mx, time:timestamp}            
-            _view_time = timestamp
-
-            const compare_to_index = get_compare_to_index(1)
-
-            _view_speed = (_view_x_positions[_view_x_positions_index].x - _view_x_positions[compare_to_index].x) / (timestamp - _view_x_positions[compare_to_index].time)
-
-            if (_view_x_positions_index === X_POSITIONS_COUNT) {
-                _view_x_positions_index = 0
-            } else { 
-                _view_x_positions_index++
-            }
-        }
-
-        _view_move_current_el!.style.transform = `translate3d(${_view_move_delta}px, 0, 0)`
-        _view_move_previous_el!.style.transform = `translate3d(${ (_view_move_delta / 3) - 150}px, 0, 0)`
-
-        window.requestAnimationFrame(view_move_step)
-    } 
-}
-
-function get_compare_to_index(stepsback:number) {
-    return _view_x_positions_index - stepsback < 0 ? X_POSITIONS_COUNT + (_view_x_positions_index - stepsback) : _view_x_positions_index - stepsback
-}
-
-
-function dragreleased(e:Event) {
-
-    if (_view_speed < 0.1) {
-        _view_mousedown_mode = "up"
-
-        _view_move_current_el!.classList.remove("dragging")
-        _view_move_previous_el!.classList.remove("dragging")
-
-        _view_move_current_el!.style.transform = ``
-        _view_move_previous_el!.style.transform = `translate3d(-150px, 0, 0)`
-
-        document.getElementById("loadviewoverlay")!.style.display = "none"
-
-        return 
-    } 
-
-
-
-
-    _view_mousedown_mode = "goingback"
-
-
-    _view_move_current_el!.classList.add("released")
-    _view_move_previous_el!.classList.add("released")
-
-    _view_move_current_el!.offsetHeight
-
-    _view_move_current_el!.style.transform = `translate3d(calc(100% + 30px), 0, 0)`
-    _view_move_previous_el!.style.transform = `translate3d(0, 0, 0)`
-
-    //_view_move_current_el!.style.transitionDuration = (1-_view_speed) + .5 + "s"
-    //_view_move_previous_el!.style.transitionDuration = (1-_view_speed) + .5 + "s"
-
-    _view_move_current_el!.addEventListener("transitionend", ()=> {
-        _view_mousedown_mode = "up"
-        window.location.hash = hstack[hstack.length-2]
-    })
-}
-*/
-
-
+export { Init, AddRoute }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SwitchStation = { InitInterval, AddRoute, Back }
+((window as any).$N as any).SwitchStation = { AddRoute, Back }
 
 
 
