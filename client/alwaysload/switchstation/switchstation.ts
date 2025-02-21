@@ -6,6 +6,27 @@ import { Run as LazyLoadRun } from '../lazyload.js'
 import { AddView as CMechAddView } from "../cmech.js"
 
 
+// Add a global flag to detect swipe-back gesture
+let isSwipeBackGesture = false;
+
+window.addEventListener("touchstart", (e: TouchEvent) => {
+    const touch = e.touches[0];
+    // If the touch starts near the left edge, mark as potential swipe-back.
+    if (touch.clientX < 50) {
+        isSwipeBackGesture = true;
+    }
+});
+
+window.addEventListener("touchmove", (e: TouchEvent) => {
+    // Optionally, add more precise swipe detection logic here.
+});
+
+window.addEventListener("touchend", () => {
+    // Reset the flag after the touch ends.
+    isSwipeBackGesture = false;
+});
+
+
 let _routes:Array<Route> = [];
 
 
@@ -186,6 +207,17 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
         const activeview = viewsel.children[viewsel.children.length - 1] as HTMLElement;
         let previousview = activeview?.previousElementSibling as HTMLElement;
+
+        // If a swipe-back gesture is detected, immediately remove the active view.
+        if (isSwipeBackGesture) {
+            activeview.remove();
+            if (previousview) {
+                previousview.setAttribute("active", "");
+            }
+            document.querySelector("#views")!.dispatchEvent(new Event("view_load_done"));
+            res(1);
+            return;
+        }
 
         if (!previousview) {
 			
