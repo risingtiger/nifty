@@ -204,7 +204,14 @@ async function routeChanged(path: string) {
     const normalizedRoute = path.startsWith('/') ? path.substring(1) : path;
     const routeToLoad     = normalizedRoute === "" ? "home" : normalizedRoute;
     const newHistoryIndex = history.state?.index ?? _currentHistoryIndex;
-    const direction       = newHistoryIndex < _currentHistoryIndex ? "back" : "forward";
+    // Determine direction only if there is an active view loaded.
+    const activeviewExisting = document.querySelector("#views .view[active]") as HTMLElement | null;
+    let direction: "firstload" | "forward" | "back";
+    if (!activeviewExisting) {
+        direction = "firstload";
+    } else {
+        direction = newHistoryIndex < _currentHistoryIndex ? "back" : "forward";
+    }
 
 	{
 		if (overlayel.style.display === "block") {
