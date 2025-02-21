@@ -7,7 +7,7 @@ import { AddView as CMechAddView } from "../cmech.js"
 
 let   cancelhashload = false;
 const view_load_done_event = new Event("view_load_done");
-let currentHistoryIndex: number = 0;
+let   _currentHistoryIndex: number = 0;
 
 
 
@@ -78,7 +78,6 @@ let _routes:Array<Route> = [];
 
 
 
-let currenthash = "";
 
 const Init = ()=> {
 
@@ -95,9 +94,9 @@ const Init = ()=> {
     // If no state exists, initialize it to index 0
     if (!history.state || history.state.index === undefined) {
         history.replaceState({ index: 0 }, '', initialPath);
-        currentHistoryIndex = 0;
+        _currentHistoryIndex = 0;
     } else {
-        currentHistoryIndex = history.state.index;
+        _currentHistoryIndex = history.state.index;
     }
     routeChanged(initialPath);
 }
@@ -130,10 +129,10 @@ function Back() {
  */
 function navigateTo(path: string) {
     // Increment the history index
-    const newIndex = currentHistoryIndex + 1;
+    const newIndex = _currentHistoryIndex + 1;
     // Push the new state with the new index and a clean URL
     history.pushState({ index: newIndex }, '', path);
-    currentHistoryIndex = newIndex;
+    _currentHistoryIndex = newIndex;
     // Trigger handling of the new route
     routeChanged(path);
 }
@@ -200,26 +199,28 @@ function load_and_attach_route___set_match_and_get_match_and_route(url: str) : [
  * @param path - The clean URL path (e.g. "/home", "/user/123") to load the route for.
  */
 async function routeChanged(path: string) {
-    const overlayel = document.getElementById("switchstation_overlay") as HTMLElement;
-    if (overlayel.style.display === "block") {
-        window.location.href = `/?errmsg=${encodeURIComponent('switchstation already in transition')}`;
-        return;
-    }
-    overlayel.style.display = "block";
 
-    // Normalize the route (remove any leading "/" so "home" is used)
+	let   overlayel       = document.getElementById("switchstation_overlay") as HTMLElement
     const normalizedRoute = path.startsWith('/') ? path.substring(1) : path;
-    const routeToLoad = normalizedRoute === "" ? "home" : normalizedRoute;
+    const routeToLoad     = normalizedRoute === "" ? "home" : normalizedRoute;
+    const newHistoryIndex = history.state?.index ?? _currentHistoryIndex;
+    const direction       = newHistoryIndex < _currentHistoryIndex ? "back" : "forward";
 
-    // Determine the navigation direction.
-    // Grab the new history state index if available; else assume currentHistoryIndex.
-    const newHistoryIndex = history.state?.index ?? currentHistoryIndex;
-    const direction = newHistoryIndex < currentHistoryIndex ? "back" : "forward";
-    currentHistoryIndex = newHistoryIndex; // update our global index
+	{
+		if (overlayel.style.display === "block") {
+			window.location.href = `/?errmsg=${encodeURIComponent('switchstation already in transition')}`;
+			return;
+		}
+		overlayel.style.display = "block";
+	}
 
-    // Load the route using your helper (which returns a matching Route and its URL parameter array)
+
+    _currentHistoryIndex = newHistoryIndex
+
     const [urlMatches, routeObj] = load_and_attach_route___set_match_and_get_match_and_route(routeToLoad);
+
     const loadresult = await routeObj.load(routeToLoad, urlMatches, "beforeend");
+
     if (loadresult === "failed") {
         overlayel.style.display = "none";
         window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view');
