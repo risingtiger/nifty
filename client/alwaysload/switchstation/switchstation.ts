@@ -82,30 +82,17 @@ let currenthash = "";
 
 const Init = ()=> {
 
-    /*
-    window.addEventListener("popstate", (e)=> {
-        hash_changed(e);
-    })
-    */
+    // Listen for popstate events which are triggered by back/forward or swipe gestures
+    window.addEventListener('popstate', (e) => {
+        // Get the current clean path from the browser location
+        const newPath = window.location.pathname;
+        // Trigger our route change handler with the new path
+        routeChanged(newPath);
+    });
 
-    window.addEventListener('hashchange', (e)=> {
-		if (cancelhashload) {
-			cancelhashload = false
-			return
-		}
-
-        const m = (e as any).newURL.match(/#(.+)/)
-        const c = m[1] as str
-		const y = (c.split("--"))[0]
-
-		if (y !== currenthash) {
-			currenthash = y
-			hash_changed(e)
-		}
-    })
-
-    //history.replaceState({}, "", window.location.href)
-    hash_changed()
+    // Initialize with current path
+    const initialPath = window.location.pathname === "/" ? "home" : window.location.pathname;
+    routeChanged(initialPath);
 }
 
 
@@ -118,15 +105,24 @@ const AddRoute = (lazyload_view:LazyLoadT)=> {
 
 
 
+/**
+ * Navigates back using the browser's History API.
+ * This supports both the native back button and mobile swipe gestures.
+ */
 function Back() {
+    history.back();
+}
 
-	const m         = window.location.href.match(/#(.+)/)!
-	const c         = m[1] as str
-	const split     = c.split("/")
-
-	const hashpath  = split.slice(0, split.length-1).join("/")
-
-    window.location.hash = hashpath
+/**
+ * Navigates to a new route by pushing a clean URL into the browser history.
+ * Also triggers the route change handling (e.g., loading and animating the new view).
+ * @param path - The new clean URL path (e.g. "/home", "/users/123").
+ */
+function navigateTo(path: string) {
+    // Push the new state with a clean URL
+    history.pushState({ path: path }, '', path);
+    // Trigger handling of the new route
+    routeChanged(path);
 }
 
 
@@ -183,7 +179,12 @@ function load_and_attach_route___set_match_and_get_match_and_route(url: str) : [
 
 
 
-async function hash_changed(e:Event|null = null) {
+/**
+ * Handles routing when the URL changes.
+ * Instead of reading the hash fragment, we use the clean URL path.
+ * @param path - The clean URL path (e.g. "/home", "/user/123") to load the route for.
+ */
+async function routeChanged(path: string) {
 
     const overlayel = document.getElementById("switchstation_overlay") as HTMLElement
 
@@ -195,14 +196,12 @@ async function hash_changed(e:Event|null = null) {
 
     overlayel.style.display = "block"
 
-    if (e && (e as any)!.newURL) {
-        const m = (e as any).newURL.match(/#(.+)/)
-        const c = m[1] as str
-		const y = (c.split("--"))[0]
-
-        if (hstack.length === 1 && document.querySelector("#views .view[active]")?.getAttribute("backhash") === y) {
-            hstack.unshift(y)
-        }
+    // Compute the route string from the path
+    const route = path.startsWith('/') ? path.substring(1) : path;
+    const y = (route.split("--"))[0];
+    
+    if (hstack.length === 1 && document.querySelector("#views .view[active]")?.getAttribute("backhash") === y) {
+        hstack.unshift(y)
     }
 
     if (document.querySelector("#views .view[active][draggedback]")) {
@@ -223,8 +222,8 @@ async function hash_changed(e:Event|null = null) {
 
     else if (!hstack.length) { // first time load in browser
 
-		const n = window.location.hash === "" ? "home" : window.location.hash.substring(1)
-		const y = (n.split("--"))[0]
+        const n = route === "" ? "home" : route;
+        const y = (n.split("--"))[0];
 		const loadresult = await load_and_attach_route(y, "beforeend")
 
 		if (loadresult === "failed") {
@@ -376,10 +375,10 @@ function has_changed___failed_posthash(showhomebtn=true) {
 
 
 
-export { Init, AddRoute }
+export { Init, AddRoute, navigateTo }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SwitchStation = { AddRoute, Back }
+((window as any).$N as any).SwitchStation = { AddRoute, Back, navigateTo }
 
 
 
