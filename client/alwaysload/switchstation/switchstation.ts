@@ -5,9 +5,9 @@ import { str } from  "../../defs_server_symlink.js"
 import { Run as LazyLoadRun } from '../lazyload.js'
 import { AddView as CMechAddView } from "../cmech.js"
 
-const hstack:Array<str> = [];
 let   cancelhashload = false;
 const view_load_done_event = new Event("view_load_done");
+let currentHistoryIndex: number = 0;
 
 
 
@@ -92,6 +92,13 @@ const Init = ()=> {
 
     // Initialize with current path
     const initialPath = window.location.pathname === "/" ? "home" : window.location.pathname;
+    // If no state exists, initialize it to index 0
+    if (!history.state || history.state.index === undefined) {
+        history.replaceState({ index: 0 }, '', initialPath);
+        currentHistoryIndex = 0;
+    } else {
+        currentHistoryIndex = history.state.index;
+    }
     routeChanged(initialPath);
 }
 
@@ -122,8 +129,11 @@ function Back() {
  * @param path - The new clean URL path (e.g. "/home", "/users/123").
  */
 function navigateTo(path: string) {
-    // Push the new state with a clean URL
-    history.pushState({ path: path }, '', path);
+    // Increment the history index
+    const newIndex = currentHistoryIndex + 1;
+    // Push the new state with the new index and a clean URL
+    history.pushState({ index: newIndex }, '', path);
+    currentHistoryIndex = newIndex;
     // Trigger handling of the new route
     routeChanged(path);
 }
@@ -190,134 +200,94 @@ function load_and_attach_route___set_match_and_get_match_and_route(url: str) : [
  * @param path - The clean URL path (e.g. "/home", "/user/123") to load the route for.
  */
 async function routeChanged(path: string) {
-
-    const overlayel = document.getElementById("switchstation_overlay") as HTMLElement
-
+    const overlayel = document.getElementById("switchstation_overlay") as HTMLElement;
     if (overlayel.style.display === "block") {
-		window.location.href = `/?errmsg=${encodeURIComponent('switchstation already in transition')}`; 
-        return
-    } 
-
-
-    overlayel.style.display = "block"
-
-    // Compute the route string from the path
-    const route = path.startsWith('/') ? path.substring(1) : path;
-    
-
-    if (!hstack.length) { // first time load in browser
-
-        const n = route === "" ? "home" : route;
-        const y = (n.split("--"))[0];
-		const loadresult = await load_and_attach_route(y, "beforeend")
-
-		if (loadresult === "failed") {
-			if (!window.location.href.includes("localhost")) 
-				window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view')
-			else 
-				throw new Error("switchstation - failed to load view")
-
-			return
-		}
-
-        const view = document.querySelector("#views .view") as HTMLElement
-
-        view.style.display = "block"
-        view.setAttribute("active", "")
-
-        hstack.push(window.location.hash.substring(1))
-
-        hash_changed___posthash()
-    } 
-
-    else if (window.location.hash.substring(1) === hstack[hstack.length-2]) { // is going back
-
-        const activeview = document.querySelector("#views .view[active]")
-        let   previousview = activeview?.previousElementSibling
-
-        if(!previousview) { // browser load at a particular page and then back button pressed. History exists in browser, but not previous view
-
-            const loadresult  = await load_and_attach_route(hstack[hstack.length-2], "afterbegin")
-
-			if (loadresult === "failed") {
-				window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view')
-				return
-			}
-
-            previousview = activeview?.previousElementSibling as HTMLDivElement
-            previousview.classList.add("previous_endstate")
-            //@ts-ignore
-            previousview.style.display = "block"
-            //@ts-ignore
-            previousview.offsetHeight
-        }
-
-        activeview?.classList.add("active_endstate")
-        previousview?.classList.remove("previous_endstate")
-
-        activeview?.addEventListener("transitionend", activeview_transitionend)
-
-        function activeview_transitionend() {
-            activeview?.remove()
-            previousview?.setAttribute("active", "")
-
-            const previous_previousview = previousview?.previousElementSibling as HTMLElement
-            if (previous_previousview) {
-                previous_previousview.setAttribute("previous", "")
-            }
-
-            hstack.pop()
-
-            hash_changed___posthash()
-
-            activeview?.removeEventListener("transitionend", activeview_transitionend)
-        }
-
-    } else {   // is going forward
-
-		const c = window.location.hash.substring(1)
-		const y = (c.split("--"))[0]
-
-        const loadresult = await load_and_attach_route(y, "beforeend")
-
-		if (loadresult === "failed") {
-			has_changed___failed_posthash(false)
-			return
-		}
-
-        const allviews = document.querySelectorAll("#views .view") as NodeListOf<HTMLElement>
-        const activeview = allviews[allviews.length-1]
-        const previousview = activeview.previousElementSibling as HTMLElement
-
-        activeview.classList.add("next_startstate")
-        activeview.style.display = "block"
-        activeview.offsetHeight
-        activeview.classList.remove("next_startstate")
-
-        previousview.classList.add("previous_endstate")
-
-        activeview.addEventListener("transitionend", activeview_transition_end)
-
-        function activeview_transition_end() {
-            activeview.setAttribute("active", "")
-            previousview.removeAttribute("active")
-            previousview.setAttribute("previous", "")
-
-            const previous_previousview = previousview.previousElementSibling as HTMLElement
-            if (previous_previousview) {
-                previous_previousview.removeAttribute("previous")
-            }
-
-            //history.pushState({}, "", "#" + window.location.hash.substring(1))
-			const c = window.location.hash.substring(1)
-			const y = (c.split("--"))[0]
-            hstack.push(y)
-
-            hash_changed___posthash()
-
-            activeview.removeEventListener("transitionend", activeview_transition_end)
-        }
+        window.location.href = `/?errmsg=${encodeURIComponent('switchstation already in transition')}`;
+        return;
     }
+    overlayel.style.display = "block";
+
+    // Normalize the route (remove any leading "/" so "home" is used)
+    const normalizedRoute = path.startsWith('/') ? path.substring(1) : path;
+    const routeToLoad = normalizedRoute === "" ? "home" : normalizedRoute;
+
+    // Determine the navigation direction.
+    // Grab the new history state index if available; else assume currentHistoryIndex.
+    const newHistoryIndex = history.state?.index ?? currentHistoryIndex;
+    const direction = newHistoryIndex < currentHistoryIndex ? "back" : "forward";
+    currentHistoryIndex = newHistoryIndex; // update our global index
+
+    // Load the route using your helper (which returns a matching Route and its URL parameter array)
+    const [urlMatches, routeObj] = load_and_attach_route___set_match_and_get_match_and_route(routeToLoad);
+    const loadresult = await routeObj.load(routeToLoad, urlMatches, "beforeend");
+    if (loadresult === "failed") {
+        overlayel.style.display = "none";
+        window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view');
+        return;
+    }
+
+    // Based on the navigation direction, apply the proper view transitions.
+    if (direction === "forward") {
+        // Forward transition animation
+        const allviews = document.querySelectorAll("#views .view") as NodeListOf<HTMLElement>;
+        const activeview = allviews[allviews.length - 1];
+        activeview.classList.add("next_startstate");
+        activeview.style.display = "block";
+        activeview.offsetHeight; // force reflow
+        activeview.classList.remove("next_startstate");
+
+        const previousview = activeview.previousElementSibling as HTMLElement;
+        if (previousview) {
+            previousview.classList.add("previous_endstate");
+        }
+
+        activeview.addEventListener("transitionend", function activeTransitionEnd() {
+            activeview.setAttribute("active", "");
+            if (previousview) {
+                previousview.removeAttribute("active");
+                previousview.setAttribute("previous", "");
+                const previous_previousview = previousview.previousElementSibling as HTMLElement;
+                if (previous_previousview) {
+                    previous_previousview.removeAttribute("previous");
+                }
+            }
+            activeview.removeEventListener("transitionend", activeTransitionEnd);
+        });
+    }
+    else if (direction === "back") {
+        // Backward transition animation
+        const activeview = document.querySelector("#views .view[active]") as HTMLElement;
+        let previousview = activeview?.previousElementSibling;
+        if (!previousview) {
+            // If the previous view isn't present, load it
+            const loadresult = await load_and_attach_route(routeToLoad, "afterbegin");
+            if (loadresult === "failed") {
+                overlayel.style.display = "none";
+                window.location.href = "/?errmsg=" + encodeURIComponent('failed to load view');
+                return;
+            }
+            previousview = activeview?.previousElementSibling as HTMLElement;
+            previousview.classList.add("previous_endstate");
+            previousview.style.display = "block";
+            previousview.offsetHeight;
+        }
+        activeview.classList.add("active_endstate");
+        previousview.classList.remove("previous_endstate");
+
+        activeview.addEventListener("transitionend", function activeTransitionEnd() {
+            activeview.remove();
+            previousview?.setAttribute("active", "");
+            const previous_previousview = previousview?.previousElementSibling as HTMLElement;
+            if (previous_previousview) {
+                previous_previousview.setAttribute("previous", "");
+            }
+            activeview.removeEventListener("transitionend", activeTransitionEnd);
+        });
+    }
+
+    // Remove overlay and signal that view load is done.
+    overlayel.style.display = "none";
+    document.querySelector("#views")!.dispatchEvent(view_load_done_event);
 }
 
 
@@ -335,19 +305,17 @@ function hash_changed___posthash() {
 
 
 
-function has_changed___failed_posthash(showhomebtn=true) {
-    document.getElementById("switchstation_overlay")!.style.display = "none"
-
-	if (showhomebtn) {
-		document.body.insertAdjacentHTML("beforeend", `<button id="gohomebtn" style="cursor:pointer;position: absolute;top: 20px;left: 50%;width: 200px;margin-left: -100px;">Reload Home Page</button>`)
-		const el = document.getElementById("gohomebtn") as HTMLButtonElement
-		el.addEventListener("click", ()=> { 
-			window.location.href = "/index.html" 
-		})
-	}
-	cancelhashload = true
-	window.location.hash = hstack[hstack.length-1]
-	alert ("Network error. failed to load view")
+function has_changed___failed_posthash(showhomebtn = true) {
+    document.getElementById("switchstation_overlay")!.style.display = "none";
+    if (showhomebtn) {
+        document.body.insertAdjacentHTML("beforeend", `<button id="gohomebtn" style="cursor:pointer;position: absolute;top: 20px;left: 50%;width: 200px;margin-left: -100px;">Reload Home Page</button>`);
+        const el = document.getElementById("gohomebtn") as HTMLButtonElement;
+        el.addEventListener("click", () => {
+            window.location.href = "/index.html";
+        });
+    }
+    cancelhashload = true;
+    alert("Network error. Failed to load view");
 }
 
 
