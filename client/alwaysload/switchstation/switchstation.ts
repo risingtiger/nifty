@@ -79,8 +79,6 @@ class Route {
 
 const Init = ()=> {
 
-    window.addEventListener('popstate', (_e) => routeChanged(window.location.pathname.slice(3)));
-
     const initialPath = window.location.pathname.slice(3)
 
     if (!history.state || history.state.index === undefined) {
@@ -243,7 +241,18 @@ function grabregexparams(original_matchstr:string) {
 
 
 
-export { Init, AddRoute }
+export async function NavigateTo(newPath: string): Promise<void> {
+    // Increment history index so routeChanged can detect forward navigation.
+    _currentHistoryIndex++;
+
+    // Update the browser history to the new path.
+    history.pushState({ index: _currentHistoryIndex }, '', newPath);
+
+    // Call routeChanged with the new path.
+    await routeChanged(newPath);
+}
+
+export { Init, AddRoute, NavigateTo }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 
