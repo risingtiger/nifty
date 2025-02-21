@@ -227,8 +227,14 @@ async function routeChanged(path: string) {
         return;
     }
 
-    // Based on the navigation direction, apply the proper view transitions.
-    if (direction === "forward") {
+    // Apply the proper transition based on navigation type.
+    if (direction === "firstload") {
+        // FIRSTLOAD: No active view exists – simply mark the newly loaded view as active.
+        const newActiveView = document.querySelector("#views .view:last-child") as HTMLElement;
+        // Optionally, add any fade-in or initial animation here.
+        newActiveView.setAttribute("active", "");
+    }
+    else if (direction === "forward") {
         // Forward transition animation
         const allviews = document.querySelectorAll("#views .view") as NodeListOf<HTMLElement>;
         const activeview = allviews[allviews.length - 1];
