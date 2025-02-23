@@ -111,27 +111,17 @@ function Patch(db:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return
 
     const promises:any[] = []
 
-    pathstr = Array.isArray(pathstr) ? pathstr : [pathstr]
-    data    = Array.isArray(data) ? data : [data]
-
-	/*
-    if (!opts) opts = [{notenyet: ""}]
-
-    for(let i = opts.length; i < pathstr.length; i++) opts.push(opts[opts.length-1])
-    for(let i = data.length; i < pathstr.length; i++) data.push(data[data.length-1])
-	*/
-
 	if (!db) {
-		const returns = patch_jsons(pathstr, data, opts)
+		const returns = patch_jsons(pathstrs, datas, null)
 		res(returns)
 		return
 	}
 
 
-    for (let i = 0; i < pathstr.length; i++) {
-        let d = parse_request(db, pathstr[i], null)
-        data[i].ts = Math.floor(Date.now() / 1000)
-        promises.push(   d.update(data[i])  )
+    for (let i = 0; i < pathstrs.length; i++) {
+        let d = parse_request(db, pathstrs[i], null)
+        datas[i].ts = Math.floor(Date.now() / 1000)
+        promises.push(   d.update(datas[i])  )
     }
 
     Promise.all(promises).then((results:any[])=> {
