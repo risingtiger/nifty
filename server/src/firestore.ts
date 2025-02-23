@@ -1,26 +1,24 @@
 
 
-import { SSETriggersE } from './defs.js'
 
 type str = string; type int = number; type bool = boolean;
 
 import { readFileSync, writeFileSync } from "fs"
-import zlib from 'node:zlib'
 
 const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
 
 
 
-type RetrieveOptsT = { order_by:str|null, ts:int|null, limit:int|null, startby?: number|null }
+type RetrieveOptsT   = { order_by:str|null, ts:int|null, limit:int|null, startafter: string|null }
 
-/*
-*/
+
+
 
 function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) {   return new Promise<Array<object[]>>(async (res, _rej) => {
 
     const promises:any = []
 
-    if (!opts) opts = [{ order_by: null, ts: null, limit: null, startby: null }];
+    if (!opts) opts = [{ order_by: null, ts: null, limit: null, startafter: null }];
 
     for (let i = opts.length; i < pathstr.length; i++) {
         opts.push({ ...opts[opts.length - 1] });
@@ -29,27 +27,27 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
         if (o.order_by === undefined) o.order_by = null;
         if (o.ts === undefined) o.ts = null;
         if (o.limit === undefined) o.limit = null;
-        if (o.startby === undefined) o.startby = null;
-        if (o.startby !== null && (o.order_by === null || o.limit === null)) {
+        if (o.startafter === undefined) o.startafter = null;
+        if (o.startafter !== null && (o.order_by === null || o.limit === null)) 
             throw new Error("When startby is set, both order_by and limit must be provided.");
-        }
     });
 
-	if (!db) {
-		const r = get_jsons(pathstr, opts)
-		res(r)
-		return
-	}
+	if (!db) {  const r = get_jsons(pathstr, opts); res(r); return;  }
 
 
     for (let i = 0; i < pathstr.length; i++) {
+
         let d = parse_request(db, pathstr[i], opts[i].ts)
 
-        if (opts[i].order_by) {
-            const [field, direction] = opts[i].order_by.split(":");
+        if (!opts[i].ts && opts[i].order_by !== null) {
+
+            const [field, direction] = opts[i].order_by!.split(",");
+
             d = d.orderBy(field, direction);
-            if (opts[i].startby !== null) {
-                d = d.startAt(opts[i].startby);
+
+            if (opts[i].startafter !== null) {
+				const doc_ref = await db.doc(opts[i].startafter).get()
+                d = d.startAfter(doc_ref)
             }
         }
         if (opts[i].limit) {
@@ -59,27 +57,31 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
         promises.push(d.get())
     }
 
-    Promise.all(promises).then((results:any[])=> {
-        const returns:any = []
-        for (let i = 0; i < results.length; i++) {
+    Promise.all(promises)
+		.then((results:any[])=> {
+			const returns:any = []
+			for (let i = 0; i < results.length; i++) {
 
-            if (results[i].docs && results[i].docs.length === 0) {
-                returns.push([])
-            } 
+				if (results[i].docs && results[i].docs.length === 0) {
+					returns.push([])
+				} 
 
-            else if (results[i].docs && results[i].docs.length) {
-                const docs = results[i].docs.map((doc:any)=> {
-                    return {id: doc.id, ...doc.data()}
-                })
-                returns.push(docs)
-            } 
+				else if (results[i].docs && results[i].docs.length) {
+					const docs = results[i].docs.map((doc:any)=> {
+						return {id: doc.id, ...doc.data()}
+					})
+					returns.push(docs)
+				} 
 
-            else {
-                returns.push([{id: results[i].id, ...results[i].data()}])
-            }
-        }
-        res(returns)
-    })
+				else {
+					returns.push([{id: results[i].id, ...results[i].data()}])
+				}
+			}
+			res(returns)
+		})
+		.catch((err:any)=> {
+			throw new Error("Error in Firestore Retrieve: " + err)
+		})
 })}
 
 
@@ -105,19 +107,19 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
 
 
 
-type PatchOptsT = { notenyet:str|null }
-
-function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null) {   return new Promise(async (res, _rej)=> {
+function Patch(db:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return new Promise(async (res, _rej)=> {
 
     const promises:any[] = []
 
     pathstr = Array.isArray(pathstr) ? pathstr : [pathstr]
     data    = Array.isArray(data) ? data : [data]
 
+	/*
     if (!opts) opts = [{notenyet: ""}]
 
     for(let i = opts.length; i < pathstr.length; i++) opts.push(opts[opts.length-1])
     for(let i = data.length; i < pathstr.length; i++) data.push(data[data.length-1])
+	*/
 
 	if (!db) {
 		const returns = patch_jsons(pathstr, data, opts)
@@ -145,134 +147,60 @@ function Patch(db:any, pathstr:str[]|str, data:any|any[], opts:PatchOptsT[]|null
 
 
 
-/*
-async function InitBatches(db:any, sse:any, pathstr:str[], tses:number[], sse_id:str, instance_id:str) {
+const callers:{ runid:string, paths:string[], tses:number[], startafters: Array<object|null>, isdones: boolean[] }[] = []
 
-	if (pathstr.length === 0) throw "pathstr needs at least one path in Firestore.InitBatches"
-	if (tses.length !== pathstr.length) throw "tses needs to be same length as pathstr in Firestore.InitBatches"
+const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<Array<{isdone:boolean, docs:object[]}>>(async (res, _rej)=> {
 
-	let batchnumber = 0
+	let   caller = callers.find((c:any)=> c.runid === runid)
+	if (!caller)   callers.push({ runid, paths, tses, startafters: paths.map(()=> null), isdones: paths.map(()=> false) })
+	caller       = caller || callers.find((c:any)=> c.runid === runid)!
 
-	for(let i = 0; i < pathstr.length; i++) {
-		const path = pathstr[i]
-		const ts   = tses[i]
+	const limit_on_all         = Math.floor( 2000 / caller.paths.filter((_p:any, i:any)=> !caller.isdones[i]).length )
 
-		const limit = 200
-		let   ismore = true
-		let   lastdoc = null
-		
-		while(ismore) {
-			let d  = db.collection(path)
-			if (ts) d = d.where("ts", ">", ts)
-			d = d.orderBy("ts")
-			if(lastdoc) d = d.startAfter(lastdoc)
-			d = d.limit(limit)
-			const snapshot = await d.get()
+	const promises:Promise<any>[] = []
 
-			const docs = snapshot.docs.map((doc:any)=> ( {id: doc.id, ...doc.data() } ) )
+	for(let i = 0; i < caller.paths.length; i++) {
 
-			ismore = (snapshot.docs.length === limit) // could be no more docs, cause batch size lands on boundary of docs, but well keep going to next while, in that case next will be empty
+		const ts         = caller.tses[i] || 0
+		const startafter = caller.startafters[i] || null
 
-			const isend = !ismore && i === pathstr.length - 1
+		const q = db.collection(caller.paths[i]).where("ts", ">", ts).orderBy("ts")
 
-			batchnumber++
+		if (startafter) q.startAfter(startafter)
 
-			const r = sse.TriggerEventOne(SSETriggersE.FIRESTORE_BATCH, sse_id, { path, docs, instance_id, batchnumber, isend })
-			await new Promise((res, _rej)=> setTimeout(res, 50))
-			if (!r) return // BAIL OUT. Listener was gone, so DONT blast into the void
+		q.limit(limit_on_all)
 
-			lastdoc = snapshot.docs[snapshot.docs.length - 1]
+		promises.push( q.get() )
+	}
+
+	const r = await Promise.all(promises)
+
+	const returns:Array<{ isdone:boolean, docs:object[] }> = []
+
+	for(let i = 0; i < r.length; i++) {
+		const snapshot = r[i]
+
+		if (snapshot.docs.length === limit_on_all) {
+			caller.startafters[i] = snapshot.docs[snapshot.docs.length - 1]
+			caller.isdones[i] = false
 		}
-	}
-}
-*/
-
-
-
-
-async function InitBatches(db:any, res:any, pathstr:str[], tses:number[]) {
-
-	const pstr = pathstr.join(",")
-
-	const gzip_compressor = zlib.createGzip()
-	gzip_compressor.pipe(res)
-
-	res.setHeader('Content-Type', 'text/plain')
-	res.setHeader('Transfer-Encoding', 'chunked')
-	res.set('Content-Encoding', 'gzip');
-
-	if (pathstr.length === 0) throw "pathstr needs at least one path in Firestore.InitBatches"
-	if (tses.length !== pathstr.length) throw "tses needs to be same length as pathstr in Firestore.InitBatches"
-
-	try {
-		let batchnumber = 0
-
-		for(let i = 0; i < pathstr.length; i++) {
-			const path = pathstr[i]
-			const ts   = tses[i]
-
-			const limit = 2
-			let   ismore = true
-			let   lastdoc = null
-			
-			while(ismore) {
-				let d  = db.collection(path)
-
-				if (ts) d = d.where("ts", ">", ts)
-
-				d = d.orderBy("ts")
-
-				if(lastdoc) d = d.startAfter(lastdoc)
-
-				d = d.limit(limit)
-
-				const snapshot = await d.get()
-
-				const docs = snapshot.docs.map((doc:any)=> ( {id: doc.id, ...doc.data() } ) )
-
-				ismore = (snapshot.docs.length === limit) // could be no more docs, cause batch size lands on boundary of docs, but well keep going to next while, in that case next will be empty
-
-				const isend = !ismore && i === pathstr.length - 1
-
-				batchnumber++
-
-				const chunk = JSON.stringify({ batchnumber, path, isend, docs  }) + "\n"
-
-				//const compressed = await compressit(chunk)
-
-				if (!gzip_compressor.write(chunk)) {
-					await new Promise((resolve) => gzip_compressor.once('drain', resolve))
-				}
-				//res.write(chunk)
-
-				lastdoc = snapshot.docs[snapshot.docs.length - 1]
-			}
+		else if (snapshot.docs.length < limit_on_all) { // including if 0
+			caller.startafters[i] = null
+			caller.isdones[i] = true
 		}
-		console.log("pstr: ", pstr, " res.end(): ")
-		gzip_compressor.end()
+
+		const docs   = snapshot.docs.map((doc:any)=> ( {id: doc.id, ...doc.data() } ) )
+		const isdone = caller.isdones[i]
+		returns.push({ isdone, docs }) // docs array could be empty
 	}
-	catch(e) {
-		res.status(500).end()
+
+	if (caller.isdones.every(d=> d === true)) {
+		callers.splice(callers.findIndex((c:any)=> c.runid === runid), 1)
 	}
-}
 
-
-
-
-/*
-const compressit = (chunk:string) => new Promise<any>((response, _rej)=> {
-	zlib.createGunzip()
-	zlib.com(chunk, {
-		params: {
-			[zlib.constants.BROTLI_PARAM_QUALITY]: 4,
-			[zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
-		},
-
-	}, (_err:any, result:any) => {
-			response(result)
-	})
+	res(returns)
 })
-*/
+
 
 
 
@@ -472,7 +400,7 @@ function patch_jsons(pathstr:str[]|str, data:any|any[], _opts:PatchOptsT[]|null)
 
 
 
-const Firestore = { Retrieve, Add, Patch, InitBatches }
+const Firestore = { Retrieve, Add, Patch, GetBatch }
 export { Firestore }
 
 
