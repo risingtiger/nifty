@@ -123,6 +123,7 @@ function Patch(db:any, sse:any, pathstrs:str[], datas:any[], oldtses:number[]) {
         }
 
         datas[i].ts = Math.floor(Date.now() / 1000);
+        const x = { ...docData, ...datas[i] };
         try {
             await d.update(datas[i]);
             results.push({ ok: true, index: i });
