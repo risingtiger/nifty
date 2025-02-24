@@ -109,22 +109,30 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
 
 function Patch(db:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return new Promise(async (res, _rej)=> {
 
-    const promises:any[] = []
+    const results: any[] = [];
 
     for (let i = 0; i < pathstrs.length; i++) {
-        let d = parse_request(db, pathstrs[i], null)
-        datas[i].ts = Math.floor(Date.now() / 1000)
-        promises.push(   d.update(datas[i])  )
-    }
+        let d = parse_request(db, pathstrs[i], null);
+        const docSnapshot = await d.get();
+        const docData = docSnapshot.data();
 
-    Promise.all(promises).then((results:any[])=> {
-        const returns:any = []
-        for (let i = 0; i < results.length; i++) {
-            returns.push({ok: true})
+        // If document does not exist or its 'ts' doesn't match, skip updating this document.
+        if (!docData || docData.ts !== oldtses[i]) {
+            results.push({ ok: false, msg: "Timestamp mismatch", index: i });
+            continue;
         }
 
-        res(returns)
-    })
+        // Proceed to update after setting a new timestamp.
+        datas[i].ts = Math.floor(Date.now() / 1000);
+        try {
+            await d.update(datas[i]);
+            results.push({ ok: true, index: i });
+        } catch (err) {
+            results.push({ ok: false, err: err, index: i });
+        }
+    }
+
+    res(results);
 })}
 
 
