@@ -4,6 +4,7 @@
 type str = string; type int = number; type bool = boolean;
 
 import { readFileSync, writeFileSync } from "fs"
+import { SSETriggersE } from "./defs.js"
 
 const offlinedata_dir = process.env.NIFTY_OFFLINEDATA_DIR || ""
 
@@ -107,7 +108,7 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
 
 
 
-function Patch(db:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return new Promise(async (res, _rej)=> {
+function Patch(db:any, sse:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return new Promise(async (res, _rej)=> {
 
     const results: any[] = [];
 
@@ -116,17 +117,17 @@ function Patch(db:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return
         const docSnapshot = await d.get();
         const docData = docSnapshot.data();
 
-        // If document does not exist or its 'ts' doesn't match, skip updating this document.
         if (!docData || docData.ts !== oldtses[i]) {
             results.push({ ok: false, msg: "Timestamp mismatch", index: i });
             continue;
         }
 
-        // Proceed to update after setting a new timestamp.
         datas[i].ts = Math.floor(Date.now() / 1000);
         try {
             await d.update(datas[i]);
             results.push({ ok: true, index: i });
+			sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:datas[i] })
+
         } catch (err) {
             results.push({ ok: false, err: err, index: i });
         }
@@ -139,7 +140,6 @@ function Patch(db:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return
 
 
 const callers:{ runid:string, paths:string[], tses:number[], startafters: Array<object|null>, isdones: boolean[] }[] = []
-
 const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<Array<{isdone:boolean, docs:object[]}>>(async (res, _rej)=> {
 
 	let   caller = callers.find((c:any)=> c.runid === runid)
