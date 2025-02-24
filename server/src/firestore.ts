@@ -111,13 +111,6 @@ function Patch(db:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return
 
     const promises:any[] = []
 
-	if (!db) {
-		const returns = patch_jsons(pathstrs, datas, null)
-		res(returns)
-		return
-	}
-
-
     for (let i = 0; i < pathstrs.length; i++) {
         let d = parse_request(db, pathstrs[i], null)
         datas[i].ts = Math.floor(Date.now() / 1000)
@@ -344,7 +337,7 @@ function get_jsons(pathstr:str[]|str, _opts:RetrieveOptsT[]|null) {
 	return returns
 }
 
-function patch_jsons(pathstr:str[]|str, data:any|any[], _opts:PatchOptsT[]|null) {
+function patch_jsons(pathstr:str[]|str, data:any|any[], _opts:{}[]|null) {
 
 	for (let i = 0; i < pathstr.length; i++) {
 
