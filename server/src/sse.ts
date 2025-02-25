@@ -10,13 +10,22 @@ type ListenerT = {
     id:str,
     cb:(trigger:SSETriggersE, obj:any)=>void,
 	endit:()=>void
+	checkit:()=>void
 }
 
 const listeners:Map<str,ListenerT> = new Map()
+let   isshuttingdown = false
 
 
 
 function Add_Listener(req:any, res:any) { 
+
+	if (isshuttingdown) {
+		res.statusCode = 503
+		res.end()
+		return
+	}
+
 
     const id = req.query.id as str
     const l = listeners.get(id)
@@ -34,6 +43,13 @@ function Add_Listener(req:any, res:any) {
         },
 		endit: ()=> {
 			res.end()
+		},
+		checkit: ()=> {
+			if (res.writable && !res.destroyed && !res.writableEnded) {
+				res.write(':\n\n'); // Send a comment to keep the connection alive
+			} else {
+				cleanUp(id)
+			}
 		}
     })
 
@@ -52,28 +68,9 @@ function Add_Listener(req:any, res:any) {
 	res.write('retry: 15000\n')
     res.write('\n')
 
-    req.on('close', cleanUp)
-	res.on('close', cleanUp)
-	res.on('finish', cleanUp)
-	res.on('error', cleanUp)
-
-	setTimeout(routinemaintenance, 60000, res)
-
-
-	function cleanUp() {
-		const listener = listeners.get(id)
-		listener?.endit()
-		listeners.delete(id)
-	}
-
-	function routinemaintenance(res_ref:any) {
-		if (res_ref.writable && !res_ref.destroyed && !res_ref.finished && !res_ref.writableEnded) {
-			res_ref.write(':\n\n'); // Send a comment to keep the connection alive
-			setTimeout(routinemaintenance, 60000, res_ref)
-		} else {
-			cleanUp()
-		}
-	}
+    req.on('close', ()=> { cleanUp(id)} )
+    req.on('finish', ()=> { cleanUp(id)} )
+    req.on('error', ()=> { console.log("req.on error"); cleanUp(id)} )
 }
 
 
@@ -81,15 +78,39 @@ function Add_Listener(req:any, res:any) {
 
 function TriggerEvent(eventname:SSETriggersE, data:any) {
     listeners.forEach(l => {
-		try {
-			l.cb(eventname, data)
-		} catch (e) {
-			listeners.delete(l.id)
-		}
+		l.cb(eventname, data)
     })
 }
 
 
+
+
+function TriggerEventOne(eventname:SSETriggersE, sse_id:str, data:any) : boolean {
+	const listener = listeners.get(sse_id)
+	if (!listener) return false
+
+	listener.cb(eventname, data)
+	return true
+}
+
+
+
+
+function cleanUp(id:str) {
+	const listener = listeners.get(id)
+	if (!listener) return
+	listener.endit()
+	listeners.delete(id)
+}
+
+function routinemaintenance() {
+	listeners.forEach(l => {
+		l.checkit()
+	})
+}
+
+
+setTimeout(routinemaintenance, 30000)
 
 
 
@@ -105,28 +126,28 @@ function remove_listener(l:Listener) {
 
 
 
-// Handle SIGTERM signal for graceful shutdown
-process.on('SIGTERM', handleSigTerm);
+process.on('SIGTERM', ()=> {
 
-function handleSigTerm() {
+	isshuttingdown = true
+
     console.info('Received SIGTERM signal. Cleaning up SSE listeners.');
 
-    // End all SSE responses gracefully
     listeners.forEach((listener) => {
         try {
             listener.endit();
+			listeners.delete(listener.id)
         } catch (e) {
             console.error(`Error while ending listener ${listener.id}:`, e);
         }
     });
 
-    // Clear the listeners map
     listeners.clear();
 
-    // Exit the process after cleanup
-    process.exit(0);
-}
+	setTimeout(()=> {
+		process.exit(0);
+	}, 5000)
+});
 
-export default { Add_Listener, TriggerEvent }
+export default { Add_Listener, TriggerEvent, TriggerEventOne }
 
 

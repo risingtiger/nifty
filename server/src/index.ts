@@ -57,6 +57,8 @@ app.use(bodyParser.json())
 
 
 
+
+/*
 app.get([
     '/app*.webmanifest$', 
     '/assets/*\.js$',
@@ -69,6 +71,24 @@ app.get([
     '/assets/media/*\.woff2',
     '/sw*.js$'
 ], assets_general)
+*/
+
+
+app.get("/favicon.ico", (_req:any, res:any) => {
+	res.sendFile(process.cwd() + "/" + STATIC_PREFIX + (VAR_NODE_ENV === "dev" ? "dev/" : "dist/") + '/media/pwticons/favicon.ico')
+})
+app.get("/apple-touch-icon.png", (_req:any, res:any) => {
+	res.sendFile(process.cwd() + "/" +  STATIC_PREFIX + (VAR_NODE_ENV === "dev" ? "dev/" : "dist/") + '/media/pwticons/apple-touch-icon.png')
+})
+app.get("/apple-touch-icon-precomposed.png", (_req:any, res:any) => {
+	res.sendFile(process.cwd() + "/" +  STATIC_PREFIX + (VAR_NODE_ENV === "dev" ? "dev/" : "dist/") + '/media/pwticons/apple-touch-icon-precomposed.png')
+})
+
+app.get([
+    '/app.webmanifest', 
+    '/assets/*file',
+    '/sw.js'
+], assets_general)
 
 
 
@@ -79,10 +99,9 @@ app.post('/api/refresh_auth', refresh_auth)
 
 
 app.post('/api/firestore_retrieve', firestore_retrieve)
-
 app.post('/api/firestore_add', firestore_add)
-
 app.post('/api/firestore_patch', firestore_patch)
+app.post('/api/firestore_get_batch', firestore_get_batch)
 
 
 
@@ -105,17 +124,16 @@ app.get("/api/logger/get",   logger_get)
 
 app.get("/api/notifications_add_subscription", notifications_add_subscription)
 app.get("/api/notifications_remove_subscription", notifications_remove_subscription)
-app.post("/api/notifications_send_msg", notifications_send_msg)
 
 
 
 
-app.get(['/index.html','/','/entry/*'], entry)
+app.get(['/index.html','/','/entry/*file'], entry)
 
 
 
 
-app.get('/v', htmlstr)
+app.get('/v/*restofpath', htmlstr)
 
 
 
@@ -201,13 +219,33 @@ async function firestore_patch(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const return_data = { result: "", err: "" }
+    const r = await Firestore.Patch(db, SSE, req.body.pathstrs, req.body.datas, req.body.oldtses)
 
-    await Firestore.Patch(db, req.body.paths, req.body.data, req.body.opts)
-
-    return_data.result = "ok"
-    res.status(200).send(JSON.stringify(return_data))
+    res.status(200).send(JSON.stringify(r))
 }
+
+
+
+
+async function firestore_get_batch(req:any, res:any) {
+
+    if (! await validate_request(res, req)) return 
+
+    const results = await Firestore.GetBatch(db, req.body.paths, req.body.tses, req.body.runid)
+
+    const jsoned = JSON.stringify(results)
+    zlib.brotliCompress(jsoned, {
+        params: {
+            [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
+            [zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
+        },
+
+    }, (_err:any, result:any) => {
+        res.set('Content-Encoding', 'br');
+        res.status(200).send(result)
+    })
+}
+
 
 
 
@@ -286,6 +324,7 @@ async function influxdb_retrieve_medians(req:any, res:any) {
 
 async function sse_add_listener(req:any, res:any) {
 
+	console.info("at index.js SSE listener called")
     SSE.Add_Listener(req, res)
 }
 
@@ -299,8 +338,7 @@ async function logger_save(req:any, res:any) {
 		req.body.user_email, 
 		req.body.device, 
 		req.body.browser, 
-		req.body.logs, 
-		req.body.is_localhost)
+		req.body.logs)
 
 	res.status(200).send("")
 }
@@ -310,7 +348,7 @@ async function logger_save(req:any, res:any) {
 
 async function logger_get(req:any, res:any) {
 
-	const logs = await Logger.Get(db, req.query.user_email, req.query.is_localhost)
+	const logs = await Logger.Get(db, req.query.user_email)
 	res.status(200).send(logs)
 }
 
@@ -342,18 +380,6 @@ async function notifications_remove_subscription(req:any, res:any) {
     await Notifications.Remove_Subscription(db, user_email)
 
     res.status(200).send(JSON.stringify({message:"saved"}))
-}
-
-
-
-
-async function notifications_send_msg(req:any, res:any) {
-
-    if (! await validate_request(res, req)) return 
-
-    await Notifications.Send_Msg(db, req.body.title, req.body.body, req.body.tags)
-
-    res.status(200).send(JSON.stringify({message:"msg send"}))
 }
 
 
