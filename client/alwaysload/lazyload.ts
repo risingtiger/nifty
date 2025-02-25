@@ -1,11 +1,27 @@
-
-
 import { bool, str } from "../defs_server_symlink.js";
 import { LazyLoadT } from "../defs.js";
 
 
 const TIMEOUT_TS = 9000;
 
+
+function importWithTimeout<T>(path: string, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout loading ${path}`));
+    }, timeoutMs);
+
+    import(path)
+      .then((module: T) => {
+        clearTimeout(timer);
+        resolve(module);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
 
 
 let lazyloads:LazyLoadT[] = [];
@@ -34,8 +50,6 @@ function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, 
     if (loadque.length > 0) {
 
         loadstart_ts = Date.now()
-
-        ticktock()
 
         const r = await retrieve_loadque(loadque)
 		if (r === null) { res(null); return; }
@@ -89,10 +103,11 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
 	try {
 		for(const f of filepaths) {
-			promises.push(import(f))
+			// Each file will timeout after 4000 ms (4 seconds)
+			promises.push(importWithTimeout(f, 4000));
 		}
 
-		await Promise.all(promises)
+		await Promise.all(promises);
 	}
 	catch (err) {
 		res(null)
@@ -149,38 +164,4 @@ function throwup_and_leave(errmsg:str, errmsg_long:str="") {
 
 
 
-function ticktock() {
-
-    setTimeout(()=> {
-
-        const xel = document.getElementById("lazyload_overlay")!
-
-        if (loadstart_ts > 0) {
-
-            const now = Date.now()
-
-            xel.classList.add("active")
-
-			const l = xel.querySelector(".waiting_animate")!.classList
-            if (now - loadstart_ts > 1000) l.add("active"); else l.remove("active");
-
-            const istimedout = now - loadstart_ts > TIMEOUT_TS
-
-            if (istimedout) {
-                throwup_and_leave("lazyload_timeout", "Lazyload took too long to load.")
-            } else {
-                ticktock()
-            }
-        } else {
-            xel.classList.remove("active")
-            xel.querySelector(".waiting_animate")!.classList.remove("active")
-        }
-    }, 20)
-}
-
-
-
 export { Run, Init }
-
-
-
