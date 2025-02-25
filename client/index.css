@@ -1,4 +1,3 @@
-
 :root {
     --fontfamily: -apple-system, BlinkMacSystemFont, sans-serif;
     --textcolor: #565656;
@@ -226,3 +225,48 @@ body, td {
   to { -webkit-transform: rotate(360deg); }
 }
 
+.unrecoverable-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0; 
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+}
+
+.unrecoverable-modal.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unrecoverable-content {
+  background: white;
+  width: 87.5%;
+  max-width: 480px;
+  height: 300px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  text-align: center;
+}
+
+.unrecoverable-content h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.unrecoverable-content p {
+  flex: 1;
+  margin: 20px 0;
+}
+
+.unrecoverable-content button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}

@@ -1,4 +1,3 @@
-
 import {  } from "./defs_server_symlink.js";
 import { LazyLoadT, $NT, INSTANCE_T, LoggerTypeE, LoggerSubjectE } from "./defs.js";
 
@@ -232,8 +231,25 @@ $N.ToastShow = ToastShow
 
 
 
-function Unrecoverable(subj: string, msg:string) {
+function Unrecoverable(subj: string, msg: string) {
+  const modal = document.getElementById('unrecoverable_notice');
+  if (!modal) return;
+  
+  // Show the modal by adding an "active" class
+  modal.classList.add('active');
 
+  const titleEl = document.getElementById('unrecoverable_notice_title');
+  const msgEl = document.getElementById('unrecoverable_notice_msg');
+  const btnReset = document.getElementById('unrecoverable_notice_reset');
+
+  if (titleEl) titleEl.textContent = subj;
+  if (msgEl) msgEl.textContent = msg;
+
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      window.location.href = '/';
+    });
+  }
 }
 $N.Unrecoverable = Unrecoverable
 
@@ -313,8 +329,3 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 		}
 	});
 })
-
-
-
-
-
