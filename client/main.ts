@@ -1,6 +1,6 @@
 
 import {  } from "./defs_server_symlink.js";
-import { LazyLoadT, $NT, INSTANCE_T, IndexedDBStoreMetaT, LoggerSubjectE, LoggerTypeE } from "./defs.js";
+import { LazyLoadT, $NT, INSTANCE_T, LoggerTypeE, LoggerSubjectE } from "./defs.js";
 
 
 declare var INSTANCE:INSTANCE_T; // set here for LSP support only
@@ -9,19 +9,21 @@ declare var $N: $NT;
 
 // --THE FOLLOWING GET BUNDLED INTO THE MAIN BUNDLE
 
-import './alwaysload/switchstation/switchstation.js';
+import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import './alwaysload/firestore.js';
+import { Init as FirestoreInit } from './alwaysload/firestore.js';
 //import './alwaysload/firestore_live.js';
 import './alwaysload/influxdb.js';
-import './alwaysload/lazyload.js';
-import './alwaysload/sse.js';
-import './alwaysload/engagementlisten.js';
+import { Init as LazyLoadInit } from './alwaysload/lazyload.js';
+import { Init as SSEInit } from './alwaysload/sse.js';
 import './alwaysload/indexeddb.js';
 import './alwaysload/datasync.js';
 import './alwaysload/logger.js';
+import './alwaysload/engagementlisten.js';
+import {Init as CMechInit} from './alwaysload/cmech.js';
 import './alwaysload/utils.js';
+
 
 //{--main_instance.js--}
 
@@ -36,20 +38,12 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "view",
-		urlmatch: "^auth$",
-		name: "auth",
-		is_instance: false,
-		dependencies: [],
-		auth: []
-	},
-
-	{
-		type: "view",
 		urlmatch: "^notifications$",
 		name: "notifications",
 		is_instance: false,
 		dependencies: [
 			{ type: "component", name: "ol" },
+			{ type: "component", name: "btn" },
 		],
 		auth: ["admin", "store_manager", "scanner"]
 	},
@@ -59,7 +53,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "graphing",
 		is_instance: false,
 		dependencies: [{ type: "thirdparty", name: "chartist" }],
@@ -68,7 +61,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "ol",
 		is_instance: false,
 		dependencies: [],
@@ -77,7 +69,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "pol",
 		is_instance: false,
 		dependencies: [],
@@ -86,7 +77,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "tl",
 		is_instance: false,
 		dependencies: [],
@@ -95,7 +85,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "reveal",
 		is_instance: false,
 		dependencies: [],
@@ -104,7 +93,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "form",
 		is_instance: false,
 		dependencies: [],
@@ -113,7 +101,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "dselect",
 		is_instance: false,
 		dependencies: [],
@@ -122,7 +109,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "in",
 		is_instance: false,
 		dependencies: [
@@ -134,7 +120,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "animeffect",
 		is_instance: false,
 		dependencies: [],
@@ -143,7 +128,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "toast",
 		is_instance: false,
 		dependencies: [],
@@ -152,7 +136,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "component",
-		urlmatch: null,
 		name: "btn",
 		is_instance: false,
 		dependencies: [
@@ -165,7 +148,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "thirdparty",
-		urlmatch: null,
 		name: "chartist",
 		is_instance: false,
 		dependencies: [],
@@ -177,7 +159,6 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "lib",
-		urlmatch: null,
 		name: "testlib",
 		is_instance: false,
 		dependencies: [],
@@ -195,28 +176,20 @@ window.addEventListener("load", async (_e) => {
 
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
 
-	const saved_indexeddb_stores = JSON.parse(localStorage.getItem("indexeddb_stores") || "[]") as IndexedDBStoreMetaT[]
-	for(const s of (INSTANCE.INFO.indexeddb_stores as any)) {
-		const found = saved_indexeddb_stores.find(ss => ss.name === s.name) as any
-		s.ts = found ? found.ts : 0
+	{
+		LazyLoadInit(lazyloads)
+		$N.EngagementListen.Init()
+		FirestoreInit(INSTANCE.INFO.datasync_collections, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+		CMechInit()
 	}
-	localStorage.setItem("indexeddb_stores", JSON.stringify(INSTANCE.INFO.indexeddb_stores))
 
-	await $N.IndexedDB.Init  (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
-	$N.DataSync.Init          (INSTANCE.INFO.indexeddb_stores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
-
-	if ((window as any).APPVERSION > 0)   await setup_service_worker()
-
-	$N.EngagementListen.Init()
-	$N.LazyLoad.Init(lazyloads)
-
-	setTimeout(() => $N.SSEvents.Init(), 3000)
+	if ((window as any).APPVERSION > 0) await setup_service_worker()
 
 	localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
+	lazyloads.filter(l => l.type === "view").forEach(r => SwitchStationAddRoute(r))
+	SwitchStationInit();
 
-	lazyloads.filter(l => l.type === "view").forEach(r => $N.SwitchStation.AddRoute(r))
-
-	$N.SwitchStation.InitInterval();
+	SSEInit()
 })
 
 
@@ -259,11 +232,20 @@ $N.ToastShow = ToastShow
 
 
 
+function Unrecoverable(subj: string, msg:string) {
+
+}
+$N.Unrecoverable = Unrecoverable
+
+
+
+
+
 const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 
 	let hasPreviousController = navigator.serviceWorker.controller ? true : false;
 
-	 navigator.serviceWorker.register('sw.js').then(registration => {
+	 navigator.serviceWorker.register('/sw.js').then(registration => {
 
 		serviceworker_reg = registration;
 
@@ -300,6 +282,10 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 					throw new Error(event.data.subject + " -- " + event.data.errmsg)
 				}
 			}
+
+			else if (event.data.action === 'logit') {
+				$N.Logger.Log(Number(event.data.type), event.data.subject, `${event.data.msg}`)
+			}
 		});
 
 		navigator.serviceWorker.addEventListener('controllerchange', onNewServiceWorkerControllerChange);
@@ -310,16 +296,10 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 
 
 		function onNewServiceWorkerControllerChange() {
-
-			console.log("main.ts controllerchange")
-
 			if (!hasPreviousController) {
-				console.log("main.ts no previous controller")
 				hasPreviousController = true
 				return;
 			}
-
-			console.log("main.ts has previous controller")
 
 			localStorage.clear();
 

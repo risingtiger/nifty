@@ -82,7 +82,7 @@ body, td {
 	transform: translate3D(0, 0, 0);
 	transform-origin: 0px 50%;
 	transition-property: transform, opacity;
-	transition-duration: 0.5s;
+	transition-duration: 0.3s;
 	transition-timing-function: cubic-bezier(.42,0,.04,1);
 	/*
 
@@ -103,21 +103,6 @@ body, td {
 	transform: translate3D(35px, 0, 0);
 }
 
-& .view.dragging {
-	user-select: none;
-	transition-property: none;
-	transition-duration: 0s;
-	transition-timing-function: none;
-}
-& .view[active].dragging {
-	box-shadow: -20px 20px 20px rgb(0 0 0 / .1);
-}
-
-& .view.dragging.released {
-	transition-property: transform, opacity;
-	transition-duration: 0.3s;
-	transition-timing-function: east-out;
-}
 
 	
 /*  
@@ -164,7 +149,7 @@ body, td {
 
 
 
-#fetchlassy_overlay, #lazyload_overlay, #switchstation_overlay {
+#fetchlassy_overlay, #lazyload_overlay {
   display: none;
   z-index: 1000;
   position: absolute;
@@ -174,7 +159,7 @@ body, td {
   bottom: 0;
 
 }
-#fetchlassy_overlay.active, #lazyload_overlay.active, #switchstation_overlay.active {
+#fetchlassy_overlay.active, #lazyload_overlay.active {
   display: block;
 }
 
