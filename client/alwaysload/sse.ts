@@ -1,5 +1,4 @@
 
-
 import { str, SSETriggersE } from "../defs_server_symlink.js"
 import { $NT, LoggerTypeE, LoggerSubjectE } from "../defs.js"
 
@@ -8,6 +7,7 @@ type SSE_Listener = {
     name: str,
 	el: HTMLElement,
     triggers:SSETriggersE[],
+	priority:number,
     cb:(paths:str[])=>void
 }
 
@@ -33,69 +33,74 @@ function Init() {
 
 
 function ForceStop() {   
-	evt!.close()
+	if (evt)
+		evt.close()
 }
 
 
 
 
-function Add_Listener(el:HTMLElement, name:str, triggers:SSETriggersE[], callback_:(obj:any)=>void) {
+const WaitTilConnectedOrTimeout = () => new Promise<boolean>(async (res, _rej)=> {
 
-	for (const s of sse_listeners) {
-		if (!s.el.parentElement) {
-			sse_listeners.splice(sse_listeners.indexOf(s), 1) // just a little cleanup. if the element is gone, remove the listener
+	let counter = 0
+
+	if (evt && evt.readyState === EventSource.OPEN) {
+		res(true)
+		return
+	} else {
+		const intrv = setInterval(()=> {
+			if (evt && evt.readyState === EventSource.OPEN) {
+				clearInterval(intrv)
+				res(true)
+			}
+
+			counter++
+
+			if (counter > 30) {
+				clearInterval(intrv)
+				res(false)
+			}
+
+		}, 100)
+	}
+})
+
+
+
+
+function Add_Listener(el:HTMLElement, name:str, triggers:SSETriggersE[], priority_:number|null, callback_:(obj:any)=>void) {
+
+	for(let i = 0; i < sse_listeners.length; i++) {
+		if (!sse_listeners[i].el.parentElement) {
+			sse_listeners.splice(i, 1)   
 		}
 	}
 
-    const existing_listener_index = sse_listeners.findIndex(l=> l.name === name && l.el === el)
+	const priority = priority_ || 0
 
-    const new_listener = {
-        name: name,
-        el: el,
-        triggers,
-        cb: callback_
-    }
-
-    if (existing_listener_index >= 0) {
-        sse_listeners[existing_listener_index] = new_listener
-    } else {
-        sse_listeners.push(new_listener)
-    }
-        name: name,
+	const newlistener = {
+		name: name,
 		el: el,
-        triggers,
-        cb: callback_
-    })
+		triggers,
+		priority,
+		cb: callback_
+	}
 
-	$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_added, `${name}`)
 
-	console.log(`SSE Listener Added: ${el.tagName} - ${name}`)
+	Remove_Listener(el, name) // will just return if not found
+
+	sse_listeners.push(newlistener)
+
+	sse_listeners.sort((a, b)=> a.priority - b.priority)
 }
 
 
 
 
-function Remove_Listener(name:str) {   
-	const i = sse_listeners.findIndex(l=> l.name === name)
+function Remove_Listener(el:HTMLElement, name:str) {   
+	const i = sse_listeners.findIndex(l=> l.el.tagName === el.tagName && l.name === name)
+	if (i === -1) return
 	sse_listeners.splice(i, 1)   
-
-	$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_removed, `${sse_listeners[i].name}`)
-	console.log(`SSE Listener Removed: ${sse_listeners[i].name}`)
-}
-
-
-
-
-async function Reset() {
-
-    if (evt) {
-        evt.close()
-        evt = null
-    }
-
-    setTimeout(()=> {
-        boot_up()
-    }, 15000)
 }
 
 
@@ -110,56 +115,36 @@ function boot_up() {
         localStorage.setItem('sse_id', id)
     }
 
-    evt = new EventSource("/api/sse_add_listener?id=" + id)
+    //evt = new EventSource("/api/sse_add_listener?id=" + id)
+    evt = new EventSource("https://webapp-805737116651.us-central1.run.app/api/sse_add_listener?id=" + id)
 	connect_ts = Date.now()
 
+	$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_added, ``)
+
     evt.onerror = (_e) => {
-		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_error, ``)
-		console.log(`SSE Listener Client Error: `)
+		$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.sse_listener_error, ``)
     }
 
     evt.addEventListener("connected", (_e) => {
 		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_connected, ``)
-		console.log(`SSE Listener Client Connected: `)
-		//
     })
 
-    evt.addEventListener("a_"+SSETriggersE.FIRESTORE, (e) => {
-
-		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_firestore, ``)
-		console.log(`SSE Received Firestore: ${e.data}`)
-
-		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_withfocus, ``)
-		console.log(`SSE Received With Focus: `)
-
+    evt.addEventListener("a_"+SSETriggersE.FIRESTORE_DOC, (e) => {
 		const data = JSON.parse(e.data)
-		sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE)).forEach(l=> l.cb(data))
+		const ls = sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE_DOC))
+		if (!ls) throw new Error("should be at least one  listener for FIRESTORE_DOC, but none found")
+		ls.forEach(l=> l.cb(data))
     }) 
 
-    evt.addEventListener("a_"+101, (e) => { // i need to fix this. 101 is for machine status of PWT. I need to erradicate enum SSETriggersE and use strings instead or maybe a Map or Set
-
-		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_machinestatus, ``)
-		console.log(`SSE Received Machine Status `)
-
-		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_received_withfocus, ``)
-
+    evt.addEventListener("a_"+SSETriggersE.FIRESTORE_COLLECTION, (e) => {
 		const data = JSON.parse(e.data)
-		sse_listeners.filter(l=> l.triggers.includes(101 as SSETriggersE)).forEach(l=> l.cb(data)) // ya, dis be fucked. gotta get rid of SSETriggersE and stick with strings
+		const ls = sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE_COLLECTION))
+		if (!ls) throw new Error("should be at least one listener for FIRESTORE_COLLECTION, but none found")
+		ls.forEach(l=> l.cb(data))
     }) 
+
 
     // lets just see if the browser will take care of when user goes in and out of focus on window / app
-
-    /*
-    sse_ticktock()   
-
-    EngagementListen.Add_Listener("sse", "focus", ()=> {
-        clearTimeout(set_timeout_intrv!)
-        sse_ticktock()
-    })
-    EngagementListen.Add_Listener("sse", "blur", ()=> {
-        clearTimeout(set_timeout_intrv!)
-    })
-    */
 }
 
 
@@ -202,7 +187,6 @@ function __begin_it__() {
         })
 
 
-        console.log("this needs to be taken out. was put in to trigger sync with pwtdata but that api should be done soon and this whole process removed")
 
         if (trigger === SSE_Triggers.PWTSync) {
             const viewsel = document.querySelector("#views") as HTMLDivElement
@@ -270,6 +254,7 @@ function sse_ticktock_run() : int {
 
 
 
+/*
 function redirect_from_error(errmsg:str, errmsg_long:str) {
 	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
 	if (window.location.protocol === "https:") {
@@ -278,10 +263,12 @@ function redirect_from_error(errmsg:str, errmsg_long:str) {
 		throw new Error(errmsg + " -- " + errmsg_long)
 	}
 }
+*/
 
 
 
+export { Init }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SSEvents = { Init, ForceStop, Reset, Add_Listener, Remove_Listener };
+((window as any).$N as any).SSEvents = {ForceStop, Add_Listener, Remove_Listener, WaitTilConnectedOrTimeout };
 
