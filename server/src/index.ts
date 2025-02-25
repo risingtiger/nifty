@@ -111,7 +111,7 @@ app.post('/api/influxdb_retrieve_medians', influxdb_retrieve_medians)
 
 
 
-app.get("/api/sse_add_listener", cors(), sse_add_listener)
+app.get("/api/sse_add_listener", cors({ origin: 'https://example.com' }), sse_add_listener)
 
 
 
