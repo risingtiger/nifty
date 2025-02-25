@@ -115,8 +115,15 @@ function boot_up() {
         localStorage.setItem('sse_id', id)
     }
 
-    //evt = new EventSource("/api/sse_add_listener?id=" + id)
-    evt = new EventSource("https://webapp-805737116651.us-central1.run.app/api/sse_add_listener?id=" + id)
+    // Check if we're on localhost
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    // Use absolute path for localhost, otherwise use the full URL
+    const eventSourceUrl = isLocalhost 
+        ? "/api/sse_add_listener?id=" + id
+        : "https://webapp-805737116651.us-central1.run.app/api/sse_add_listener?id=" + id;
+    
+    evt = new EventSource(eventSourceUrl);
 	connect_ts = Date.now()
 
 	$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_added, ``)
