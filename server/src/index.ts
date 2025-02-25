@@ -1,11 +1,9 @@
-
-
-
 import { str, ServerInstanceT, ServerMainsT } from "./defs.js"
 
 import express from "express";
 
 import bodyParser from 'body-parser'
+import cors from "cors";
 
 import { initializeApp, cert }  from "firebase-admin/app";
 import { getFirestore }  from "firebase-admin/firestore";
@@ -113,7 +111,7 @@ app.post('/api/influxdb_retrieve_medians', influxdb_retrieve_medians)
 
 
 
-app.get("/api/sse_add_listener", sse_add_listener)
+app.get("/api/sse_add_listener", cors(), sse_add_listener)
 
 
 
@@ -565,8 +563,3 @@ bootstrapit()
 
 
 export default app
-
-
-
-
-
