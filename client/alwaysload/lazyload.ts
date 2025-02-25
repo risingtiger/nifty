@@ -87,11 +87,17 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
     const filepaths = loadque.map(l=> get_filepath(l.type, l.name, l.is_instance))
 
-    for(const f of filepaths) {
-        promises.push(import(f).catch((_e)=> { res(null); }))
-    }
+	try {
+		for(const f of filepaths) {
+			promises.push(import(f))
+		}
 
-    await Promise.all(promises)
+		await Promise.all(promises)
+	}
+	catch (err) {
+		res(null)
+		return
+	}
 
     res(1)
 })}
@@ -155,11 +161,8 @@ function ticktock() {
 
             xel.classList.add("active")
 
-            if (now - loadstart_ts > 1000) {
-                xel.querySelector(".waiting_animate")!.classList.add("active")
-            } else {
-                xel.querySelector(".waiting_animate")!.classList.remove("active")
-            }
+			const l = xel.querySelector(".waiting_animate")!.classList
+            if (now - loadstart_ts > 1000) l.add("active"); else l.remove("active");
 
             const istimedout = now - loadstart_ts > TIMEOUT_TS
 
