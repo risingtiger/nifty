@@ -107,7 +107,7 @@ const GenConnectedCallback = async (component:HTMLElement & CMechT) => new Promi
 	host.subelshldr!.push(component)
 
 	if (component.loadother) {
-		const r = await component.loadother()
+		const r = await component.loadother.bind(component)()
 		if (r === null) { component.dispatchEvent(new CustomEvent("failed")); res(); return; }
 	}
 
