@@ -1,27 +1,24 @@
 
 
-import { num, str } from "../defs_server_symlink.js"
+import { num, str, bool } from "../defs_server_symlink.js"
 
 import { 
 	$NT, 
 	CMechT, 
-	CMechOptsT, 
 	EngagementListenerTypeT, 
+	FetchResultT, 
 	FirestoreFetchResultT,
 	FirestoreLoadSpecT,
-    LazyLoadT,
-	URIDetailT
 } from "../defs.js"
 
-import { GrabHoldData as FirestoreGrabHoldData } from "./firestore.js"
+import { DataGrab as FirestoreDataGrab, AddToListens as FirestoreAddToListens, RemoveFromListens as FirestoreRemoveListens } from "./firestore.js"
 
 declare var $N: $NT;
 
 
 
-const _viewloadspecs:Map<string, FirestoreLoadSpecT> = new Map()
-
-//let _c:{lazyload:LazyLoadT, uridetails:URIDetailT}|null = null
+const _viewloadspecs:Map<string, FirestoreLoadSpecT> = new Map() // key is view tagname sans 'v-'
+const _viewloadeddata:Map<string, FirestoreFetchResultT> = new Map() // key is view tagname sans 'v-'
 
 
 
@@ -32,233 +29,117 @@ const Init = () => {
 
 
 
-const AddView = (componentname:str, loadspecs:FirestoreLoadSpecT, views_attach_point:"beforeend"|"afterbegin") => new Promise<void>(async (res, _rej)=> {
+const AddView = (componentname:str, loadspecs:FirestoreLoadSpecT, views_attach_point:"beforeend"|"afterbegin") => new Promise<num|null>(async (res, _rej)=> {
 
 	_viewloadspecs.set(componentname, loadspecs)
 
 	const parentEl = document.querySelector("#views")!;
 	parentEl.insertAdjacentHTML(views_attach_point, `<v-${componentname} class='view'></v-${componentname}>`);
-	//const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement
 
-			//if (el.dataset.hydratestate === "ok") {
-			//	res('success')
-			//} else if (el.dataset.hydratestate === "err") {
-			//	el.remove()
-			//	res('failed')
-			//} else {
-			//	el.addEventListener("hydrated", hydrated)
-			//	el.addEventListener("failed", failed)
-			//}
+	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechT
 
-	res()
-})
-
-/*
-
-	if (!lazyload.loadspecs || !lazyload.loadspecs.length) { res(); return; }
-
-	const loadspecs = lazyload.loadspecs.map(ls => {
-		let path = ls.path
-		for (const [key, value] of Object.entries(uridetails.params)) {
-			path = path.replace(`:${key}`, `${value}`)
-		}
-		return {path:path, opts:ls.opts}
+	el.addEventListener("hydrated", ()=> { res(1); })
+	el.addEventListener("failed",   ()=> { 
+		el.remove()
+		res(null); 
 	})
 
-	_isgrabbingdata = true
-
-	const r = await datagrab(loadspecs)
-	if (r === null) { _isgrabbingdata = false; res(); return; }
-
-	Listen_to_Loadspecs(loadspecs)
-
-	_isgrabbingdata = false
-
-	res()
-	*/
+	parentEl.addEventListener("visibled", visibled)
 
 
-
-const ConnectedCallback = async (component:HTMLElement & CMechT, opts?:CMechOptsT|undefined|null) => new Promise<void>(async (res, _rej)=> {
-
-	const tagname       = component.tagName.toLowerCase()
-	const tagname_split = tagname.split("-")
-	let   loadspecs_view_to_load = ""
-	let   is_mainview   = true
-
-	if   (tagname_split[0] === 'v') {
-		loadspecs_view_to_load = tagname_split[1]
+	function visibled() {
+		if (el.visibled) el.visibled()
+		parentEl.removeEventListener("visibled", visibled)
 	}
-	else {
-		const rootnode                    = component.getRootNode()
-		//@ts-ignore
-		const host                        = rootnode.host as HTMLElement
-		const ancestor_view_tagname       = host.tagName.toLowerCase()
-		const ancestor_view_tagname_split = ancestor_view_tagname.split("-")
+})
 
-		loadspecs_view_to_load            = ancestor_view_tagname_split[1]
-		is_mainview                       = false
+
+
+
+const ViewConnectedCallback = async (component:HTMLElement & CMechT) => new Promise<void>(async (res, _rej)=> {
+
+	const tagname                            = component.tagName.toLowerCase()
+	const tagname_split                      = tagname.split("-")
+	const viewname                           = tagname_split[1]
+
+	if (tagname_split[0] !== 'v') throw new Error("Not a view component")
+
+	const r = await handle_view_initial_data_load(viewname, ( component.loadother ? component.loadother.bind(component) : null )  )
+	if (r === null) { res(); return; }
+
+	set_component_m_data(true, component, "", _viewloadspecs.get(viewname)!, _viewloadeddata.get(viewname)||null)
+
+	for(const prop in component.a) component.a[prop] = component.getAttribute(prop);
+
+	component.subelshldr = []
+
+	if (component.kd) component.kd()
+	component.sc()
+
+	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {   component.sc();   });
+
+	// component.subelshldr array will be populated by the sub elements of the view if they exist after initial render -- keep in mind they will be EVEN AFTER the view is initially hydrated at any point later 
+	component.subelshldr?.forEach((el:any)=>  {
+		el.addEventListener("failed", ()=> { component.dispatchEvent(new CustomEvent("failed")); res(); return; })
+		el.addEventListener("hydrated", ()=> {
+			el.dataset.sub_is_hydrated = "1"
+			if (component.subelshldr!.every((el:any)=> el.dataset.sub_is_hydrated === "1")) {
+				res(); return;
+			}
+		})
+	}) ?? res()
+})
+
+
+
+
+const GenConnectedCallback = async (component:HTMLElement & CMechT) => new Promise<void>(async (res, _rej)=> {
+
+	const tagname                     = component.tagName.toLowerCase()
+
+	const rootnode                    = component.getRootNode()
+	const host                        = ( rootnode as any ).host as HTMLElement & CMechT
+	const ancestor_view_tagname       = host.tagName.toLowerCase()
+	const ancestor_view_tagname_split = ancestor_view_tagname.split("-")
+	const ancestor_viewname           = ancestor_view_tagname_split[1]
+	const loadspecs                   = _viewloadspecs.get(ancestor_viewname)
+
+	host.subelshldr!.push(component)
+
+	if (component.loadother) {
+		const r = await component.loadother()
+		if (r === null) { component.dispatchEvent(new CustomEvent("failed")); res(); return; }
 	}
 
-	const loadspecs = _viewloadspecs.get(loadspecs_view_to_load)
-	const loadspecs_array = loadspecs ? [...loadspecs] : []
-
-	if (loadspecs && loadspecs.size > 0) {
-		const filtered_loadspecs = new Map(
-			loadspecs_array.filter(([_path, ls]) => {
-				if (is_mainview) {
-					return !ls.els || ls.els.includes('this')
-				} else {
-					return ls.els && ls.els.includes(tagname)
-				}
-			})
-		);
-		const data = FirestoreGrabHoldData(filtered_loadspecs);
-		if (data === null) throw new Error("Data not found for " + loadspecs_view_to_load);
-
-		for (const [path, d] of data) {
-			const loadspec = loadspecs.get(path)!
-			component.m[loadspec.name] = Array.isArray(component.m[loadspec.name]) ? d : d[0]
-		}
-	}
+	set_component_m_data(false, component, tagname, loadspecs!, _viewloadeddata.get(ancestor_viewname)!)
 
 	for(const prop in component.a) component.a[prop] = component.getAttribute(prop)
 
-	if (component.knitdata) component.knitdata()
+	if (component.kd) component.kd()
 	component.sc()
-	
-	const els = [...new Set(loadspecs_array.map(([_path, ls])=> ls.els).flat().filter(Boolean))] as string[]
-
-	if (is_mainview && loadspecs && loadspecs.size > 0 && loadspecs_array.some(( ls:any )=> ls.els)) {
-		for(const ls of loadspecs_array) {	
-
-		}
-	}
-
-
-
-	//component.sc()
-
-
-
-
-
-	{
-		if (!opts) opts      = {  }
-		opts.hydrates        = opts.hydrates === undefined ? [] : opts.hydrates
-		
-		if ( !component.m || !component.a || !component.sc)  throw new Error("Component must have m, a and sc " + component.nodeName)
-	}
-
-
-
-
-
-	/*
-	{
-		lhydrations = opts.hydrates.map(l=> {
-			const el = ( component as any ).shadow.querySelector(l)
-			if (!el) throw new Error("Could not find element in shadow dom with selector: " + l)
-			return { el }
-		})
-		lhydrations.forEach(l=> {
-			l.el.addEventListener('hydrated', checkhydration)
-			l.el.addEventListener('failed',   checkhydration)
-		})
-	}
-	*/
-
-
-
-
-
-
-	/*
-	{
-		const loadspecs = component.getloadspecs ? component.getloadspecs() : []
-		if (loadspecs.length) {
-			const r = await DataGrab(component.m, loadspecs)
-			if (r === null) { hydratedfailedevent(); return; }
-		}
-
-		if (component.knitdata) component.knitdata()
-		component.sc()
-	}
-	*/
-
-
-	/*
-	if (component.getloadspecs) {
-		$N.Firestore.Add_Listener(
-			component, 
-			"component", 
-			()=> component.getloadspecs ? component.getloadspecs() : [],
-			(r:FirestoreFetchResultT)=> handle_firestore_listener(component, r)
-		) 
-	}
-	*/
-
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {
 		component.sc()
 	})
 
-
-	function hydratedfailedevent() {
-		component.dataset.hydratestate = "err"
-		component.dispatchEvent(new Event('failed'))
-		rej()
-	}
-
-	/*
-	component.dataset.hydratestate = "ok"
-	checkhydration()
-	*/	
-
-	/*
-	function checkhydration() {
-
-		const is_any_subcomponentserr = lhydrations.some(l=> l.el.dataset.hydratestate === "err")
-		if (is_any_subcomponentserr) {
-			hydratedfailedevent()
-
-		} else {
-			const is_this_hydrated = component.dataset.hydratestate === "ok"
-			const is_all_subs_hydrated = lhydrations.every(l=> l.el.dataset.hydratestate === "ok")
-
-			if (is_all_subs_hydrated && is_this_hydrated) {
-
-				component.dispatchEvent(new Event('hydrated'))
-				res()
-
-				lhydrations.forEach(l=> {
-					l.el.removeEventListener('hydrated', checkhydration)
-					l.el.removeEventListener('failed',   checkhydration)
-				})
-			}
-		}
-	}
-
-
-	*/
+	res()
 })
 
 
 
 
-const AttributeChangedCallback = (a:any, sc:()=>void, knitdata:( ()=>void )|null, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
+const AttributeChangedCallback = (component:HTMLElement & CMechT, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
 
-	console.log("REMOVE ONCE DONE TESTING. I THINK THIS WILL SHOW UP INIT OF COMPONENT. NEED TO FILTER OUT FIRST CALLS. I THINK BY TESTING FOR NULL OF OLDVAL")
 	if (oldval === null) return
 
-	a[name] = newval
+	component.a[name] = newval
 
-	if (!a.updatescheduled) {
-		a.updatescheduled = true
+	if (!component.a.updatescheduled) {
+		component.a.updatescheduled = true
 		Promise.resolve().then(()=> { 
-			if (knitdata) knitdata()
-			sc()
-			a.updatescheduled = false
+			if (component.kd) component.kd()
+			component.sc()
+			component.a.updatescheduled = false
 		})
 	}
 }
@@ -266,80 +147,156 @@ const AttributeChangedCallback = (a:any, sc:()=>void, knitdata:( ()=>void )|null
 
 
 
-const datagrab = async (loadspecs:FirestoreLoadSpecT[]) => new Promise<FirestoreFetchResultT|null>(async (res, _rej)=> {
+const ViewDisconnectedCallback = (component:HTMLElement & CMechT) => {
 
-	const r = await $N.Firestore.DataGrab(loadspecs)
-	if (r === null) { res(null); return; }
+	const componentname           = component.tagName.toLowerCase().split("-")[1]
+	const x                       = _viewloadspecs.get(componentname)?.keys()
+	const viewloadspecpaths:str[] = x ? [...x] : []
 
-	r.forEach((value, key) => {
-		_data.set(key, value);
-	});
-	res(r)
+	_viewloadspecs.delete(componentname)
+	_viewloadeddata.delete(componentname)
 
-	/*
-	const d = {}
-
-	for(let i = 0; i < loadspecs.length; i++) {
-		const isdoc = loadspecs[i].path.split("/").length % 2 === 0
-		const m = r.get(loadspecs[i].path) as Array<object>|object
-		d[loadspecs[i].name] = isdoc ? m : m[0]
-	}
-
-	res(d)
-	*/
-})
-
-
-
-
-function handle_firestore_listener(component:HTMLElement & CMechT, r:FirestoreFetchResultT) {
-
-	if (r === null) return
-
-	const loadspecs = component.getloadspecs ? component.getloadspecs() : []
-
-	loadspecs.forEach(l=> {
-		const d = r.get(l.path) as Array<any>
-		if (!d || d.length === 0) return
-
-		if (!Array.isArray(component.m[l.name]) && d.length === 1) { // update single object
-
-			component.m[l.name] = d[0]
-			return
-
-		} else if (Array.isArray(component.m[l.name]) && d.length === 1) { // update single object in component.m array
-
-			const i = component.m[l.name].findIndex((e:any)=> e.id === d[0].id)
-			if (i === -1) return
-			component.m[l.name][i] = d[0]	
-			return
-
-		} else { // update entire array with new array objects
-
-			const index_map = new Map();
-			component.m[l.name].forEach((row:any, i:num) => index_map.set(row.id, i))
-
-			for(let i = 0; i < d.length; i++) {
-				const rowindex = index_map.get(d[i].id)
-				if (rowindex === undefined) continue
-				component.m[l.name][rowindex] = d[i]
-			}
-		}
+	const loadspecpaths_to_delete:str[] = viewloadspecpaths.filter(path=> {	
+		return [..._viewloadspecs].every(([_viewname, viewloadspecs])=> !viewloadspecs.has(path))
 	})
 
-	if (component.knitdata) component.knitdata()
-	component.sc()
+	FirestoreRemoveListens(loadspecpaths_to_delete)
 }
 
 
 
 
+const HandleFirestoreDataUpdated = async (updateddata:FirestoreFetchResultT) => {
+
+	if (updateddata === null) return // updateddata is always an array of objects, never null. This line here is to shut up typescript linting
+
+	const keys = [...updateddata.keys()]
+
+	console.log("DONE WEIRD . CHROME CRAPS LIKE A SF 'RESIDENT' ON THE STREET OF MY IMMACULATE CODE.")
+
+	const updateddata_path_dets = keys.map(p=> { const pd = pathdets(p); return pd; })
+
+	console.log("ALL FUCKED. updateddata CAN include something like 'machines/somejackedid' while user is viewing 'machines/unjackedid' and 'somejacked' will just jack right into 'unjacked'. ALL fucked and jacked")
+
+	for(const [viewname, viewloadeddata] of _viewloadeddata) {
+		if (!viewloadeddata || viewloadeddata.size === 0)    continue
+
+		let is_view_affected_flag = false
+		let viewloadspecs_affected_paths:FirestoreLoadSpecT = new Map()
+
+		viewloadeddata.forEach((viewloadeddata_list, loadeddata_path)=> {
+			const lnd = pathdets(loadeddata_path)
+
+			updateddata_path_dets.forEach(und=> {
+				
+				if (lnd.collection === und.collection && lnd.subcollection === und.subcollection) {
+					is_view_affected_flag = true
+					viewloadspecs_affected_paths.set(loadeddata_path, _viewloadspecs.get(viewname)!.get(loadeddata_path)!)
 
 
-export { Init, AddView }
+					// all FirestoreFetchResultT objects are arrays of objects -- so always dealing with arrays even if just array of one object
+
+					const updateddata_list    = updateddata.get(und.path) as any[]
+
+					const index_map = new Map();
+					viewloadeddata_list.forEach((row:any, i:num) => index_map.set(row.id, i))
+
+					for(let i = 0; i < updateddata_list.length; i++) {
+						const rowindex = index_map.get(updateddata_list[i].id)
+						if (rowindex === undefined) 
+							viewloadeddata_list.push(updateddata_list[i])
+						else
+							viewloadeddata_list[rowindex] = updateddata_list[i]
+					}
+
+				}
+			})
+		})
+
+
+		if (is_view_affected_flag && viewloadspecs_affected_paths.size > 0) {
+
+			const viewel = document.querySelector(`v-${viewname}`) as HTMLElement & CMechT
+
+			set_component_m_data(true, viewel, "", viewloadspecs_affected_paths, viewloadeddata)
+
+			if (viewel.mdlchngd) await viewel.mdlchngd( [...viewloadspecs_affected_paths.keys()] )
+			if (viewel.kd) viewel.kd()
+			viewel.sc();
+
+			for(const subel of ( viewel.subelshldr as ( HTMLElement & CMechT )[] )) {
+				set_component_m_data(false, subel, subel.tagName.toLowerCase(), viewloadspecs_affected_paths, viewloadeddata)
+				if (subel.mdlchngd) await subel.mdlchngd( [...viewloadspecs_affected_paths.keys()] )
+				if (subel.kd) subel.kd()
+				subel.sc()
+			}
+		}
+
+
+
+	}
+
+
+	function pathdets(p:str) {
+		const sp = p.split('/')
+		const collection = sp[0]
+		const subcollection = sp[2] || null
+		const doc = sp[1] || null
+		const subdoc = sp[3] || null
+		const isdoc = doc || subdoc ? true : false
+		return { path:p, collection, subcollection, doc, subdoc, isdoc }
+	}
+}
+
+
+
+
+const handle_view_initial_data_load = (viewname:str, loadother:()=>{}) => new Promise<null|num>(async (res, _rej)=> {
+
+	const loadspecs = _viewloadspecs.get(viewname)!
+
+	const promises:any[] = []
+
+	promises.push(loadspecs.size ? FirestoreDataGrab(loadspecs) : 0) 
+	promises.push(loadother ? loadother() : 0)
+
+	const r = Promise.all(promises)
+
+	if (r[0] === null || r[1] === null) { res(null); return; }
+
+	if (r[0] !== 0) {
+		FirestoreAddToListens(loadspecs)
+		_viewloadeddata.set(viewname, r[0])
+	}
+})
+
+
+
+
+function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, componenttagname:str, loadspecs:FirestoreLoadSpecT, loaddata:FirestoreFetchResultT) {
+
+	if (!loaddata || !loaddata.size || !loadspecs.size) return
+
+	const filtered_loadspecs:FirestoreLoadSpecT = new Map()
+
+	loadspecs.forEach((ls, path)=> {
+		if (is_view && ( !ls.els || ls.els.includes('this') ))           filtered_loadspecs.set(path,ls)
+		if (!is_view && ( ls.els && ls.els.includes(componenttagname) )) filtered_loadspecs.set(path,ls) 
+	}); 
+
+	filtered_loadspecs.forEach((ls, path)=> {
+		const d              = loaddata.get(path)!
+		component.m[ls.name] = Array.isArray(component.m[ls.name]) ? d : d[0]
+	});
+}
+
+
+
+
+export { Init, AddView, HandleFirestoreDataUpdated }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).CMech = { ConnectedCallback, AttributeChangedCallback };
+((window as any).$N as any).CMech = { ViewConnectedCallback, GenConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback };
 
 
 
