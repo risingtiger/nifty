@@ -455,6 +455,9 @@ const write_to_indexeddb_store = (synccollections: SyncCollectionT[], datas:Arra
 
 const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<FirestoreFetchResultT>(async (resolve, _reject) => {
 
+	const perfMark = `get_paths_from_indexeddb-${performance.now()}`
+	performance.mark(perfMark + '-start')
+
 	const store_datas:FirestoreFetchResultT = new Map()
 
 	const db = await openindexeddb()
@@ -489,6 +492,9 @@ const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<Firesto
 
 	transaction.oncomplete = () => {
 		db.close()
+		performance.mark(perfMark + '-end')
+		performance.measure(`IndexedDB Read Operation`, perfMark + '-start', perfMark + '-end')
+		console.log(`IndexedDB read operation took ${performance.getEntriesByName(`IndexedDB Read Operation`).pop()?.duration.toFixed(2)}ms`)
 		resolve(store_datas)	
 	}
 
