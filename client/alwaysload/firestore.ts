@@ -3,6 +3,7 @@
 import { num, str, bool } from '../defs_server_symlink.js'
 import { SSETriggersE } from '../defs_server_symlink.js'
 import { $NT, LoggerTypeE, LoggerSubjectE, FirestoreOptsT, EngagementListenerTypeT, FirestoreLoadSpecT, FirestoreFetchResultT } from '../defs.js'
+import { HandleFirestoreDataUpdated } from './cmech.js'
 
 
 declare var $N:$NT
@@ -10,7 +11,9 @@ declare var $N:$NT
 
 type SyncCollectionT = { name: string, ts: num|null, lock:boolean }
 
-type PathSpecT = FirestoreLoadSpecT & {
+type PathSpecT = {
+	path:string,
+	opts: FirestoreOptsT,
 	p: string[],
 	collection: string,
 	doc: string|null,
@@ -22,26 +25,27 @@ type PathSpecT = FirestoreLoadSpecT & {
 	isdoc: boolean
 }
 
-type ListenerT = {
-	el: HTMLElement,
-	name: string,
-	getloadspecs: ()=>FirestoreLoadSpecT[],
-	cb: any
-}
-
 
 let DBNAME:str = ""
 let DBVERSION:num = 0
 
 let _synccollections:SyncCollectionT[] = []
-let _listeners: ListenerT[] = [];
+let _listens: FirestoreLoadSpecT = new Map()
 let _nonsync_tses: Map<str,num> = new Map()
 
 
 
 
 
-const Init = (synccollection_names:string[], db_name: str, db_version: num) => new Promise(async (res,_rej)=> { 
+
+//NOW NEED TO MANAGE _listens -- de/lete as views are unloaded from dOM
+
+
+
+
+
+
+const Init = (synccollection_names:string[], db_name: str, db_version: num) => { 
 
 	DBNAME = db_name
 	DBVERSION = db_version
@@ -58,7 +62,7 @@ const Init = (synccollection_names:string[], db_name: str, db_version: num) => n
 		_synccollections = localstorage_synccollections
 		localStorage.setItem("synccollections", JSON.stringify(localstorage_synccollections.map(dc=> ({ name: dc.name, ts: dc.ts }))))
 
-		if (_synccollections.length === 0) { res(true); return; }
+		if (_synccollections.length === 0) { return true; }
 	}
 
 
@@ -67,10 +71,13 @@ const Init = (synccollection_names:string[], db_name: str, db_version: num) => n
 		const pathspecs = findrelevantpathspecs()
 		if (!pathspecs) return
 
-		const r = await datagrabber(pathspecs, {}, true)
+		const r = await datagrabber(pathspecs, {retries:2}, true)
 		if (r === null) return
 
-		sendtolisteners(r)	
+		const filtered_has_data = new Map( [...r].filter(([_path, data])=> data.length > 0) )  
+		if (filtered_has_data.size === 0) return
+
+		HandleFirestoreDataUpdated(filtered_has_data)
 	})
 
 
@@ -79,7 +86,15 @@ const Init = (synccollection_names:string[], db_name: str, db_version: num) => n
 		const r = new Map()	
 		r.set(event.path, [event.data])
 
-		sendtolisteners(r)	
+		const pathspec = parse_into_pathspec(event.path)!
+		if (pathspec.synccollection) {   await write_to_indexeddb_store([ pathspec.synccollection ], [ [event.data] ]);   }
+
+		// do NOT update _nonsync_tses here. This is a single doc update. It will be updated when the collection is updated at some point later
+		// the browser isnt guaranteed to get all FIRESTORE_DOC events. 
+
+		const pathspecs = findrelevantpathspecs([ event.path ])
+		if (!pathspecs) return
+		HandleFirestoreDataUpdated(r)
 	});
 
 
@@ -93,45 +108,14 @@ const Init = (synccollection_names:string[], db_name: str, db_version: num) => n
 		const r = await datagrabber(pathspecs, {}, true)
 		if (r === null) return
 
-		sendtolisteners(r)	
+		const filtered_has_data = new Map( [...r].filter(([_path, data])=> data.length > 0) )  
+		if (filtered_has_data.size === 0) return
+
+		HandleFirestoreDataUpdated(filtered_has_data)
 	});
 
 
-	res(1)
-})
-
-
-
-
-async function Add_Listener(el:HTMLElement, name:str, getloadspecs:()=>FirestoreLoadSpecT[], callback_:(di?:any|undefined)=>any) {
-
-	let newlistener:ListenerT
-
-	for(let i = 0; i < _listeners.length; i++) {
-		if (!_listeners[i].el.parentElement) {
-			_listeners.splice(i, 1)   
-		}
-	}
-
-	newlistener = {
-		el: el,
-		name: name,
-		getloadspecs: getloadspecs,
-		cb: callback_
-	}
-
-	Remove_Listener(el, name) // will just return if not found
-
-	_listeners.push(newlistener)
-}
-
-
-
-
-function Remove_Listener(el:HTMLElement, name:str) {   
-	const i = _listeners.findIndex(l=> l.el.tagName === el.tagName && l.name === name)
-	if (i === -1) return
-	_listeners.splice(i, 1)   
+	return true
 }
 
 
@@ -154,9 +138,9 @@ function Add(path:str, newdocs:any[]) { return new Promise(async (res,_rej)=> {
 
 
 
-function Patch(paths:str, data:any, param_opts:object|object|null) {   return new Promise(async (res, _rej)=> { 
+function Patch(pathstrs:str[], datas:any[], oldtses:number[]) {   return new Promise(async (res, _rej)=> { 
 
-    const body = { paths, opts: param_opts, data }
+    const body = { pathstrs, datas, oldtses } 
 
     const opts:any = {   
         method: "POST",  
@@ -171,9 +155,10 @@ function Patch(paths:str, data:any, param_opts:object|object|null) {   return ne
 
 
 
-const DataGrab = (loadspecs:FirestoreLoadSpecT[]) => new Promise<FirestoreFetchResultT>(async (res,_rej)=> {
+const DataGrab = (loadspecs:FirestoreLoadSpecT) => new Promise<FirestoreFetchResultT>(async (res,_rej)=> {
 
-	const pathspecs = loadspecs.map(ls=> parseloadspec(ls))
+	const pathspecs:PathSpecT[] = parseloadspec(loadspecs)
+
 	if (!pathspecs.length) { res(null); return; }
 
 	const r = await datagrabber(pathspecs, {}, false)
@@ -185,9 +170,23 @@ const DataGrab = (loadspecs:FirestoreLoadSpecT[]) => new Promise<FirestoreFetchR
 
 
 
-const datagrabber = (pathspecs:PathSpecT[], opts?:{}, force_refresh_synccollections:bool = false) => new Promise<FirestoreFetchResultT>(async (res,_rej)=> { 
+const AddToListens = (loadspecs:FirestoreLoadSpecT) => {
+	loadspecs.forEach((ls, path) => _listens.set(path, ls))
+}
+const RemoveFromListens = (pathkeys:str[]) => {
+	pathkeys.forEach(p=> {
+		_listens.delete(p)
+		_nonsync_tses.delete(p)
+	})
+}
 
-	opts = opts || {}
+
+
+
+const datagrabber = (pathspecs:PathSpecT[], opts?:{retries?:num}, force_refresh_synccollections:bool = false) => new Promise<FirestoreFetchResultT>(async (res,_rej)=> { 
+
+	opts = opts || {retries:0}
+	opts.retries = opts.retries || 0
 
 	let   allrs:FirestoreFetchResultT[] = []	
 	const promises:Promise<FirestoreFetchResultT>[] = []
@@ -201,14 +200,14 @@ const datagrabber = (pathspecs:PathSpecT[], opts?:{}, force_refresh_synccollecti
 
 	{
 		const nonsync_fetch_pathspecs               = pathspecs.filter(p=> !p.synccollection)
-		const nonsync_fetch_promise                 = nonsync_fetch_pathspecs.length ? fetch_nonsync_paths(nonsync_fetch_pathspecs) : new Promise<FirestoreFetchResultT>((res)=> res(new Map()))
+		const nonsync_fetch_promise                 = nonsync_fetch_pathspecs.length ? fetch_nonsync_paths(nonsync_fetch_pathspecs, opts.retries) : new Promise<FirestoreFetchResultT>((res)=> res(new Map()))
 		promises.push(nonsync_fetch_promise)
 	}
 
 
 	{
 		if (synccollections_tosync_unlocked.length) {
-			const rs = await load_into_synccollections(synccollections_tosync_unlocked)
+			const rs = await load_into_synccollections(synccollections_tosync_unlocked, opts.retries)
 			if (rs === null) { res(null); return; }
 		}
 
@@ -249,27 +248,24 @@ function findrelevantpathspecs(ssepaths?:str[]) : PathSpecT[]|null {
 
 	// sse paths are ONLY collections, never a single doc
 
-	const all_listener_loadspecs = _listeners.map(l=> l.getloadspecs().map(ls=> parseloadspec(ls)))
-	const ssepathspecs           = ssepaths ? ssepaths.map(sp=> parseloadspec({name:"", path:sp})) : []
-	const all_pathspecs          = all_listener_loadspecs.flat()
-	const all_unique_pathspecs   = [] as PathSpecT[]
+	const all_pathspecs        = parseloadspec(_listens)
+	const ssepathspecs         = ssepaths?.map(sp=> parse_into_pathspec(sp)) || []
 
-	all_pathspecs.forEach(aps=> {
-		const matching_pathspec = all_unique_pathspecs.find(up=> up.path === aps.path)
-		if (matching_pathspec) return
-		all_unique_pathspecs.push(aps)
+	if (all_pathspecs.length === 0) return null
+
+	if (ssepathspecs.length === 0) return all_pathspecs
+
+	const pathspecs = all_pathspecs.filter(aps=> {
+		if (!aps.isdoc) {
+			const ssepathspec = ssepathspecs.find(sp=> sp.collection === aps.collection && sp.subcollection === aps.subcollection)
+			return ssepathspec
+		} else {
+			const ssepathspec = ssepathspecs.find(sp=> sp.collection === aps.collection && sp.doc === aps.doc && sp.subcollection === aps.subcollection && sp.subdoc === aps.subdoc)
+			return ssepathspec
+		}
 	})
 
-	if (all_unique_pathspecs.length === 0) return null
-	if (ssepathspecs.length === 0)         return all_unique_pathspecs
-
-
-	const pathspecs = all_unique_pathspecs.filter(aps=> { 
-		const ssepathspec = ssepathspecs.find(sp=> sp.collection === aps.collection && sp.subcollection === aps.subcollection)
-		return ssepathspec 
-	})
-
-	if (pathspecs.length === 0)            return null
+	if (pathspecs.length === 0) return null
 
 	return pathspecs
 }
@@ -277,28 +273,7 @@ function findrelevantpathspecs(ssepaths?:str[]) : PathSpecT[]|null {
 
 
 
-function sendtolisteners(r:FirestoreFetchResultT) {
-
-	if (r === null) return
-
-	_listeners.forEach(l=> {
-		const loadspecs = l.getloadspecs()
-		const returns = new Map()
-
-		for(const l of loadspecs) {
-			if (!r.has(l.path)) continue
-			const rs = r.get(l.path)	
-			returns.set(l.path, rs)
-		}
-
-		if (returns.size > 0) l.cb(returns)
-	})
-}
-
-
-
-
-function fetch_nonsync_paths(pathspecs:PathSpecT[]) {   return new Promise<FirestoreFetchResultT>(async (res)=> {
+function fetch_nonsync_paths(pathspecs:PathSpecT[], retries:num = 0) {   return new Promise<FirestoreFetchResultT>(async (res)=> {
 
 	const paths = pathspecs.map(p=> p.path)
 	const opts  = pathspecs.map(p=> p.opts || {}) as FirestoreOptsT[]
@@ -313,7 +288,7 @@ function fetch_nonsync_paths(pathspecs:PathSpecT[]) {   return new Promise<Fires
         method: "POST",
         body: JSON.stringify(body),
     }
-    const fetch_results = await $N.FetchLassie('/api/firestore_retrieve', fetchopts, null) as Promise<Array<object[]>|null>
+    const fetch_results = await $N.FetchLassie('/api/firestore_retrieve', fetchopts, {retries}) as Promise<Array<object[]>|null>
 	if (fetch_results === null) {
 		res(null)
 		return
@@ -334,8 +309,21 @@ function fetch_nonsync_paths(pathspecs:PathSpecT[]) {   return new Promise<Fires
 
 
 
-function parseloadspec(ls:FirestoreLoadSpecT) : PathSpecT {
-	const p                    = ls.path.split('/') as Array<string>
+function parseloadspec(loadspecs:FirestoreLoadSpecT) : PathSpecT[] {
+	const pathspecs:PathSpecT[] = []
+
+	for(const [path, loadspec] of loadspecs) 
+		pathspecs.push(parse_into_pathspec(path, loadspec.opts))
+
+	return pathspecs
+}
+
+
+
+
+function parse_into_pathspec(path:str, opts:FirestoreOptsT = {}) : PathSpecT {
+
+	const p                    = path.split('/') as Array<string>
 	const collectionsplit      = p[0].split(":")
 	const subcollectionsplit   = p[2] ? p[2].split(":") : null
 	const collection           = collectionsplit[0]
@@ -348,9 +336,9 @@ function parseloadspec(ls:FirestoreLoadSpecT) : PathSpecT {
 
 	const synccollection = !subcollection ? _synccollections.find((dc) => dc.name === collection) || null : null
 
-	const isdoc                = doc ? true : subdoc ? true : false
+	const isdoc                = ( doc && !subcollection ) || subdoc ? true : false
 
-	return {  ...ls, p, collection, doc, subcollection, subdoc, collectionquery, subcollectionquery, synccollection, isdoc   }
+	return { path, opts, p, collection, doc, subcollection, subdoc, collectionquery, subcollectionquery, synccollection, isdoc }
 }
 
 
@@ -373,8 +361,11 @@ const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
 	}
 
 	dbconnect.onupgradeneeded = (event: any) => {
+		const db = event.target.result
 		_synccollections.forEach((dc) => {
-			event.target.result.createObjectStore(dc.name, { keyPath: "id" })
+			if (!db.objectStoreNames.contains(dc.name)) {
+				event.target.result.createObjectStore(dc.name, { keyPath: "id" })
+			}
 		})
 	}
 })
@@ -382,73 +373,41 @@ const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
 
 
 
-const load_into_synccollections = (synccollections:SyncCollectionT[]) => 
-  new Promise<num|null>(async (res,_rej)=> {
-
-    let iscomplete = false;
-    const listran = Math.random().toString(36).substring(2, 10);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-        if (!iscomplete) {
-            controller.abort();
-            cleanup();
-            res(null);
-        }
-    }, 30000);
+const load_into_synccollections = (synccollections:SyncCollectionT[], retries:num = 0) => new Promise<num|null>(async (res,_rej)=> {
 
     synccollections.forEach(dc => dc.lock = true);
 
-    try {
-        const body = { 
-            paths: synccollections.map(dc => dc.name),
-            tses: synccollections.map(dc => dc.ts || null),
-            instance_id: listran 
-        };
+	const runidstring      = Math.random().toString(15).substring(2, 12)
+	let   continue_calling = true	
+	const paths            = synccollections.map(dc=> dc.name)
+	const tses             = synccollections.map(dc=> dc.ts || null)
 
-        const response = await fetch('/api/firestore_init_batches', {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-            signal: controller.signal
-        });
+	const body = { runid:runidstring, paths, tses }
 
-        if (!response.body) throw new Error('No readable stream received');
+	while (continue_calling) {
+		const r = await $N.FetchLassie('/api/firestore_get_batch', { method: "POST", body: JSON.stringify(body) }, { retries })
+		if (r === null) { continue_calling = false; cleanup(); res(null); return; }
 
-        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-        
-        while(true) {
-            const { done, value } = await reader.read();
-            
-            if(done) {
-                const newts = Math.floor(Date.now()/1000);
-                synccollections.forEach(dc => dc.ts = newts);
-                localStorage.setItem("synccollections", JSON.stringify(_synccollections
-                    .map(dc => ({ name: dc.name, ts: dc.ts }))));
-                cleanup();
-                res(1);
-                return;
-            }
+		for(let i = 0; i < paths.length; i++) {
+			if (r[i].docs.length === 0) continue
+			await write_to_indexeddb_store([synccollections[i]], [r[i].docs])
+		}
 
-            const event = JSON.parse(value);
-            if(event.instance_id !== listran) continue;
+		continue_calling = (r as any[]).every((rr:any) => rr.isdone) ? false : true
+	}
 
-            const synccollection = synccollections.find(dc => dc.name === event.path);
-            if(!synccollection) throw Error("Invalid collection in stream");
-            
-            await write_to_indexeddb_store([synccollection], [event.docs]);
-        }
+	const newts = Math.floor(Date.now()/1000);
+	synccollections.forEach(dc => dc.ts = newts);
+	localStorage.setItem("synccollections", JSON.stringify(_synccollections
+		.map(dc => ({ name: dc.name, ts: dc.ts }))));
 
-    } catch(err) {
-        if((err as Error).name !== 'AbortError') {
-            redirect_from_error(`Stream error: ${(err as Error).message}`);
-        }
-        cleanup();
-        res(null);
-    }
+	cleanup();
+
+	res(1)
+
 
     function cleanup() {
-        iscomplete = true;
-        clearTimeout(timeout);
+        continue_calling = false;
         synccollections.forEach(dc => dc.lock = false);
     }
 })
@@ -502,6 +461,8 @@ const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<Firesto
 	db.onerror = (event_s:any) => redirect_from_error("IndexedDB Request - " + event_s.target.errorCode)
 
 	const store_names = pathspecs.map(p => p.collection)
+
+
 	const transaction = db.transaction(store_names, 'readonly');
 
 	pathspecs.forEach(p => {
@@ -549,9 +510,9 @@ function redirect_from_error(errmsg:str) {
 
 
 
-export { Init } 
+export { Init, DataGrab, AddToListens, RemoveFromListens } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).Firestore = { Add_Listener, Add, Patch, DataGrab };
+((window as any).$N as any).Firestore = { Add, Patch };
 
 
 
