@@ -204,9 +204,9 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 function getdocdata(doc:any) {
 	const data = { id: doc.id, ...doc.data() }
 
-	for (const key in data) {
-		if (data[key]._path) data[key] = data[key]._path.segments[1]
-	}
+	Object.keys(data).forEach(key => {
+		if (data[key] && data[key]._path) data[key] = data[key]._path.segments[1]
+	})
 
 	return data
 }
