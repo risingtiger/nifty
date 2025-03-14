@@ -9,7 +9,7 @@ import { HandleFirestoreDataUpdated } from './cmech.js'
 declare var $N:$NT
 
 
-type SyncCollectionT = { name: string, ts: num|null, lock:boolean }
+type SyncCollectionT = { name: string, ts: num|null, lock:boolean, indexes:string[]|null }
 
 type PathSpecT = {
 	path:string,
@@ -45,7 +45,7 @@ let _nonsync_tses: Map<str,num> = new Map()
 
 
 
-const Init = (synccollection_names:string[], db_name: str, db_version: num) => { 
+const Init = (synccollection:{name:str, indexes?:str[]}[], db_name: str, db_version: num) => { 
 
 	DBNAME = db_name
 	DBVERSION = db_version
@@ -364,6 +364,15 @@ const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
 		const db = event.target.result
 		_synccollections.forEach((dc) => {
 			if (!db.objectStoreNames.contains(dc.name)) {
+
+
+				const objectStore = db.createObjectStore('transactions', {
+                    keyPath: 'id',
+                });
+                
+                objectStore.createIndex('category', 'category', { unique: false });
+
+
 				event.target.result.createObjectStore(dc.name, { keyPath: "id" })
 			}
 		})
@@ -455,8 +464,6 @@ const write_to_indexeddb_store = (synccollections: SyncCollectionT[], datas:Arra
 
 const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<FirestoreFetchResultT>(async (resolve, _reject) => {
 
-	const perfMark = `get_paths_from_indexeddb-${performance.now()}`
-	performance.mark(perfMark + '-start')
 
 	const store_datas:FirestoreFetchResultT = new Map()
 
@@ -492,9 +499,6 @@ const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<Firesto
 
 	transaction.oncomplete = () => {
 		db.close()
-		performance.mark(perfMark + '-end')
-		performance.measure(`IndexedDB Read Operation`, perfMark + '-start', perfMark + '-end')
-		console.log(`IndexedDB read operation took ${performance.getEntriesByName(`IndexedDB Read Operation`).pop()?.duration.toFixed(2)}ms`)
 		resolve(store_datas)	
 	}
 
