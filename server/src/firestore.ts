@@ -66,42 +66,14 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 				if (results[i].docs && results[i].docs.length === 0) {
 					returns.push([])
 				} 
-
 				else if (results[i].docs && results[i].docs.length) {
 					const docs = results[i].docs.map((doc:any)=> {
-						const data = doc.data()
-						
-						// Process each property to handle _path objects
-						const processedData = {...data}
-						for (const key in processedData) {
-							if (processedData[key] && 
-								typeof processedData[key] === 'object' && 
-								processedData[key]._path && 
-								processedData[key]._path.segments) {
-								processedData[key] = processedData[key]._path.segments[1]
-							}
-						}
-
-						return {id: doc.id, ...processedData}
+						return getdocdata(doc)
 					})
 					returns.push(docs)
 				} 
-
 				else {
-					const data = results[i].data()
-					
-					// Process each property to handle _path objects
-					const processedData = {...data}
-					for (const key in processedData) {
-						if (processedData[key] && 
-							typeof processedData[key] === 'object' && 
-							processedData[key]._path && 
-							processedData[key]._path.segments) {
-							processedData[key] = processedData[key]._path.segments[1]
-						}
-					}
-					
-					returns.push([{id: results[i].id, ...processedData}])
+					returns.push(getdocdata(results[i]))
 				}
 			}
 			res(returns)
@@ -109,6 +81,8 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 		.catch((err:any)=> {
 			throw new Error("Error in Firestore Retrieve: " + err)
 		})
+
+
 })}
 
 
@@ -212,7 +186,7 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 			caller.isdones[i] = true
 		}
 
-		const docs   = snapshot.docs.map((doc:any)=> ( {id: doc.id, ...doc.data() } ) )
+		const docs   = snapshot.docs.map((doc:any)=> getdocdata(doc) )
 		const isdone = caller.isdones[i]
 		returns.push({ isdone, docs }) // docs array could be empty
 	}
@@ -223,6 +197,19 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 
 	res(returns)
 })
+
+
+
+
+function getdocdata(doc:any) {
+	const data = { id: doc.id, ...doc.data() }
+
+	for (const key in data) {
+		if (data[key]._path) data[key] = data[key]._path.segments[1]
+	}
+
+	return data
+}
 
 
 
