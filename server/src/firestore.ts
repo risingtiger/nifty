@@ -70,14 +70,38 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 				else if (results[i].docs && results[i].docs.length) {
 					const docs = results[i].docs.map((doc:any)=> {
 						const data = doc.data()
+						
+						// Process each property to handle _path objects
+						const processedData = {...data}
+						for (const key in processedData) {
+							if (processedData[key] && 
+								typeof processedData[key] === 'object' && 
+								processedData[key]._path && 
+								processedData[key]._path.segments) {
+								processedData[key] = processedData[key]._path.segments[1]
+							}
+						}
 
-						return {id: doc.id, ...doc.data()}
+						return {id: doc.id, ...processedData}
 					})
 					returns.push(docs)
 				} 
 
 				else {
-					returns.push([{id: results[i].id, ...results[i].data()}])
+					const data = results[i].data()
+					
+					// Process each property to handle _path objects
+					const processedData = {...data}
+					for (const key in processedData) {
+						if (processedData[key] && 
+							typeof processedData[key] === 'object' && 
+							processedData[key]._path && 
+							processedData[key]._path.segments) {
+							processedData[key] = processedData[key]._path.segments[1]
+						}
+					}
+					
+					returns.push([{id: results[i].id, ...processedData}])
 				}
 			}
 			res(returns)
