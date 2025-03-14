@@ -69,6 +69,8 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 
 				else if (results[i].docs && results[i].docs.length) {
 					const docs = results[i].docs.map((doc:any)=> {
+						const data = doc.data()
+
 						return {id: doc.id, ...doc.data()}
 					})
 					returns.push(docs)
@@ -123,11 +125,16 @@ function Patch(db:any, sse:any, pathstrs:str[], datas:any[], oldtses:number[]) {
         }
 
         datas[i].ts = Math.floor(Date.now() / 1000);
-        const x = { ...docData, ...datas[i] };
         try {
             await d.update(datas[i]);
+
+			// THIS HUGLY AS SHIT. DONT PULL FROM DATABASE ***AGAIN*** - THATS GARBAGE. ALREADY HAVE THE DATA, JUST HAVE TO MERGE IT
+			let dd = parse_request(db, pathstrs[i], null);
+			const updatedDocSnapshot = await dd.get();
+			const updatedDocData = updatedDocSnapshot.data();
+			updatedDocData.id = docSnapshot.id;
             results.push({ ok: true, index: i });
-			sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:datas[i] })
+			sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:updatedDocData } )
 
         } catch (err) {
             results.push({ ok: false, err: err, index: i });
