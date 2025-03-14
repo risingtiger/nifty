@@ -53,10 +53,12 @@ const Init = (synccollection:{name:str, indexes?:str[]}[], db_name: str, db_vers
 	{ 
 		let localstorage_synccollections:SyncCollectionT[] = JSON.parse(localStorage.getItem("synccollections") || "[]")
 
+		const synccollection_names = synccollection.map(item => item.name)
 		localstorage_synccollections = localstorage_synccollections.filter((item:SyncCollectionT) => synccollection_names.includes(item.name))
 		synccollection_names.forEach((name) => {
 			if (!localstorage_synccollections.find((item:SyncCollectionT) => item.name === name)) {
-				localstorage_synccollections.push({ name, ts: null, lock: false })
+				const indexes = synccollection.find(item => item.name === name)?.indexes || null
+				localstorage_synccollections.push({ name, ts: null, lock: false, indexes })
 			}
 		})
 		_synccollections = localstorage_synccollections
