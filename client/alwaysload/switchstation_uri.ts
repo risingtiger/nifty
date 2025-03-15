@@ -46,8 +46,16 @@ const GetLoadSpec = (uri:str, urlmatches:Array<str>, paramnames:Array<str>, lazy
 }
 
 
+const GetURIQueries = (url: URL): { [key: string]: string } => {
+    const queryObj: { [key: string]: string } = {};
+    url.searchParams.forEach((value, key) => {
+        queryObj[key] = value;
+    });
+    return queryObj;
+}
 
-export { RegExParams, GetLoadSpec }
+
+export { RegExParams, GetLoadSpec, GetURIQueries }
 
 //if (!(window as any).$N) {   (window as any).$N = {};   }
 //((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack };
