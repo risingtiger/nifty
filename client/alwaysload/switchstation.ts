@@ -40,6 +40,7 @@ class Route {
     load(uri:str, urlmatches:Array<str>, views_attach_point:"beforeend"|"afterbegin") { 
 
         return new Promise<string>( async (res, _rej) => {
+            const searchParams = new URLSearchParams(window.location.search);
 
 			const loadspecs = GetLoadSpec(uri, urlmatches, this.path_paramnames, this.lazyload_view.loadspecs!)
 
