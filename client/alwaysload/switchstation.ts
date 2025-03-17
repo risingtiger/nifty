@@ -251,8 +251,18 @@ if (!(window as any).$N) {   (window as any).$N = {};   }
 
 
 const view_finance_func = (pathparams:{ [key: string]: string }, searchparams: URLSearchParams) => new Promise<void>(async (res, _rej) => {
-
-
+    try {
+        const response = await fetch('https://example.com');
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const htmlContent = await response.text();
+        console.log('Fetched HTML content:', htmlContent.substring(0, 100) + '...');
+        // Do something with the HTML content
+    } catch (error) {
+        console.error('Error fetching example.com:', error);
+    }
+    res();
 })
 
 
