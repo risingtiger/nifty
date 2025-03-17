@@ -22,7 +22,7 @@ const RegExParams = (original_matchstr:string) => {
 
 
 
-const GetPathParams = (pathparams_propnames:str[], pathparams_vals:str[]) => {
+const GetPathParams = (pathparams_propnames:str[], pathparams_vals:str[]): { [key: string]: string } => {
 
 	const pathparams:any = pathparams_propnames.map((_, i) => {
 		return { [pathparams_propnames[i]]: pathparams_vals[i] }
