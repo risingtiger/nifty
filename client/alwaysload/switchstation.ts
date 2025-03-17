@@ -1,66 +1,22 @@
 
 
-import { $NT, LazyLoadT, FirestoreLoadSpecT, URIDetailT, LoggerSubjectE } from  "./../defs.js" 
+import { $NT, LazyLoadT, URIDetailT, LoggerSubjectE } from  "./../defs.js" 
 import { str, num } from  "../../defs_server_symlink.js" 
 import { Run as LazyLoadRun } from './lazyload.js'
+import { EnsureObjectStoresActive } from "./localdbsync.js"
 import { AddView as CMechAddView } from "./cmech.js"
-import { RegExParams, GetLoadSpec } from "./switchstation_uri.js"
+import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 
 declare var $N: $NT;
 
-let isSwipeBackGesture   = false;
-let _routes:Array<Route> = [];
-
-
-
-
-
-
-class Route {
-
-    lazyload_view: LazyLoadT
-    path_regex: RegExp
-    path_paramnames: Array<str>
-
-
-
-
-    constructor(lazyload_view_: LazyLoadT) {
-        this.lazyload_view = lazyload_view_
-
-		const {regex, paramnames} = RegExParams(this.lazyload_view.urlmatch!)
-
-        this.path_regex      = regex
-        this.path_paramnames = paramnames
-    }
-
-
-
-
-    load(uri:str, urlmatches:Array<str>, views_attach_point:"beforeend"|"afterbegin") { 
-
-        return new Promise<string>( async (res, _rej) => {
-            const searchParams = new URLSearchParams(window.location.search);
-
-			const loadspecs = GetLoadSpec(uri, urlmatches, this.path_paramnames, this.lazyload_view.loadspecs!)
-
-			const promises:Promise<any>[] = []
-
-            promises.push( LazyLoadRun([this.lazyload_view]) )
-			promises.push( CMechAddView(this.lazyload_view.name, loadspecs, views_attach_point) )
-
-			const r = await Promise.all(promises)
-
-			if (r[0] === null || r[1] === null) { res('failed'); return; }
-
-			res('success')
-        })
-    }
+type Route = {
+	lazyload_view: LazyLoadT
+	path_regex: RegExp
+	pathparams_propnames: Array<str>
 }
 
-
-
-
+let isSwipeBackGesture   = false;
+let _routes:Array<Route> = [];
 
 
 
@@ -103,7 +59,8 @@ const Init = async ()=> {
 
 
 const AddRoute = (lazyload_view:LazyLoadT)=> {
-    _routes.push(new Route(lazyload_view))
+	const {regex, paramnames: pathparams_propnames} = RegExParams(lazyload_view.urlmatch!)
+	_routes.push({ lazyload_view, path_regex: regex, pathparams_propnames })
 }
 
 
@@ -141,11 +98,11 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
 	const viewsel            = document.getElementById("views") as HTMLElement;
 
-    const [urlMatches, routeObj] = get_route_uri(path);
+    const [urlmatches, routeindex] = get_route_uri(path);
 
     if (direction === "firstload") {
 
-		const loadresult = await routeObj.load(path, urlMatches, "beforeend");
+		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
 			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`)
@@ -160,7 +117,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
     else if (direction === "forward") {
 
-		const loadresult = await routeObj.load(path, urlMatches, "beforeend");
+		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
 			res(null);
@@ -205,7 +162,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
         }
 
         if (!previousview) {
-			const loadresult = await routeObj.load(path, urlMatches, "afterbegin");
+			const loadresult = await routeload(routeindex, path, urlmatches, "afterbegin");
+
             if (loadresult === "failed") {
 				$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`)
 				res(null);
@@ -236,19 +194,46 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
 
 
-function get_route_uri(url: str) : [Array<str>, Route] {
+const routeload = (routeindex:num, uri:str, urlmatches:str[], views_attach_point:'beforeend'|'afterbegin') => new Promise<string>( async (res, _rej) => {
+	 
+	const route           = _routes[routeindex];
+
+	const pathparams      = GetPathParams(route.pathparams_propnames, urlmatches);
+	const searchparams    = new URLSearchParams(window.location.search);
+
+	const localdb_preload = route.lazyload_view.localdb_preload
+
+	const promises:Promise<any>[] = []
+
+	promises.push( LazyLoadRun([route.lazyload_view]) )
+
+	promises.push( localdb_preload ? EnsureObjectStoresActive(localdb_preload) : Promise.resolve(1) ) 
+
+	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, views_attach_point) )
+
+	const r = await Promise.all(promises)
+
+	if (r[0] === null || r[1] === null || r[2] === null) { res('failed'); return; }
+
+	res('success')
+})
+
+
+
+
+function get_route_uri(url: str) : [Array<str>, num] {
 
     for (let i = 0; i < _routes.length; i++) {
 
 		let urlmatchstr = url.match(_routes[i].path_regex)
 
 		if (urlmatchstr) { 
-			return [ urlmatchstr.slice(1), _routes[i] ]
+			return [ urlmatchstr.slice(1), i ]
 		}
     }
 
     // catch all -- just route to home
-    return [ [], _routes.find(r=> r.lazyload_view.name==="home")! ]
+    return [ [], _routes.findIndex(r=> r.lazyload_view.name==="home")! ]
 }
 
 
@@ -265,6 +250,10 @@ if (!(window as any).$N) {   (window as any).$N = {};   }
 
 
 
+const view_finance_func = (pathparams:{ [key: string]: string }, searchparams: URLSearchParams) => new Promise<void>(async (res, _rej) => {
+
+
+})
 
 
 
