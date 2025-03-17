@@ -126,10 +126,26 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 	if (!pathspecs.length) { res(null); return; }
 
-	const r = await datagrabber(pathspecs, {}, false)
+	// Filter out pathspecs that are already in _activepaths
+	const newPathspecs = pathspecs.filter(pathspec => 
+		!_activepaths.some(activePath => 
+			activePath.collection === pathspec.collection && 
+			activePath.docid === pathspec.docid && 
+			activePath.subcollection === pathspec.subcollection
+		)
+	)
+
+	// If there are no new paths to process, return success
+	if (newPathspecs.length === 0) { res(1); return; }
+
+	// Only fetch data for paths not already active
+	const r = await datagrabber(newPathspecs, {}, false)
 	if (r === null) { res(null); return; }
 
-	res(r)
+	// Add the new paths to _activepaths
+	_activepaths = [..._activepaths, ...newPathspecs]
+
+	res(1)
 })
 
 
