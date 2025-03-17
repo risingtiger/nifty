@@ -22,6 +22,18 @@ const RegExParams = (original_matchstr:string) => {
 
 
 
+const GetPathParams = (pathparams_propnames:str[], pathparams_vals:str[]) => {
+
+	const pathparams:any = pathparams_propnames.map((_, i) => {
+		return { [pathparams_propnames[i]]: pathparams_vals[i] }
+	})
+
+	return Object.assign({}, ...pathparams)	
+}
+
+
+
+
 const GetLoadSpec = (uri:str, urlmatches:Array<str>, paramnames:Array<str>, lazyloadloadspecs:LazyLoadLoadSpecT[]) => {
 
 	let uriparams = {}
@@ -46,16 +58,9 @@ const GetLoadSpec = (uri:str, urlmatches:Array<str>, paramnames:Array<str>, lazy
 }
 
 
-const GetURIQueries = (url: URL): { [key: string]: string } => {
-    const queryObj: { [key: string]: string } = {};
-    url.searchParams.forEach((value, key) => {
-        queryObj[key] = value;
-    });
-    return queryObj;
-}
 
 
-export { RegExParams, GetLoadSpec, GetURIQueries }
+export { RegExParams, GetLoadSpec }
 
 //if (!(window as any).$N) {   (window as any).$N = {};   }
 //((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack };
