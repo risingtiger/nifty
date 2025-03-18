@@ -109,9 +109,8 @@ async function NavigateToSearchParams(newsearchparams:{ [key: string]: string })
 	// Create the new path with updated search parameters
 	const searchParamsString = updatedSearchParams.toString();
 	const newPath = searchParamsString ? `${currentPath}?${searchParamsString}` : currentPath;
-	
-	// Navigate to the new path
-	await NavigateTo(newPath);
+
+    history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
 }
 
 
