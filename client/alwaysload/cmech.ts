@@ -11,9 +11,9 @@ declare var $N: $NT;
 //const _viewloadspecs:Map<string, FirestoreLoadSpecT> = new Map() // key is view tagname sans 'v-'
 //const _viewloadeddata:Map<string, FirestoreFetchResultT> = new Map() // key is view tagname sans 'v-'
 
-// these are set when a new view is added, and removed after that view is hydrated (or failed) 
+// these are set when a new view is added, and removed when that view is rmoved (or when load view failed) 
 
-let _loadeddata:Map<str, {remote:{[key:string]:any}, localdb:{[key:string]:any}}> = new Map() // map by view name
+let _loadeddata:Map<str, {remote:Map<str,any>, localdb:Map<str,any>}> = new Map() // map by view name of Map by path name with data
 let _searchparams:Map<str, URLSearchParams> = new Map() // map by view name
 let _pathparams:Map<str, { [key: string]: string }> = new Map() // map by view name
 
@@ -32,7 +32,7 @@ const AddView = (
 	searchparams:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
 	views_attach_point:"beforeend"|"afterbegin", 
-	loadremote:(pathparams:{ [key: string]: string }, searchparams: URLSearchParams, isinitial:bool)=>Promise<{ [key: string]: string }|null>
+	loadremote:(pathparams:{ [key: string]: string }, searchparams: URLSearchParams, isinitial:bool)=>Promise<Map<str,any>|null>
 ) => new Promise<num|null>(async (res, _rej)=> {
 
 	//_viewloadspecs.set(componentname, loadspecs)
@@ -46,7 +46,7 @@ const AddView = (
 
 	if (r[0] === null || r[1] === null) { res(null); return; }
 	
-	_loadeddata.set(componentname, {remote:r[1], localdb:{}})
+	_loadeddata.set(componentname, {remote:r[1], localdb:new Map()})
 	_searchparams.set(componentname, searchparams)
 	_pathparams.set(componentname, pathparams)
 
@@ -56,15 +56,12 @@ const AddView = (
 	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechViewT
 
 	el.addEventListener("hydrated", ()=> { 
-		_loadeddata.delete(componentname) 
-		_searchparams.delete(componentname) 
-		_pathparams.delete(componentname) 
 		res(1); 
 	})
 	el.addEventListener("failed",   ()=> { 
-		_loadeddata.delete(componentname) 
-		_searchparams.delete(componentname) 
-		_pathparams.delete(componentname) 
+		_loadeddata.delete(componentname)
+		_searchparams.delete(componentname)
+		_pathparams.delete(componentname)
 		el.remove()
 		res(null); 
 	})
@@ -100,9 +97,9 @@ const ViewConnectedCallback = async (component:HTMLElement & CMechViewT) => new 
 	const loadeddata = _loadeddata.get(viewname)!
 	const searchparams = _searchparams.get(viewname)!
 
-	if (component.loadlocaldb) loadeddata.localdb = component.loadlocaldb(loadeddata.remote, searchparams)
+	loadeddata.localdb = await component.loadlocaldb(loadeddata.remote, searchparams)
 
-	if (component.kd) component.kd(loadeddata)
+	component.kd(loadeddata)
 
 	component.sc()
 
@@ -205,7 +202,7 @@ const UpdateFromSearchParamsChanged = (oldparams:URLSearchParams, newparams:URLS
 
 	const activeviewel = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
 
-	if (activeviewel.searchchngd) activeviewel.searchchngd(oldparams, newparams)
+	activeviewel.searchchanged(oldparams, newparams)
 	
 	// If we need to notify all views in the future, use this pattern:
 	// const viewElements = document.getElementById("views")!.querySelectorAll(".view")
@@ -218,16 +215,51 @@ const UpdateFromSearchParamsChanged = (oldparams:URLSearchParams, newparams:URLS
 
 
 
-const UpdateFromModelChanged = (changedpaths:str[], datas:any[]) => {
 
+type GenericRowT = { [key:string]: any }
+
+const UpdateFromModelChanged = (updated:Map<str, GenericRowT[]>) => {
+
+	/*
 	const views = document.getElementById("views")!.querySelectorAll(".view")
-
-	Array.from(views).forEach((viewel: Element) => {
-		const typedViewEl = viewel as HTMLElement & CMechViewT;
-		if (typedViewEl.mdlchngd) typedViewEl.mdlchngd(changedpaths);
-	});
+	for(const viewel of views) {
+		( viewel as HTMLElement & CMechViewT ).mdlchngd(changedpaths, datas)
+	}
+	*/
 }
 
+
+
+
+const UpdateArrayIfPresent = (tolist:GenericRowT[], path:str, updatedpathdatas:UpdatedDataT[]) => {
+
+	const updatedpathdata = updatedpathdatas.find((d:UpdatedDataT) => d.path === path)
+
+	if (!updatedpathdata || !updatedpathdata.data || !updatedpathdata.data.length) return
+
+
+	const index_map = new Map();
+	tolist.forEach((row:any, i:num) => index_map.set(row.id, i))
+
+	for(const d of updatedpathdata.data) {
+		const rowindex = index_map.get(d.id)
+		if (rowindex)   tolist.push(d);   else   tolist[rowindex] = d;
+	}
+}
+
+
+
+
+const UpdateItemIfPresent = (toitem:GenericRowT, path:str, updatedpathdatas:UpdatedDataT[]) => {
+
+	const updatedpathdata = updatedpathdatas.find((d:UpdatedDataT) => d.path === path)
+
+	if (!updatedpathdata || !updatedpathdata.data || !updatedpathdata.data.length) return
+
+
+	const r = updatedpathdata.data.find((fromitem:any) => fromitem.id === toitem.id)
+	if (r) toitem = r
+}
 
 
 
@@ -316,6 +348,10 @@ const HandleFirestoreDataUpdated = async (updateddata:FirestoreFetchResultT) => 
 
 
 
+
+
+
+
 /*
 const handle_view_initial_data_load = (viewname:str, loadother:()=>{}|null) => new Promise<null|num>(async (res, _rej)=> {
 
@@ -364,7 +400,7 @@ function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, comp
 
 
 
-export { Init, AddView, UpdateFromSearchParamsChanged, HandleFirestoreDataUpdated }
+export { Init, AddView, UpdateFromSearchParamsChanged, UpdateFromModelChanged }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback };
