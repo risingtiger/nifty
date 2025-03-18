@@ -111,6 +111,28 @@ async function NavigateToSearchParams(newsearchparams:{ [key: string]: string })
 	const newPath = searchParamsString ? `${currentPath}?${searchParamsString}` : currentPath;
 
     history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
+    
+    // Create a new URLSearchParams with only the properties that match with newsearchparams
+    const matchingOldParams = new URLSearchParams();
+    Object.keys(newsearchparams).forEach(key => {
+        if (oldsearchparams.has(key)) {
+            matchingOldParams.set(key, oldsearchparams.get(key)!);
+        }
+    });
+    
+    // Create a new URLSearchParams with the new values
+    const newParams = new URLSearchParams();
+    Object.entries(newsearchparams).forEach(([key, value]) => {
+        newParams.set(key, value);
+    });
+    
+    // Call the CMech UpdatedFromSearchParams function
+    document.querySelector("#views")?.dispatchEvent(new CustomEvent("UpdatedFromSearchParams", {
+        detail: {
+            oldparams: matchingOldParams,
+            newparams: newParams
+        }
+    }));
 }
 
 
