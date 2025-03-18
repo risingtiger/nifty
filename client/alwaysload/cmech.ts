@@ -206,6 +206,13 @@ const UpdateFromSearchParamsChanged = (oldparams:URLSearchParams, newparams:URLS
 	const activeviewel = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
 
 	if (activeviewel.searchchngd) activeviewel.searchchngd(oldparams, newparams)
+	
+	// If we need to notify all views in the future, use this pattern:
+	// const viewElements = document.getElementById("views")!.querySelectorAll(".view")
+	// Array.from(viewElements).forEach((viewEl: Element) => {
+	//     const typedViewEl = viewEl as HTMLElement & CMechViewT;
+	//     if (typedViewEl.searchchngd) typedViewEl.searchchngd(oldparams, newparams);
+	// });
 }
 
 
