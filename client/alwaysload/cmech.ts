@@ -1,24 +1,21 @@
 
 
 import { num, str, bool } from "../defs_server_symlink.js"
-
-import { 
-	$NT, 
-	CMechT, 
-	EngagementListenerTypeT, 
-	FetchResultT, 
-	FirestoreFetchResultT,
-	FirestoreLoadSpecT,
-} from "../defs.js"
-
-import { DataGrab as FirestoreDataGrab, AddToListens as FirestoreAddToListens, RemoveFromListens as FirestoreRemoveListens } from "./firestore.js"
+import { $NT, CMechViewT, CMechViewPartT, EngagementListenerTypeT } from "../defs.js"
+import { EnsureObjectStoresActive as LocalDBSyncEnsureObjectStoresActive } from "./localdbsync.js"
 
 declare var $N: $NT;
 
 
 
-const _viewloadspecs:Map<string, FirestoreLoadSpecT> = new Map() // key is view tagname sans 'v-'
-const _viewloadeddata:Map<string, FirestoreFetchResultT> = new Map() // key is view tagname sans 'v-'
+//const _viewloadspecs:Map<string, FirestoreLoadSpecT> = new Map() // key is view tagname sans 'v-'
+//const _viewloadeddata:Map<string, FirestoreFetchResultT> = new Map() // key is view tagname sans 'v-'
+
+// these are set when a new view is added, and removed after that view is hydrated (or failed) 
+
+let _loadeddata:Map<str, {remote:{[key:string]:any}, localdb:{[key:string]:any}}> = new Map() // map by view name
+let _searchparams:Map<str, URLSearchParams> = new Map() // map by view name
+let _pathparams:Map<str, { [key: string]: string }> = new Map() // map by view name
 
 
 
@@ -29,17 +26,45 @@ const Init = () => {
 
 
 
-const AddView = (componentname:str, loadspecs:FirestoreLoadSpecT, views_attach_point:"beforeend"|"afterbegin") => new Promise<num|null>(async (res, _rej)=> {
+const AddView = (
+	componentname:str, 
+	pathparams: { [key: string]: string }, 
+	searchparams:URLSearchParams, 
+	localdb_preload:str[]|null|undefined,
+	views_attach_point:"beforeend"|"afterbegin", 
+	loadremote:(pathparams:{ [key: string]: string }, searchparams: URLSearchParams, isinitial:bool)=>Promise<{ [key: string]: string }|null>
+) => new Promise<num|null>(async (res, _rej)=> {
 
-	_viewloadspecs.set(componentname, loadspecs)
+	//_viewloadspecs.set(componentname, loadspecs)
+
+	const promises:Promise<any>[] = []
+
+	promises.push(localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1))
+	promises.push( loadremote(pathparams, searchparams, false) )
+
+	const r = Promise.all(promises)
+
+	if (r[0] === null || r[1] === null) { res(null); return; }
+	
+	_loadeddata.set(componentname, {remote:r[1], localdb:{}})
+	_searchparams.set(componentname, searchparams)
+	_pathparams.set(componentname, pathparams)
 
 	const parentEl = document.querySelector("#views")!;
 	parentEl.insertAdjacentHTML(views_attach_point, `<v-${componentname} class='view'></v-${componentname}>`);
 
-	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechT
+	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechViewT
 
-	el.addEventListener("hydrated", ()=> { res(1); })
+	el.addEventListener("hydrated", ()=> { 
+		_loadeddata.delete(componentname) 
+		_searchparams.delete(componentname) 
+		_pathparams.delete(componentname) 
+		res(1); 
+	})
 	el.addEventListener("failed",   ()=> { 
+		_loadeddata.delete(componentname) 
+		_searchparams.delete(componentname) 
+		_pathparams.delete(componentname) 
 		el.remove()
 		res(null); 
 	})
@@ -56,7 +81,11 @@ const AddView = (componentname:str, loadspecs:FirestoreLoadSpecT, views_attach_p
 
 
 
-const ViewConnectedCallback = async (component:HTMLElement & CMechT) => new Promise<void>(async (res, _rej)=> {
+
+
+
+
+const ViewConnectedCallback = async (component:HTMLElement & CMechViewT) => new Promise<void>(async (res, _rej)=> {
 
 	const tagname                            = component.tagName.toLowerCase()
 	const tagname_split                      = tagname.split("-")
@@ -64,16 +93,17 @@ const ViewConnectedCallback = async (component:HTMLElement & CMechT) => new Prom
 
 	if (tagname_split[0] !== 'v') throw new Error("Not a view component")
 
-	const r = await handle_view_initial_data_load(viewname, ( component.loadother ? component.loadother.bind(component) : null )  )
-	if (r === null) { res(); return; }
-
-	set_component_m_data(true, component, "", _viewloadspecs.get(viewname)!, _viewloadeddata.get(viewname)||null)
-
 	for(const prop in component.a) component.a[prop] = component.getAttribute(prop);
 
 	component.subelshldr = []
 
-	if (component.kd) component.kd()
+	const loadeddata = _loadeddata.get(viewname)!
+	const searchparams = _searchparams.get(viewname)!
+
+	if (component.loadlocaldb) loadeddata.localdb = component.loadlocaldb(loadeddata.remote, searchparams)
+
+	if (component.kd) component.kd(loadeddata)
+
 	component.sc()
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {   component.sc();   });
@@ -93,30 +123,37 @@ const ViewConnectedCallback = async (component:HTMLElement & CMechT) => new Prom
 
 
 
-const GenConnectedCallback = async (component:HTMLElement & CMechT) => new Promise<void>(async (res, _rej)=> {
+const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT) => new Promise<void>(async (res, _rej)=> {
 
 	const tagname                     = component.tagName.toLowerCase()
+	const tagname_split               = tagname.split("-")
+
+	if (tagname_split[0] !== 'vp') throw new Error("Not a view part component")
 
 	const rootnode                    = component.getRootNode()
-	const host                        = ( rootnode as any ).host as HTMLElement & CMechT
+	const host                        = ( rootnode as any ).host as HTMLElement & CMechViewT
 	const ancestor_view_tagname       = host.tagName.toLowerCase()
 	const ancestor_view_tagname_split = ancestor_view_tagname.split("-")
 	const ancestor_viewname           = ancestor_view_tagname_split[1]
-	const loadspecs                   = _viewloadspecs.get(ancestor_viewname)
-
-	host.subelshldr!.push(component)
-
-	if (component.loadother) {
-		const r = await component.loadother.bind(component)()
-		if (r === null) { component.dispatchEvent(new CustomEvent("failed")); res(); return; }
-	}
-
-	set_component_m_data(false, component, tagname, loadspecs!, _viewloadeddata.get(ancestor_viewname)!)
 
 	for(const prop in component.a) component.a[prop] = component.getAttribute(prop)
 
-	if (component.kd) component.kd()
+	host.subelshldr!.push(component)
+
+	const loadeddata = _loadeddata.get(ancestor_viewname)!
+
+	if (component.kd) component.kd(loadeddata)
 	component.sc()
+
+	/*
+	if (component.loadother) {
+		const r = await component.loadother()
+		if (r === null) { component.dispatchEvent(new CustomEvent("failed")); res(); return; }
+	}
+	*/
+
+	//set_component_m_data(false, component, tagname, loadspecs!, _viewloadeddata.get(ancestor_viewname)!)
+
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {
 		component.sc()
@@ -128,18 +165,19 @@ const GenConnectedCallback = async (component:HTMLElement & CMechT) => new Promi
 
 
 
-const AttributeChangedCallback = (component:HTMLElement & CMechT, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
+const AttributeChangedCallback = (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
 
 	if (oldval === null) return
 
-	component.a[name] = newval
+	const a = (component as any).a as {[key:string]:any}
 
-	if (!component.a.updatescheduled) {
-		component.a.updatescheduled = true
+	a[name] = newval
+
+	if (!a.updatescheduled) {
+		a.updatescheduled = true
 		Promise.resolve().then(()=> { 
-			if (component.kd) component.kd()
-			component.sc()
-			component.a.updatescheduled = false
+			(component as any).sc()
+			a.updatescheduled = false
 		})
 	}
 }
@@ -147,20 +185,41 @@ const AttributeChangedCallback = (component:HTMLElement & CMechT, name:string, o
 
 
 
-const ViewDisconnectedCallback = (component:HTMLElement & CMechT) => {
+const ViewDisconnectedCallback = (component:HTMLElement) => {
+
+	if (!component.tagName.startsWith("V-")) throw new Error("Not a view component")
 
 	const componentname           = component.tagName.toLowerCase().split("-")[1]
-	const x                       = _viewloadspecs.get(componentname)?.keys()
-	const viewloadspecpaths:str[] = x ? [...x] : []
 
-	_viewloadspecs.delete(componentname)
-	_viewloadeddata.delete(componentname)
+	_loadeddata.delete(componentname) // should already be deleted by the time this is called - but just in case
+	_searchparams.delete(componentname) // should already be deleted by the time this is called - but just in case
+	_pathparams.delete(componentname) // should already be deleted by the time this is called - but just in case
+}
 
-	const loadspecpaths_to_delete:str[] = viewloadspecpaths.filter(path=> {	
-		return [..._viewloadspecs].every(([_viewname, viewloadspecs])=> !viewloadspecs.has(path))
+
+
+
+const UpdateFromSearchParamsChanged = (oldparams:URLSearchParams, newparams:URLSearchParams) => {
+
+	// search params are only relevant to active view. ignore inactive views
+
+	const activeviewel = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
+
+	if (activeviewel.searchchngd) activeviewel.searchchngd(oldparams, newparams)
+}
+
+
+
+
+const UpdateFromModelChanged = (changedpaths:str[], datas:any[]) => {
+
+	const views = document.getElementById("views")!.querySelectorAll(".view")
+
+	/*
+	views.forEach((viewel:HTMLElement & CMechViewT)=> {
+		viewel.searchchngd(oldparams, newparams)
 	})
-
-	FirestoreRemoveListens(loadspecpaths_to_delete)
+	*/
 }
 
 
@@ -251,7 +310,8 @@ const HandleFirestoreDataUpdated = async (updateddata:FirestoreFetchResultT) => 
 
 
 
-const handle_view_initial_data_load = (viewname:str, loadother:()=>{}) => new Promise<null|num>(async (res, _rej)=> {
+/*
+const handle_view_initial_data_load = (viewname:str, loadother:()=>{}|null) => new Promise<null|num>(async (res, _rej)=> {
 
 	const loadspecs = _viewloadspecs.get(viewname)!
 
@@ -260,7 +320,7 @@ const handle_view_initial_data_load = (viewname:str, loadother:()=>{}) => new Pr
 	promises.push(loadspecs.size ? FirestoreDataGrab(loadspecs) : 0) 
 	promises.push(loadother ? loadother() : 0)
 
-	const r = Promise.all(promises)
+	const r = await Promise.all(promises)
 
 	if (r[0] === null || r[1] === null) { res(null); return; }
 
@@ -268,11 +328,15 @@ const handle_view_initial_data_load = (viewname:str, loadother:()=>{}) => new Pr
 		FirestoreAddToListens(loadspecs)
 		_viewloadeddata.set(viewname, r[0])
 	}
+
+	res(1)
 })
+*/
 
 
 
 
+/*
 function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, componenttagname:str, loadspecs:FirestoreLoadSpecT, loaddata:FirestoreFetchResultT) {
 
 	if (!loaddata || !loaddata.size || !loadspecs.size) return
@@ -289,14 +353,15 @@ function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, comp
 		component.m[ls.name] = Array.isArray(component.m[ls.name]) ? d : d[0]
 	});
 }
+*/
 
 
 
 
-export { Init, AddView, HandleFirestoreDataUpdated }
+export { Init, AddView, UpdateFromSearchParamsChanged, HandleFirestoreDataUpdated }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).CMech = { ViewConnectedCallback, GenConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback };
+((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback };
 
 
 
