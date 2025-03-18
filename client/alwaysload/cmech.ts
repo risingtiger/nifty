@@ -219,13 +219,18 @@ const UpdateFromSearchParamsChanged = (oldparams:URLSearchParams, newparams:URLS
 type GenericRowT = { [key:string]: any }
 
 const UpdateFromModelChanged = (updated:Map<str, GenericRowT[]>) => {
-
-	/*
-	const views = document.getElementById("views")!.querySelectorAll(".view")
-	for(const viewel of views) {
-		( viewel as HTMLElement & CMechViewT ).mdlchngd(changedpaths, datas)
+	// Loop through all entries in _loadeddata
+	for (const [viewName, _] of _loadeddata) {
+		// Get the corresponding view element from the DOM
+		const viewEl = document.querySelector(`v-${viewName}`) as HTMLElement & CMechViewT;
+		
+		// If the element exists and has modelchanged method, call it
+		if (viewEl && viewEl.modelchanged) {
+			const paths = Array.from(updated.keys());
+			const datas = Object.fromEntries(updated);
+			viewEl.modelchanged(paths, datas);
+		}
 	}
-	*/
 }
 
 
