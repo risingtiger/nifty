@@ -93,9 +93,25 @@ async function NavigateBack(opts:{ default:str}) {
 
 
 
-async function NavigateToSearchParams(newsearchparams:{ [key: string]: string }[]) {
+async function NavigateToSearchParams(newsearchparams:{ [key: string]: string }) {
 
 	const oldsearchparams = new URLSearchParams(window.location.search);
+	const currentPath = history.state?.path || window.location.pathname.slice(3);
+	
+	// Create a new URLSearchParams object from the current search parameters
+	const updatedSearchParams = new URLSearchParams(oldsearchparams);
+	
+	// Update with new search parameters
+	Object.entries(newsearchparams).forEach(([key, value]) => {
+		updatedSearchParams.set(key, value);
+	});
+	
+	// Create the new path with updated search parameters
+	const searchParamsString = updatedSearchParams.toString();
+	const newPath = searchParamsString ? `${currentPath}?${searchParamsString}` : currentPath;
+	
+	// Navigate to the new path
+	await NavigateTo(newPath);
 }
 
 
@@ -246,7 +262,7 @@ function get_route_uri(url: str) : [Array<str>, num] {
 export { Init, AddRoute }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack };
+((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack, NavigateToSearchParams };
 
 
 
