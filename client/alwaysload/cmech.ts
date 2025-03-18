@@ -222,6 +222,10 @@ const UpdateFromModelChanged = (changedpaths:str[], datas:any[]) => {
 
 	const views = document.getElementById("views")!.querySelectorAll(".view")
 
+	for(const viewel of views) {
+		( viewel as HTMLElement & CMechViewT ).mdlchngd(changedpaths)
+	}
+
 	/*
 	views.forEach((viewel:HTMLElement & CMechViewT)=> {
 		viewel.searchchngd(oldparams, newparams)
