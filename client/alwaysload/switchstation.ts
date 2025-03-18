@@ -3,7 +3,6 @@
 import { $NT, LazyLoadT, URIDetailT, LoggerSubjectE } from  "./../defs.js" 
 import { str, num } from  "../../defs_server_symlink.js" 
 import { Run as LazyLoadRun } from './lazyload.js'
-import { EnsureObjectStoresActive } from "./localdbsync.js"
 import { AddView as CMechAddView } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 
@@ -89,6 +88,14 @@ async function NavigateBack(opts:{ default:str}) {
 		await routeChanged(opts.default, 'back');
 		history.replaceState({ index: 0, path: opts.default }, '', opts.default);
 	}
+}
+
+
+
+
+async function NavigateToSearchParams(newsearchparams:{ [key: string]: string }[]) {
+
+	const oldsearchparams = new URLSearchParams(window.location.search);
 }
 
 
@@ -206,14 +213,11 @@ const routeload = (routeindex:num, uri:str, urlmatches:str[], views_attach_point
 	const promises:Promise<any>[] = []
 
 	promises.push( LazyLoadRun([route.lazyload_view]) )
-
-	promises.push( localdb_preload ? EnsureObjectStoresActive(localdb_preload) : Promise.resolve(1) ) 
-
-	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, views_attach_point) )
+	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload, views_attach_point, view_finance_loadremote) )
 
 	const r = await Promise.all(promises)
 
-	if (r[0] === null || r[1] === null || r[2] === null) { res('failed'); return; }
+	if (r[0] === null || r[1] === null) { res('failed'); return; }
 
 	res('success')
 })
@@ -250,7 +254,7 @@ if (!(window as any).$N) {   (window as any).$N = {};   }
 
 
 
-const view_finance_func = (pathparams:{ [key: string]: string }, searchparams: URLSearchParams) => new Promise<void>(async (res, _rej) => {
+const view_finance_loadremote = (pathparams:{ [key: string]: string }, searchparams: URLSearchParams, isinitial:boolean) => new Promise<{ [key: string]: string }|null>(async (res, _rej) => {
     try {
         const response = await fetch('https://example.com');
         if (!response.ok) {
@@ -258,11 +262,11 @@ const view_finance_func = (pathparams:{ [key: string]: string }, searchparams: U
         }
         const htmlContent = await response.text();
         console.log('Fetched HTML content:', htmlContent.substring(0, 100) + '...');
-        // Do something with the HTML content
+		res({examplechunk: htmlContent.substring(0, 100), propa:'placeholder'});
     } catch (error) {
         console.error('Error fetching example.com:', error);
+		res(null);
     }
-    res();
 })
 
 
