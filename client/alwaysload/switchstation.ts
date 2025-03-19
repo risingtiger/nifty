@@ -1,9 +1,9 @@
 
 
-import { $NT, LazyLoadT, URIDetailT, LoggerSubjectE } from  "./../defs.js" 
+import { $NT, GenericRowT, LazyLoadT, URIDetailT, LoggerSubjectE } from  "./../defs.js" 
 import { str, num } from  "../../defs_server_symlink.js" 
 import { Run as LazyLoadRun } from './lazyload.js'
-import { AddView as CMechAddView } from "./cmech.js"
+import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 
 declare var $N: $NT;
@@ -80,6 +80,12 @@ async function NavigateTo(newPath: string) {
 
 async function NavigateBack(opts:{ default:str}) {
 
+
+	console.log(`
+	NEED TO HANDLE THIS SO THAT IF NAVIGATING BACK, BUT BACK IS JUST A SEARCHPARAMS CHANGE, THEN DONT CALL routeChanged
+	just call CMechUpdateFromSearchParams
+	`)
+
 	if (history.state && history.state.index > 0) {
 		await routeChanged(opts.default, 'back');
 		history.back();
@@ -93,46 +99,27 @@ async function NavigateBack(opts:{ default:str}) {
 
 
 
-async function NavigateToSearchParams(newsearchparams:{ [key: string]: string }) {
+async function NavigateToSearchParams(newsearchparams:GenericRowT) {
 
-	const oldsearchparams = new URLSearchParams(window.location.search);
-	const currentPath = history.state?.path || window.location.pathname.slice(3);
-	
-	// Create a new URLSearchParams object from the current search parameters
-	const updatedSearchParams = new URLSearchParams(oldsearchparams);
-	
-	// Update with new search parameters
+	const searchparams = new URLSearchParams(window.location.search);
 	Object.entries(newsearchparams).forEach(([key, value]) => {
-		updatedSearchParams.set(key, value);
+		searchparams.set(key, value);
 	});
-	
-	// Create the new path with updated search parameters
-	const searchParamsString = updatedSearchParams.toString();
-	const newPath = searchParamsString ? `${currentPath}?${searchParamsString}` : currentPath;
 
-    history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
+	const searchparams_str = searchparams.toString();
+
+	const newhistoryurl = window.location.pathname.slice(3) + '?' + searchparams_str;
+
+    history.pushState({ index: history.state.index+1, path: newhistoryurl }, '', newhistoryurl);
     
-    // Create a new URLSearchParams with only the properties that match with newsearchparams
-    const matchingOldParams = new URLSearchParams();
-    Object.keys(newsearchparams).forEach(key => {
-        if (oldsearchparams.has(key)) {
-            matchingOldParams.set(key, oldsearchparams.get(key)!);
-        }
-    });
-    
-    // Create a new URLSearchParams with the new values
-    const newParams = new URLSearchParams();
-    Object.entries(newsearchparams).forEach(([key, value]) => {
-        newParams.set(key, value);
-    });
-    
-    // Call the CMech UpdatedFromSearchParams function
-    document.querySelector("#views")?.dispatchEvent(new CustomEvent("UpdatedFromSearchParams", {
-        detail: {
-            oldparams: matchingOldParams,
-            newparams: newParams
-        }
-    }));
+	CMechSearchParamsChanged(new URLSearchParams(newsearchparams))
+}
+
+
+
+
+function HandleLocalDBSyncUpdateTooLarge() {
+	$N.ToastShow("LocalDB Sync Too Large", 4, 5000000)
 }
 
 
@@ -250,7 +237,7 @@ const routeload = (routeindex:num, uri:str, urlmatches:str[], views_attach_point
 	const promises:Promise<any>[] = []
 
 	promises.push( LazyLoadRun([route.lazyload_view]) )
-	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload, views_attach_point, view_finance_loadremote) )
+	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload, views_attach_point, loady_a, loady_b) )
 
 	const r = await Promise.all(promises)
 
@@ -280,7 +267,7 @@ function get_route_uri(url: str) : [Array<str>, num] {
 
 
 
-export { Init, AddRoute }
+export { Init, AddRoute, HandleLocalDBSyncUpdateTooLarge }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack, NavigateToSearchParams };
@@ -291,23 +278,26 @@ if (!(window as any).$N) {   (window as any).$N = {};   }
 
 
 
-const view_finance_loadremote = (pathparams:{ [key: string]: string }, searchparams: URLSearchParams, isinitial:boolean) => new Promise<{ [key: string]: string }|null>(async (res, _rej) => {
-    try {
-        const response = await fetch('https://example.com');
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const htmlContent = await response.text();
-        console.log('Fetched HTML content:', htmlContent.substring(0, 100) + '...');
-		res({examplechunk: htmlContent.substring(0, 100), propa:'placeholder'});
-    } catch (error) {
-        console.error('Error fetching example.com:', error);
-		res(null);
-    }
+
+
+
+const loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>>(async (res, _rej) => {
+
+	const a = new Map<str,GenericRowT[]>()
+
+	a.set("testy1", [{testy1:1}, {testy1:2}])
+	a.set("testy2", [{testy2:10}, {testy2:20}])
+
+	res(a)	
 })
 
+const loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>>(async (res, _rej) => {
 
+	const a = new Map<str,GenericRowT[]>()
 
+	a.set("b_testy1", [{testy1:1}, {testy1:2}])
+	a.set("b_testy2", [{testy2:10}, {testy2:20}])
 
-
+	res(a)
+})
 
