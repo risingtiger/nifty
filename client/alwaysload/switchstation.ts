@@ -346,7 +346,12 @@ const indexeddb_graball = (objectstore_names:str[]) => new Promise<Map<str,Gener
 	}
 
 	const r = await Promise.all(promises)
-		.catch((_e) => { res(null); return null; })
+		.catch((_e) => { 
+			res(null); 
+			return null; 
+		})
+
+	if (r === null) return; // Early return if Promise.all failed
 
 	const transaction_store       = transaction.objectStore('transactions');
 	const cat_store               = transaction.objectStore('cats');
