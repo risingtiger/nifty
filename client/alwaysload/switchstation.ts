@@ -22,7 +22,8 @@ let _routes:Array<Route> = [];
 
 const Init = async ()=> {
 
-    const initialPath = window.location.pathname.slice(3)
+    const searchParams = window.location.search ? window.location.search : '';
+    const initialPath = window.location.pathname.slice(3) + searchParams;
 
     if (!history.state || history.state.index === undefined) {
 		await routeChanged(initialPath, 'firstload');
