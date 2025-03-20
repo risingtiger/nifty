@@ -86,7 +86,8 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 
 function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}) {   return new Promise<null|number>(async (res, _rej)=> {
 
-    const doc_ref = db.collection(path).doc()
+    let d = parse_request(db, path, null);
+    const doc_ref = d.doc()
     
     const r = await doc_ref.set(newdoc).catch(()=> null);
     if (r === null) { res(null); return; }
