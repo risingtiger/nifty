@@ -76,8 +76,9 @@ function Add_Listener(req:any, res:any) {
 
 
 
-function TriggerEvent(eventname:SSETriggersE, data:any) {
+function TriggerEvent(eventname:SSETriggersE, data:any, opts:{exclude?:str[]}={}) {
     listeners.forEach(l => {
+        if (opts.exclude && opts.exclude.includes(l.id)) return;
 		l.cb(eventname, data)
     })
 }
