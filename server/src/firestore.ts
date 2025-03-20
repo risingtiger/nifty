@@ -133,9 +133,8 @@ function Patch(db:any, sse:any, pathstr:str, data:any) {   return new Promise<nu
         // Only update the fields that are provided in the data object
         await d.update(data);
         
-        // Get the updated document to send the complete data in the event
-        const updatedSnapshot = await d.get();
-        const updatedData = { id: docId, ...updatedSnapshot.data() };
+        // Merge the new data with existing data in memory
+        const updatedData = { ...existingData, ...data, id: docId };
         
         // Trigger event with the complete updated document
         sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path: pathstr, data: updatedData });
