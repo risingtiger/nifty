@@ -106,22 +106,39 @@ function Patch(db:any, sse:any, pathstr:str, data:any) {   return new Promise<nu
 
     let d = parse_request(db, pathstr, null);
     
-    // Ensure timestamp is updated
-    if (!data.ts) {
-        data.ts = Math.floor(Date.now() / 1000);
-    }
-    
     try {
+        // First, get the existing document
         const docSnapshot = await d.get();
-        const docId = docSnapshot.id;
+        if (!docSnapshot.exists) {
+            console.error("Document does not exist:", pathstr);
+            res(null);
+            return;
+        }
         
+        const docId = docSnapshot.id;
+        const existingData = docSnapshot.data();
+        
+        // Ensure timestamp is updated if not provided
+        if (!data.ts) {
+            data.ts = Math.floor(Date.now() / 1000);
+        }
+        
+        // Check if incoming data is older than existing data
+        if (existingData.ts && data.ts < existingData.ts) {
+            console.log("Rejecting older data update:", pathstr);
+            res(null);
+            return;
+        }
+        
+        // Only update the fields that are provided in the data object
         await d.update(data);
         
-        // Use the data object directly for the event trigger
-        // Add the document ID to the data for consistency
-        const eventData = { ...data, id: docId };
+        // Get the updated document to send the complete data in the event
+        const updatedSnapshot = await d.get();
+        const updatedData = { id: docId, ...updatedSnapshot.data() };
         
-        sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path: pathstr, data: eventData });
+        // Trigger event with the complete updated document
+        sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path: pathstr, data: updatedData });
         
         res(1);
     } catch (err) {
