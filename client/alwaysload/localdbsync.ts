@@ -2,8 +2,10 @@
 
 import { num, str, bool } from '../defs_server_symlink.js'
 import { SSETriggersE } from '../defs_server_symlink.js'
-import { $NT, LoggerTypeE, LoggerSubjectE, EngagementListenerTypeT  } from '../defs.js'
-import { HandleFirestoreDataUpdated } from './cmech.js'
+import { $NT, LoggerTypeE, LoggerSubjectE, EngagementListenerTypeT, GenericRowT  } from '../defs.js'
+import { HandleLocalDBSyncUpdateTooLarge as SwitchStationHandleLocalDBSyncUpdateTooLarge } from './switchstation.js'
+import { Init as CMechInit, AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged, DataChanged as CMechDataChanged } from './cmech.js'
+import { Add as M_Add, Patch as M_Patch, Delete as M_Delete } from './localdbsync_modify.js'
 
 
 declare var $N:$NT
@@ -17,13 +19,14 @@ type PathSpecT = {
 	collection: string,
 	docid: string|null, // never will just be a document (always a collection). but could be a path like "machines/1234/statuses"
 	subcollection: string|null,
-	syncobjectstore: SyncObjectStoresT | null,
+	syncobjectstore: SyncObjectStoresT,
 }
 
 
 let DBNAME:str = ""
 let DBVERSION:num = 0
 
+let db:IDBDatabase|null = null
 let _syncobjectstores:SyncObjectStoresT[] = []
 let _activepaths:PathSpecT[] = []
 //let _listens: FirestoreLoadSpecT = new Map()
@@ -58,24 +61,25 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 
 		if (_activepaths.length === 0) return
 
-		const r = await datagrabber(_activepaths, {retries:2}, true)
-		if (r === null) return
+		const r = await datasetter(_activepaths, {retries:2}, true, true)
+		if (r === null || r === 1) return
 
-		/*
-		const filtered_has_data = new Map( [...r].filter(([_path, data])=> data.length > 0) )  
-		if (filtered_has_data.size === 0) return
-		*/
-
-		//HandleFirestoreDataUpdated(filtered_has_data)
+		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc", [SSETriggersE.FIRESTORE_DOC], 100, async (event:{path:string,data:object})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc", [SSETriggersE.FIRESTORE_DOC_ADD], 100, (event:{path:string,data:object})=> {
+		handle_firestore_doc_add_or_patch(event.path, event.data)
+	});
 
-		const ssepathspec = parse_into_pathspec(event.path)!
-		if (ssepathspec.syncobjectstore) {   await write_to_indexeddb_store([ ssepathspec.syncobjectstore ], [ [event.data] ]);   }
 
-		//HandleFirestoreDataUpdated(r)
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc", [SSETriggersE.FIRESTORE_DOC_PATCH], 100, (event:{path:string,data:object})=> {
+		handle_firestore_doc_add_or_patch(event.path, event.data)
+	});
+
+
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, (event:{path:string,data:object})=> {
+		//TODO: not handling delete yet. REALLY NEED TO. Not too hard to remove from local database and pass to cmech. But, when about when user has been offline and missed delete calls. Need a server side list to send of delete history since ts
 	});
 
 
@@ -86,19 +90,25 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 		const pathspecs = findrelevantpathspecs_from_ssepaths(event.paths)
 		if (!pathspecs) return
 
-		const r = await datagrabber(pathspecs, {}, true)
-		if (r === null) return
+		const r = await datasetter(pathspecs, {}, true, false)
+		if (r === null || r === 1) return
 
-		/*
-		const filtered_has_data = new Map( [...r].filter(([_path, data])=> data.length > 0) )  
-		if (filtered_has_data.size === 0) return
-
-		HandleFirestoreDataUpdated(filtered_has_data)
-		*/
+		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	});
 
-
 	return true
+
+
+
+	async function handle_firestore_doc_add_or_patch(path:str, data:object) {
+		const ssepathspec = parse_into_pathspec(path)!
+		if (ssepathspec.syncobjectstore) {   await write_to_indexeddb_store([ ssepathspec.syncobjectstore ], [ [data] ]);   }
+
+		const returnmap = new Map<str, GenericRowT[]>([[ssepathspec.path, [data]]])
+
+		CMechDataChanged(returnmap)
+	}
+
 
 
 	function findrelevantpathspecs_from_ssepaths(ssepaths?:str[]) : PathSpecT[]|null {
@@ -113,6 +123,23 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 
 		return pathspecs
 	}
+
+
+	function notify_of_datachange(returns:Map<str, GenericRowT[]>) {
+
+		if (returns.size === 0) return
+
+		let is_too_large_to_update = false
+
+		if ([...returns].some(rr=> rr[1].length === 300)) is_too_large_to_update = true
+
+		if (is_too_large_to_update) {
+			SwitchStationHandleLocalDBSyncUpdateTooLarge()
+			return
+		}	
+
+		CMechDataChanged(returns)
+	}
 }
 
 
@@ -122,12 +149,9 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 	// currently is only main level firestore collections. will add subcollections soon
 
-	const pathspecs:PathSpecT[] = parseloadspec(loadspecs)
+	const pathspecs:PathSpecT[] = names.map(name=> parse_into_pathspec(name))
 
-	if (!pathspecs.length) { res(null); return; }
-
-	// Filter out pathspecs that are already in _activepaths
-	const newPathspecs = pathspecs.filter(pathspec => 
+	const newpathspecs = pathspecs.filter(pathspec => 
 		!_activepaths.some(activePath => 
 			activePath.collection === pathspec.collection && 
 			activePath.docid === pathspec.docid && 
@@ -135,15 +159,12 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 		)
 	)
 
-	// If there are no new paths to process, return success
-	if (newPathspecs.length === 0) { res(1); return; }
+	if (newpathspecs.length === 0) { res(1); return; }
 
-	// Only fetch data for paths not already active
-	const r = await datagrabber(newPathspecs, {}, false)
+	const r = await datasetter(newpathspecs, {}, false, false)
 	if (r === null) { res(null); return; }
 
-	// Add the new paths to _activepaths
-	_activepaths = [..._activepaths, ...newPathspecs]
+	_activepaths = [..._activepaths, ...newpathspecs]
 
 	res(1)
 })
@@ -151,112 +172,47 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 
 
-const AddToListens = (loadspecs:FirestoreLoadSpecT) => {
-	loadspecs.forEach((ls, path) => _listens.set(path, ls))
-}
-const RemoveFromListens = (pathkeys:str[]) => {
-	pathkeys.forEach(p=> {
-		_listens.delete(p)
-		_nonsync_tses.delete(p)
-	})
-}
-
-
-
-
-const datagrabber = (pathspecs:PathSpecT[], opts?:{retries?:num}, force_refresh_synccollections:bool = false) => new Promise<FirestoreFetchResultT>(async (res,_rej)=> { 
+const datasetter = (pathspecs:PathSpecT[], opts?:{retries?:num}, force_refresh_syncobjectstores:bool = false, returnnewdata=false) => new Promise<num|null|Map<str,GenericRowT[]>>(async (res,_rej)=> { 
 
 	opts = opts || {retries:0}
 	opts.retries = opts.retries || 0
 
-	let   allrs:FirestoreFetchResultT[] = []	
-	const promises:Promise<FirestoreFetchResultT>[] = []
+	let returns:Map<str,GenericRowT[]> = new Map()
 
-	const paths_tosync                          = pathspecs.filter(p=> p.syncobjectstore &&  ( p.syncobjectstore.ts === null || force_refresh_synccollections )  )
-	const synccollections_tosync_withduplicates = paths_tosync.map(p=> p.syncobjectstore!)
-	const synccollections_tosync                = synccollections_tosync_withduplicates.filter((item, index) => synccollections_tosync_withduplicates.indexOf(item) === index)
-	const synccollections_tosync_unlocked       = synccollections_tosync.filter(dc=> !dc.lock)
-	const synccollections_tosync_locked         = synccollections_tosync.filter(dc=> dc.lock)
+	const paths_tosync                            = pathspecs.filter(p=> p.syncobjectstore.ts === null || force_refresh_syncobjectstores )
 
+	// probably wont be duplicates, but when I start doing subcollections it could start being an issue
 
-	{
-		const nonsync_fetch_pathspecs               = pathspecs.filter(p=> !p.syncobjectstore)
-		const nonsync_fetch_promise                 = nonsync_fetch_pathspecs.length ? fetch_nonsync_paths(nonsync_fetch_pathspecs, opts.retries) : new Promise<FirestoreFetchResultT>((res)=> res(new Map()))
-		promises.push(nonsync_fetch_promise)
-	}
+	const syncobjectstores_tosync_withduplicates  = paths_tosync.map(p=> p.syncobjectstore!)
+	const syncobjectstores_tosync                 = syncobjectstores_tosync_withduplicates.filter((item, index) => syncobjectstores_tosync_withduplicates.indexOf(item) === index)
+	const syncobjectstores_tosync_unlocked        = syncobjectstores_tosync.filter(dc=> !dc.lock)
+	const syncobjectstores_tosync_locked          = syncobjectstores_tosync.filter(dc=> dc.lock)
 
 
 	{
-		if (synccollections_tosync_unlocked.length) {
-			const rs = await load_into_synccollections(synccollections_tosync_unlocked, opts.retries)
+		if (syncobjectstores_tosync_unlocked.length) {
+			const rs = await load_into_syncobjectstores(syncobjectstores_tosync_unlocked, opts.retries, returnnewdata)
 			if (rs === null) { res(null); return; }
+
+			if (returnnewdata) returns = rs as Map<str,GenericRowT[]>
 		}
 
-		if (synccollections_tosync_locked.length) {
+		if (syncobjectstores_tosync_locked.length) {
 			await new Promise((resolve_inner) => {
 				const intrvl = setInterval(() => {
-					if (synccollections_tosync_locked.every(dc=> !dc.lock)) {
+					if (syncobjectstores_tosync_locked.every(dc=> !dc.lock)) {
 						clearInterval(intrvl)
 						resolve_inner(1)
 					}
-				}, 4)
+				}, 10)
 			})
 		}
 	}
 
-
-	{
-		const indexeddb_fetch_pathspecs     = pathspecs.filter(p=> p.syncobjectstore)
-		const indexeddb_fetch_promise       = indexeddb_fetch_pathspecs.length ? get_paths_from_indexeddb(indexeddb_fetch_pathspecs) : new Promise<FirestoreFetchResultT>((res)=> res(new Map()))
-		promises.push(indexeddb_fetch_promise)
-	}
-
-
-	allrs = await Promise.all(promises)
-
-
-	if (allrs[0] === null || allrs[1] === null) { res(null); return; }
-
-	const combined_results = new Map([...allrs[0], ...allrs[1]])
-
-	res(combined_results)
-})
-
-
-
-
-function fetch_nonsync_paths(pathspecs:PathSpecT[], retries:num = 0) {   return new Promise<FirestoreFetchResultT>(async (res)=> {
-
-	const paths = pathspecs.map(p=> p.path)
-	const opts  = pathspecs.map(p=> p.opts || {}) as FirestoreOptsT[]
 	
-	opts.forEach((o,i)=> {
-		if (o.ts) return
-		o.ts = _nonsync_tses.get(paths[i]) || null
-	})
-
-    const body = { paths, opts }
-    const fetchopts:any = {   
-        method: "POST",
-        body: JSON.stringify(body),
-    }
-    const fetch_results = await $N.FetchLassie('/api/firestore_retrieve', fetchopts, {retries}) as Promise<Array<object[]>|null>
-	if (fetch_results === null) {
-		res(null)
-		return
-	}
-
-	const tsnow = Math.floor( Date.now()  / 1000)
-	pathspecs.forEach(p=> _nonsync_tses.set(p.path, tsnow))
-
-	const results = new Map()
-	for(let i = 0; i < pathspecs.length; i++) {
-		const pathname = pathspecs[i].path
-		results.set(pathname, fetch_results[i])
-	}
-
-    res(results)
-})}
+	if (returnnewdata) res(returns)
+	else               res(1)
+})
 
 
 
@@ -269,7 +225,7 @@ function parse_into_pathspec(path:str) : PathSpecT {
 	const subcollection        = docid && p[2] ? p[2] : null 
 
 	// syncollection currently is ONLY for main level collections. we'll be adding subcollections soon (so firestore machines/123/statuses for example can be accessed)
-	const syncobjectstore      = !subcollection ? _syncobjectstores.find((dc) => dc.name === collection) || null : null
+	const syncobjectstore      = _syncobjectstores.find((dc) => dc.name === collection) as SyncObjectStoresT
 
 	return { path, p, collection, docid, subcollection, syncobjectstore }
 }
@@ -311,16 +267,16 @@ const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
 
 
 
-const load_into_synccollections = (synccollections:SyncObjectStoresT[], retries:num = 0) => new Promise<num|null>(async (res,_rej)=> {
+const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retries:num = 0, returnnewdata:bool, returnnewdata_limit:num = 300) => new Promise<num|null|Map<str,GenericRowT[]>>(async (res,_rej)=> {
 
-    synccollections.forEach(dc => dc.lock = true);
+    syncobjectstores.forEach(dc => dc.lock = true);
 
-	const runidstring      = Math.random().toString(15).substring(2, 12)
-	let   continue_calling = true	
-	const paths            = synccollections.map(dc=> dc.name)
-	const tses             = synccollections.map(dc=> dc.ts || null)
-
-	const body = { runid:runidstring, paths, tses }
+	const runidstring       = Math.random().toString(15).substring(2, 12)
+	let   continue_calling  = true	
+	const paths             = syncobjectstores.map(dc=> dc.name)
+	const tses              = syncobjectstores.map(dc=> dc.ts || null)
+	const returns           = new Map<str,GenericRowT[]>( paths.map(path=> [path, []]) )
+	const body              = { runid:runidstring, paths, tses }
 
 	while (continue_calling) {
 		const r = await $N.FetchLassie('/api/firestore_get_batch', { method: "POST", body: JSON.stringify(body) }, { retries })
@@ -328,44 +284,52 @@ const load_into_synccollections = (synccollections:SyncObjectStoresT[], retries:
 
 		for(let i = 0; i < paths.length; i++) {
 			if (r[i].docs.length === 0) continue
-			await write_to_indexeddb_store([synccollections[i]], [r[i].docs])
+			await write_to_indexeddb_store([syncobjectstores[i]], [r[i].docs])
+			if (returnnewdata) pushtoreturns(paths[i], r[i].docs)
 		}
 
 		continue_calling = (r as any[]).every((rr:any) => rr.isdone) ? false : true
 	}
 
 	const newts = Math.floor(Date.now()/1000);
-	synccollections.forEach(dc => dc.ts = newts);
+	syncobjectstores.forEach(dc => dc.ts = newts);
 	localStorage.setItem("synccollections", JSON.stringify(_syncobjectstores
 		.map(dc => ({ name: dc.name, ts: dc.ts }))));
 
 	cleanup();
 
-	res(1)
+	if (returnnewdata)	res(returns);
+	else				res(1)
 
 
     function cleanup() {
         continue_calling = false;
-        synccollections.forEach(dc => dc.lock = false);
+        syncobjectstores.forEach(dc => dc.lock = false);
     }
+
+
+	function pushtoreturns( path:string, docs:GenericRowT[] ) {
+		const rp = returns.get(path)!
+		const available_space = returnnewdata_limit - rp.length
+		rp.push(...docs.slice(0, available_space))
+	}
 })
 
 
 
 
-const write_to_indexeddb_store = (synccollections: SyncObjectStoresT[], datas:Array<object[]>) => new Promise<void>(async (resolve, _reject) => {
+const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>) => new Promise<void>(async (resolve, _reject) => {
 
 	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
 
-	const db = await openindexeddb()
-	db.onerror = (event:any) => redirect_from_error("IndexedDB Error - " + event.target.errorCode)
+	if( !db ) db = await openindexeddb()
 
-	const tx:IDBTransaction = db.transaction(synccollections.map(ds => ds.name), "readwrite", { durability: "relaxed" })
+	const tx:IDBTransaction = db.transaction(syncobjectstores.map(ds => ds.name), "readwrite", { durability: "relaxed" })
 
 	let are_there_any_put_errors = false
 
-	for(let i = 0; i < synccollections.length; i++) {
-		const ds = synccollections[i]
+	for(let i = 0; i < syncobjectstores.length; i++) {
+		const ds = syncobjectstores[i]
 
 		if (datas[i].length === 0) continue
 
@@ -379,7 +343,6 @@ const write_to_indexeddb_store = (synccollections: SyncObjectStoresT[], datas:Ar
 
 	tx.oncomplete = (_event:any) => {
 		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
-		db.close()
 		resolve()
 	}
 
@@ -391,9 +354,10 @@ const write_to_indexeddb_store = (synccollections: SyncObjectStoresT[], datas:Ar
 
 
 
-const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<FirestoreFetchResultT>(async (resolve, _reject) => {
+/*
+const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<DataFetchResultT>(async (resolve, _reject) => {
 
-	const store_datas:FirestoreFetchResultT = new Map()
+	const store_datas:DataFetchResultT = new Map()
 
 	const db = await openindexeddb()
 	db.onerror = (event_s:any) => redirect_from_error("IndexedDB Request - " + event_s.target.errorCode)
@@ -432,6 +396,7 @@ const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<Firesto
 
 	transaction.onerror = (event_s:any) => redirect_from_error("IndexedDB Transaction - " + event_s.target.errorCode)
 })
+*/
 
 
 
@@ -448,9 +413,66 @@ function redirect_from_error(errmsg:str) {
 
 
 
-export { Init, DataGrab, AddToListens, RemoveFromListens } 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const Add = (db:IDBDatabase, path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
+	const r = M_Add(db, path, data)
+	if (r === null) { redirect_from_error("IndexedDB Error adding data"); res(null); return; }
+
+	res(r)
+})
+
+
+
+
+const Patch = (db:IDBDatabase, path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
+	const r = M_Patch(db, path, data)
+	if (r === null) { redirect_from_error("IndexedDB Error patching data"); res(null); return; }
+
+	res(r)
+})
+
+
+
+
+const Delete = (db:IDBDatabase, path:str, id:string) => new Promise<num|null>(async (res,_rej)=> {  
+	const r = M_Delete(db, path, id)
+	if (r === null) { redirect_from_error("IndexedDB Error deleting data"); res(null); return; }
+
+	res(r)
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export { Init, EnsureObjectStoresActive } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).Firestore = { Add, Patch };
+((window as any).$N as any).LocalDBSync = { Add, Patch, Delete };
 
 
 
