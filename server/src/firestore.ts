@@ -15,7 +15,7 @@ type RetrieveOptsT   = { order_by:str|null, ts:int|null, limit:int|null, startaf
 
 
 
-function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) {   return new Promise<Array<object[]>>(async (res, _rej) => {
+function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) {   return new Promise<null|Array<object[]>>(async (res, _rej) => {
 
     const promises:any = []
 
@@ -78,17 +78,13 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 			}
 			res(returns)
 		})
-		.catch((err:any)=> {
-			throw new Error("Error in Firestore Retrieve: " + err)
-		})
-
-
+		.catch(_=> res(null));
 })}
 
 
 
 
-function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res, _rej)=> {
+function Add(db:any, sse:any, path:str, newdocs:any[]) {   return new Promise<null|number>(async (res, _rej)=> {
 
     const batch        = db.batch()
 
@@ -100,9 +96,10 @@ function Add(db:any, path:str, newdocs:any[]) {   return new Promise(async (res,
         batch.set(doc_ref, newdoc)
     }
 
-    await batch.commit().catch((_err:any)=> { res({err:"batch commit failed"}) })
+    await batch.commit().catch((_err:any)=> { res(null) })
+	sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:updatedDocData } )
 
-    res({ok: true})
+    res(1)
 })}
 
 
@@ -217,7 +214,7 @@ function getdocdata(doc:any) {
 	for (const key in data) {
 		const value = data[key]
 		// Type check first (fastest check)
-		if (typeof value !== 'object' || !value) continue
+		if (typeof value !== 'object') continue
 		// Then check for _path property
 		if (value._path) {
 			data[key] = { __path: value._path.segments }
