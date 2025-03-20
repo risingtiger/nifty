@@ -217,9 +217,7 @@ function getdocdata(doc:any) {
 	// Process properties with _path sub-property
 	for (const key in data) {
 		if (data[key] && typeof data[key] === 'object' && data[key]._path) {
-			const pathParts = data[key]._path.split('/')
-			const _id = pathParts.length > 0 ? pathParts[pathParts.length - 1] : ''
-			data[key] = { _path: data[key]._path, _id }
+			data[key] = { __path: data[key]._path.segments }
 		}
 	}
 	
