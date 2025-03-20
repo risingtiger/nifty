@@ -213,8 +213,16 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 
 function getdocdata(doc:any) {
 	const data = { id: doc.id, ...doc.data() }
-	// data will be in {[key: string]: any}[] format. Some properties will containing a sub property called '_path'. AI!
-	// loop through data and if a property contains '_path', replace that property with { _path: string, _id: string }
+	
+	// Process properties with _path sub-property
+	for (const key in data) {
+		if (data[key] && typeof data[key] === 'object' && data[key]._path) {
+			const pathParts = data[key]._path.split('/')
+			const _id = pathParts.length > 0 ? pathParts[pathParts.length - 1] : ''
+			data[key] = { _path: data[key]._path, _id }
+		}
+	}
+	
 	return data
 }
 
