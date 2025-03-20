@@ -111,7 +111,10 @@ app.post('/api/influxdb_retrieve_medians', influxdb_retrieve_medians)
 
 
 
-app.get("/api/sse_add_listener", cors({ origin: ['https://example.com', 'https://second-domain.com'] }), sse_add_listener)
+//app.get("/api/sse_add_listener", cors({ origin: ['https://purewater.web.app'] }), sse_add_listener)
+app.options("/sse_add_listener", cors());
+app.get("/sse_add_listener",     cors(), sse_add_listener)
+
 
 
 
@@ -200,13 +203,12 @@ async function firestore_add(req:any, res:any) {
 
     const return_data = { result: "", err: "" }
 
-    const result:any = await Firestore.Add(db, req.body.path, req.body.newdocs)
+    const result:any = await Firestore.Add(db, SSE, req.body.path, req.body.newdocs)
 
     if (result.err) {
-        return_data.err = "not ok"
-        res.status(400).send(JSON.stringify(return_data))
+        res.status(400).send(null)
     } else {
-        res.status(200).send(JSON.stringify(result))
+        res.status(200).send(1)
     }
 }
 
@@ -322,7 +324,6 @@ async function influxdb_retrieve_medians(req:any, res:any) {
 
 async function sse_add_listener(req:any, res:any) {
 
-	console.info("at index.js SSE listener called")
     SSE.Add_Listener(req, res)
 }
 
