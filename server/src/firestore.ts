@@ -106,44 +106,24 @@ function Patch(db:any, sse:any, pathstr:str, data:any) {   return new Promise<nu
 
     let d = parse_request(db, pathstr, null);
     
-    try {
-        // First, get the existing document
-        const docSnapshot = await d.get();
-        if (!docSnapshot.exists) {
-            console.error("Document does not exist:", pathstr);
-            res(null);
-            return;
-        }
-        
-        const docId = docSnapshot.id;
-        const existingData = docSnapshot.data();
-        
-        // Ensure timestamp is updated if not provided
-        if (!data.ts) {
-            data.ts = Math.floor(Date.now() / 1000);
-        }
-        
-        // Check if incoming data is older than existing data
-        if (existingData.ts && data.ts < existingData.ts) {
-            console.log("Rejecting older data update:", pathstr);
-            res(null);
-            return;
-        }
-        
-        // Only update the fields that are provided in the data object
-        await d.update(data);
-        
-        // Merge the new data with existing data in memory
-        const updatedData = { ...existingData, ...data, id: docId };
-        
-        // Trigger event with the complete updated document
-        sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path: pathstr, data: updatedData });
-        
-        res(1);
-    } catch (err) {
-        console.error("Firestore Patch error:", err);
-        res(null);
-    }
+	// First, get the existing document to check if exists, but more importantly, to check if the incoming patch is older and should be ignored
+	const docsnapshot = await d.get();
+	if (!docsnapshot.exists)   { console.error("Document does not exist:", pathstr); res(null); return;  }
+	
+	const existingdata = docsnapshot.data();
+	
+	if (existingdata.ts && data.ts < existingdata.ts) {  console.log("patch is older ts:", pathstr); res(null); return; }
+	
+	// Only update the fields that are provided in the data object
+	await d.update(data);
+	
+	// Merge the new data with existing data in memory
+	const updateddata = { ...existingdata, ...data };
+	
+	// Trigger event with the complete merged document of existing and new data -- so we dont pull again from database
+	sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path: pathstr, data: updateddata });
+	
+	res(1);
 })}
 
 
