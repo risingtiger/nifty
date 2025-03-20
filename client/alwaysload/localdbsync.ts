@@ -138,7 +138,10 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 			return
 		}	
 
-		CMechDataChanged(returns)
+		// Only call CMechDataChanged if at least one of the returns has data with length >= 1
+		if ([...returns].some(rr => rr[1].length >= 1)) {
+			CMechDataChanged(returns)
+		}
 	}
 }
 
