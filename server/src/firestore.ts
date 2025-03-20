@@ -84,7 +84,7 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 
 
 
-function Add(db:any, sse:any, path:str, newdocs:any[]) {   return new Promise<null|number>(async (res, _rej)=> {
+function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}) {   return new Promise<null|number>(async (res, _rej)=> {
 
     const batch        = db.batch()
 
@@ -96,10 +96,9 @@ function Add(db:any, sse:any, path:str, newdocs:any[]) {   return new Promise<nu
         batch.set(doc_ref, newdoc)
     }
 
-    await batch.commit().catch((_err:any)=> { 
-        res(null);
-        return;
-    })
+    const r = await batch.commit().catch(()=> null); 
+	if (r === null) { res(null); return; }
+
 	sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:updatedDocData } )
 
     res(1)
