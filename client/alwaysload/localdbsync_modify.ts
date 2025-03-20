@@ -61,26 +61,36 @@ const Patch = (db:IDBDatabase, path:str, data:GenericRowT) => new Promise<num|nu
 	if (r === 0) { res(0); return; } // the data at server is newer
 	//TODO: gotta surface this to the user. ideally, stash there changes somewhere then repull the data and let the user merge there changes back in. 
 
-
-
 	let are_there_any_put_errors = false
 	let objectstores = r === null ? [path, '__localwrites'] : [path]
 
 	const tx:IDBTransaction = db.transaction(objectstores, "readwrite", { durability: "relaxed" })
-
-	const pathos       = tx.objectStore(path)
-	const p_db_put     = pathos.put(data)
-	p_db_put.onerror   = (_event:any) => are_there_any_put_errors = true
-
-	if (r === null) {
-		const lclwos   = tx.objectStore('__localwrites')
-		const l_db_put = lclwos.add({path, action:'patch', obj_id:data.id})
-		l_db_put.onerror = (_event:any) => are_there_any_put_errors = true
+	const pathos = tx.objectStore(path)
+	
+	// Get the existing data and merge with the partial update
+	const getRequest = pathos.get(data.id)
+	
+	getRequest.onsuccess = (event: any) => {
+		const existingData = event.target.result || {}
+		const mergedData = { ...existingData, ...data }
+		
+		// Save the merged data back
+		const p_db_put = pathos.put(mergedData)
+		p_db_put.onerror = (_event: any) => are_there_any_put_errors = true
+		
+		if (r === null) {
+			const lclwos = tx.objectStore('__localwrites')
+			const l_db_put = lclwos.add({path, action:'patch', obj_id:data.id})
+			l_db_put.onerror = (_event: any) => are_there_any_put_errors = true
+		}
+	}
+	
+	getRequest.onerror = (_event: any) => {
+		are_there_any_put_errors = true
 	}
 
-	tx.oncomplete  = (_event:any) => res( are_there_any_put_errors ? null : 1 )
-	tx.onerror     = (_event:any) => res(null)
-
+	tx.oncomplete = (_event: any) => res(are_there_any_put_errors ? null : 1)
+	tx.onerror = (_event: any) => res(null)
 })
 
 
