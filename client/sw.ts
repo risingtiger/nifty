@@ -77,12 +77,30 @@ self.addEventListener('fetch', (e:any) => {
 			res(fetch(e.request))
 
 		} else if (should_url_be_cached(e.request)) {
-			const r = await fetch(e.request)
-
-			if (r.ok)
-				cache.put(e.request, r.clone())
-
-			res(r)
+			try {
+				// Create an AbortController to set a timeout
+				const controller = new AbortController();
+				const { signal } = controller;
+				// Set a reasonable timeout (5 seconds)
+				const timeoutId = setTimeout(() => controller.abort(), 5000);
+				
+				const r = await fetch(e.request, { signal });
+				// Clear the timeout since fetch completed
+				clearTimeout(timeoutId);
+				
+				if (r.ok)
+					cache.put(e.request, r.clone());
+					
+				res(r);
+			} catch (error: any) {
+				logit(40, 'swe', `Failed to fetch cached resource: ${e.request.url}, error: ${error.message}`);
+				// If we have a network error, return a specific error response
+				if (error.name === 'AbortError') {
+					res(new Response(null, { status: 504, statusText: 'Gateway Timeout' }));
+				} else {
+					res(new Response(null, { status: 503, statusText: 'Network error' }));
+				}
+			}
 
 		} else if (e.request.url.includes("/api/")) {
 
