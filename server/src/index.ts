@@ -180,9 +180,11 @@ async function firestore_retrieve(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const results = await Firestore.Retrieve(db, req.body.paths, req.body.opts)
+    const r = await Firestore.Retrieve(db, req.body.paths, req.body.opts)
+	if (r === null) {  res.status(200).send(null); return }
 
-    const jsoned = JSON.stringify(results)
+	
+    const jsoned = JSON.stringify(r)
     zlib.brotliCompress(jsoned, {
         params: {
             [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
@@ -202,15 +204,9 @@ async function firestore_add(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const return_data = { result: "", err: "" }
+    const r = await Firestore.Add(db, SSE, req.body.path, req.body.data)
 
-    const result:any = await Firestore.Add(db, SSE, req.body.path, req.body.newdocs)
-
-    if (result.err) {
-        res.status(400).send(null)
-    } else {
-        res.status(200).send(1)
-    }
+	res.status(200).send(r)
 }
 
 
@@ -220,9 +216,9 @@ async function firestore_patch(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const r = await Firestore.Patch(db, SSE, req.body.pathstrs, req.body.datas, req.body.oldtses)
+    const r = await Firestore.Patch(db, SSE, req.body.path, req.body.data)
 
-    res.status(200).send(JSON.stringify(r))
+    res.status(200).send(r)
 }
 
 
@@ -232,13 +228,9 @@ async function firestore_delete(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const result = await Firestore.Delete(db, SSE, req.body.path)
+    const r = await Firestore.Delete(db, SSE, req.body.path)
 
-    if (result === null) {
-        res.status(400).send(null)
-    } else {
-        res.status(200).send(1)
-    }
+    res.status(200).send(r)
 }
 
 
