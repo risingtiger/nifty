@@ -158,14 +158,19 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 
 	for(let i = 0; i < caller.paths.length; i++) {
 
+		if (caller.isdones[i]) {
+			promises.push(Promise.resolve({isdone: true, docs:[]}))
+			continue
+		}
+
 		const ts         = caller.tses[i] || 0
 		const startafter = caller.startafters[i] || null
 
-		const q = db.collection(caller.paths[i]).where("ts", ">", ts).orderBy("ts")
+		let q = db.collection(caller.paths[i]).where("ts", ">", ts).orderBy("ts")
 
-		if (startafter) q.startAfter(startafter)
+		if (startafter) q = q.startAfter(startafter)
 
-		q.limit(limit_on_all)
+		q = q.limit(limit_on_all)
 
 		promises.push( q.get() )
 	}
@@ -175,18 +180,23 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 	const returns:Array<{ isdone:boolean, docs:object[] }> = []
 
 	for(let i = 0; i < r.length; i++) {
-		const snapshot = r[i]
+		const o = r[i]
 
-		if (snapshot.docs.length === limit_on_all) {
-			caller.startafters[i] = snapshot.docs[snapshot.docs.length - 1]
+		if (o.isdone) {
+			returns.push(o)
+			continue
+		}
+
+		if (o.docs.length === limit_on_all) {
+			caller.startafters[i] = o.docs[o.docs.length - 1]
 			caller.isdones[i] = false
 		}
-		else if (snapshot.docs.length < limit_on_all) { // including if 0
+		else if (o.docs.length < limit_on_all) { // including if 0
 			caller.startafters[i] = null
 			caller.isdones[i] = true
 		}
 
-		const docs   = snapshot.docs.map((doc:any)=> getdocdata(doc) )
+		const docs   = o.docs.map((doc:any)=> getdocdata(doc) )
 		const isdone = caller.isdones[i]
 		returns.push({ isdone, docs }) // docs array could be empty
 	}
@@ -203,11 +213,8 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 
 function getdocdata(doc:any) {
 	const data = { id: doc.id, ...doc.data() }
-
-	Object.keys(data).forEach(key => {
-		if (data[key] && data[key]._path) data[key] = data[key]._path.segments[1]
-	})
-
+	// data will be in {[key: string]: any}[] format. Some properties will containing a sub property called '_path'. AI!
+	// loop through data and if a property contains '_path', replace that property with { _path: string, _id: string }
 	return data
 }
 
