@@ -204,7 +204,8 @@ async function firestore_add(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const r = await Firestore.Add(db, SSE, req.body.path, req.body.data)
+    const sse_id = req.headers['sse-id']
+    const r = await Firestore.Add(db, SSE, req.body.path, req.body.data, sse_id)
 
 	res.status(200).send(r)
 }
