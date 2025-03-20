@@ -210,11 +210,12 @@ function parsedocdata(doc:any) {
 	
 	for (const key in data) {
 		const value = data[key]
-		// Type check first (fastest check)
-		if (typeof value !== 'object') continue
-		// Then check for _path property
-		if (value._path) {
-			data[key] = { __path: value._path.segments }
+		// Check if value is not null/undefined and is an object
+		if (value && typeof value === 'object') {
+			// Then check for _path property
+			if (value._path) {
+				data[key] = { __path: value._path.segments }
+			}
 		}
 	}
 	
