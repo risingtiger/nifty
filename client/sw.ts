@@ -1,5 +1,6 @@
 
 
+
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
@@ -10,6 +11,7 @@ let id_token = ""
 let token_expires_at = 0
 let refresh_token = ""
 let user_email = ""
+let isoffline = false
 
 
 
@@ -61,72 +63,82 @@ self.addEventListener('fetch', (e:any) => {
 
     let promise = new Promise(async (res, _rej) => {
 
-		const cache = await caches.open(cache_name)
+		const cache   = await caches.open(cache_name)
 		const match_r = await cache.match(e.request)
 
 		if (match_r) { 
 			res(match_r) 
 
+		} else if (isoffline) {
+			res(new Response(null, { status: 503, statusText: 'Network error' }))
+			return
+
 		} else if (e.request.url.includes('/api/sse_add_listener')) {
-			// Pass through SSE requests untouched
 			res(fetch(e.request))
 
 		} else if (should_url_be_cached(e.request)) {
-				const r = await fetch(e.request)
+			const r = await fetch(e.request)
 
-				if (r.ok)
-					cache.put(e.request, r.clone())
+			if (r.ok)
+				cache.put(e.request, r.clone())
 
-				res(r)
+			res(r)
 
-			} else if(e.request.url.includes("/api/")) {
+		} else if (e.request.url.includes("/api/")) {
 
-				await authrequest()
+			await authrequest()
 
-				const new_headers = new Headers(e.request.headers);
-				new_headers.append('appversion', cache_version.toString())
-				new_headers.append('Authorization', `Bearer ${id_token}`)
+			const new_headers = new Headers(e.request.headers);
+			new_headers.append('appversion', cache_version.toString())
+			new_headers.append('Authorization', `Bearer ${id_token}`)
 
-				const new_request = new Request(e.request, {
-					headers: new_headers,
-					cache: 'no-store'
-				});
+			const controller = new AbortController();
+			const { signal } = controller;
+			const exitdelay = e.request.headers.get("exitdelay")
+			const timeoutControllerId     = setTimeout(() => { controller.abort(); }, Number(exitdelay));
 
-				fetch(new_request)
-					.then(async (server_response:any)=> {
+			const new_request = new Request(e.request, {
+				headers: new_headers,
+				cache: 'no-store',
+				signal
+			});
 
-						if (server_response.status === 401) {
-							error_out("sw4", "") // error_out has a setTimeout, so it will circumvent the respondWith
-							res(false) // just so respondWith gets a resolve. next line will trigger main.js and redirect browser
-						}
+			fetch(new_request)
+				.then(async (server_response:any)=> {
+					
+					clearTimeout(timeoutControllerId)
 
-						else if (server_response.status === 410) {
-							(self as any).clients.matchAll().then((clients:any) => {
-								clients.forEach((client: any) => {
-									client.postMessage({
-										action: 'update_init'
-									})
+					if (server_response.status === 401) { // unauthorized
+						error_out("sw4", "") // error_out has a setTimeout, so it will circumvent the respondWith
+						res(server_response)
+					}
+
+					else if (server_response.status === 410) {
+						(self as any).clients.matchAll().then((clients:any) => {
+							clients.forEach((client: any) => {
+								client.postMessage({
+									action: 'update_init'
 								})
-								res(false) // respondWith needs aeresolve. And caller needs a response, even if location.href get redirected by main.js (after a timeout)
 							})
-
-						} else if (server_response.status === 200 && server_response.ok) {
 							res(server_response)
+						})
 
-						} else {
-							error_out("swe", server_response.status + " - " + server_response.statusText)
-							res(false)
-						}
-					})
-					.catch((err:any)=> {
-						error_out("swe", "network error: " + err)
-						res(false)
-					})
+					} else if (server_response.status === 200 && server_response.ok) {
+						res(server_response)
 
-			} else {
-				const r = await fetch(e.request)
-				res(r)
-			}
+					} else {
+						logit(40, 'swe', server_response.status + " - " + server_response.statusText)
+						res(new Response(null, { status: server_response.status, statusText: server_response.statusText }))
+					}
+				})
+				.catch(async (err:any)=> {
+					logit(40, 'swe', "fetch catch. url: " + new_request.url + '. errmsg: ' + err.message)
+					res(new Response(null, { status: 503, statusText: 'Network error' }))
+				})
+
+		} else {
+			const r = await fetch(e.request)
+			res(r)
 		}
     })
 
@@ -238,8 +250,9 @@ async function check_update_polling() {
 
 
 
+
 function should_url_be_cached(request:Request) {
-    if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v/")) {
+    if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v#")) {
         return true;
     }
     else {
@@ -320,6 +333,25 @@ function error_out(subject:string, errmsg:string="") {
 					action: 'error_out',
 					subject,
 					errmsg
+				})
+			})
+		},100)
+	})
+}
+
+
+
+
+function logit(type:number, subject:string, msg:string="") {
+
+	(self as any).clients.matchAll().then((clients:any) => {
+		setTimeout(()=> {
+			clients.forEach((client: any) => {
+				client.postMessage({
+					action: 'logit',
+					type,
+					subject,
+					msg
 				})
 			})
 		},100)
