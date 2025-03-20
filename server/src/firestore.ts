@@ -86,20 +86,15 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 
 function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}) {   return new Promise<null|number>(async (res, _rej)=> {
 
-    const batch        = db.batch()
-
-    for(const newdoc of newdocs) {
-        const doc_ref = db.collection(path).doc()
-
-        // db.collection(obj[key][0]).doc(obj[key][1])
-
-        batch.set(doc_ref, newdoc)
-    }
-
-    const r = await batch.commit().catch(()=> null); 
-	if (r === null) { res(null); return; }
-
-	sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:updatedDocData } )
+    const doc_ref = db.collection(path).doc()
+    
+    const r = await doc_ref.set(newdoc).catch(()=> null);
+    if (r === null) { res(null); return; }
+    
+    // Get the document data with ID for the SSE event
+    const docData = { id: doc_ref.id, ...newdoc };
+    
+    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path, data: docData })
 
     res(1)
 })}
