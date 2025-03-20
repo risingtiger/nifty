@@ -129,6 +129,30 @@ function Patch(db:any, sse:any, pathstr:str, data:any) {   return new Promise<nu
 
 
 
+function Delete(db:any, sse:any, pathstr:str) {   return new Promise<null|number>(async (res, _rej)=> {
+
+    let d = parse_request(db, pathstr, null);
+    
+    // First, get the existing document to check if it exists
+    const docsnapshot = await d.get();
+    if (!docsnapshot.exists) { console.error("Document does not exist:", pathstr); res(null); return; }
+    
+    // Get the document data before deletion to use in the event
+    const docdata = getdocdata(docsnapshot);
+    
+    // Delete the document
+    const r = await d.delete().catch(() => null);
+    if (r === null) { res(null); return; }
+    
+    // Trigger event with the deleted document data
+    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC_DELETED, { path: pathstr, data: docdata });
+    
+    res(1);
+})}
+
+
+
+
 const callers:{ runid:string, paths:string[], tses:number[], startafters: Array<object|null>, isdones: boolean[] }[] = []
 const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<Array<{isdone:boolean, docs:object[]}>>(async (res, _rej)=> {
 
@@ -410,7 +434,7 @@ function patch_jsons(pathstr:str[]|str, data:any|any[], _opts:{}[]|null) {
 
 
 
-const Firestore = { Retrieve, Add, Patch, GetBatch }
+const Firestore = { Retrieve, Add, Patch, Delete, GetBatch }
 export { Firestore }
 
 
