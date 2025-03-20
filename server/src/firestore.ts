@@ -101,38 +101,32 @@ function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}) {   return ne
 
 
 
-function Patch(db:any, sse:any, pathstrs:str[], datas:any[], oldtses:number[]) {   return new Promise(async (res, _rej)=> {
+function Patch(db:any, sse:any, pathstr:str, data:any) {   return new Promise<null|number>(async (res, _rej)=> {
 
-    const results: any[] = [];
-
-    for (let i = 0; i < pathstrs.length; i++) {
-        let d = parse_request(db, pathstrs[i], null);
-        const docSnapshot = await d.get();
-        const docData = docSnapshot.data();
-
-        if (!docData || docData.ts !== oldtses[i]) {
-            results.push({ ok: false, msg: "Timestamp mismatch", index: i });
-            continue;
-        }
-
-        datas[i].ts = Math.floor(Date.now() / 1000);
-        try {
-            await d.update(datas[i]);
-
-			// THIS HUGLY AS SHIT. DONT PULL FROM DATABASE ***AGAIN*** - THATS GARBAGE. ALREADY HAVE THE DATA, JUST HAVE TO MERGE IT
-			let dd = parse_request(db, pathstrs[i], null);
-			const updatedDocSnapshot = await dd.get();
-			const updatedDocData = updatedDocSnapshot.data();
-			updatedDocData.id = docSnapshot.id;
-            results.push({ ok: true, index: i });
-			sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:updatedDocData } )
-
-        } catch (err) {
-            results.push({ ok: false, err: err, index: i });
-        }
+    let d = parse_request(db, pathstr, null);
+    
+    // Ensure timestamp is updated
+    if (!data.ts) {
+        data.ts = Math.floor(Date.now() / 1000);
     }
-
-    res(results);
+    
+    try {
+        const docSnapshot = await d.get();
+        const docId = docSnapshot.id;
+        
+        await d.update(data);
+        
+        // Use the data object directly for the event trigger
+        // Add the document ID to the data for consistency
+        const eventData = { ...data, id: docId };
+        
+        sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path: pathstr, data: eventData });
+        
+        res(1);
+    } catch (err) {
+        console.error("Firestore Patch error:", err);
+        res(null);
+    }
 })}
 
 
