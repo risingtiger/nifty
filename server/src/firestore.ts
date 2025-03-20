@@ -96,7 +96,10 @@ function Add(db:any, sse:any, path:str, newdocs:any[]) {   return new Promise<nu
         batch.set(doc_ref, newdoc)
     }
 
-    await batch.commit().catch((_err:any)=> { res(null) })
+    await batch.commit().catch((_err:any)=> { 
+        res(null);
+        return;
+    })
 	sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path:pathstrs[i], data:updatedDocData } )
 
     res(1)
