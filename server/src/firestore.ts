@@ -214,10 +214,13 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 function getdocdata(doc:any) {
 	const data = { id: doc.id, ...doc.data() }
 	
-	// Process properties with _path sub-property
 	for (const key in data) {
-		if (data[key] && typeof data[key] === 'object' && data[key]._path) {
-			data[key] = { __path: data[key]._path.segments }
+		const value = data[key]
+		// Type check first (fastest check)
+		if (typeof value !== 'object' || !value) continue
+		// Then check for _path property
+		if (value._path) {
+			data[key] = { __path: value._path.segments }
 		}
 	}
 	
