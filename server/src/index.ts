@@ -99,6 +99,7 @@ app.post('/api/refresh_auth', refresh_auth)
 app.post('/api/firestore_retrieve', firestore_retrieve)
 app.post('/api/firestore_add', firestore_add)
 app.post('/api/firestore_patch', firestore_patch)
+app.post('/api/firestore_delete', firestore_delete)
 app.post('/api/firestore_get_batch', firestore_get_batch)
 
 
@@ -222,6 +223,22 @@ async function firestore_patch(req:any, res:any) {
     const r = await Firestore.Patch(db, SSE, req.body.pathstrs, req.body.datas, req.body.oldtses)
 
     res.status(200).send(JSON.stringify(r))
+}
+
+
+
+
+async function firestore_delete(req:any, res:any) {
+
+    if (! await validate_request(res, req)) return 
+
+    const result = await Firestore.Delete(db, SSE, req.body.path)
+
+    if (result === null) {
+        res.status(400).send(null)
+    } else {
+        res.status(200).send(1)
+    }
 }
 
 
