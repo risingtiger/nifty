@@ -91,10 +91,9 @@ function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}) {   return ne
     const r = await doc_ref.set(newdoc).catch(()=> null);
     if (r === null) { res(null); return; }
     
-    // Get the document data with ID for the SSE event
-    const docData = { id: doc_ref.id, ...newdoc };
+    const data = { id: doc_ref.id, ...newdoc };
     
-    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path, data: docData })
+    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC, { path, data })
 
     res(1)
 })}
