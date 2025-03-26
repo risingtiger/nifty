@@ -112,12 +112,47 @@ function Patch(db:any, sse:any, path:str, data:any, oldts:num, newts:num, sse_id
 
 	data.ts = newts
 	
+	// Process any reference fields (ending with __ref)
+	const dataToUpdate = { ...data };
+	for (const key in dataToUpdate) {
+		if (key.endsWith('__ref')) {
+			const actualPropertyName = key.substring(0, key.length - 5); // Remove '__ref' suffix
+			const pathValue = dataToUpdate[key];
+			
+			if (typeof pathValue === 'string') {
+				// Split the path to get collection path and document ID
+				const lastSlashIndex = pathValue.lastIndexOf('/');
+				if (lastSlashIndex !== -1) {
+					const collectionPath = pathValue.substring(0, lastSlashIndex);
+					const docId = pathValue.substring(lastSlashIndex + 1);
+					
+					// Create a reference to the document
+					const docRef = db.collection(collectionPath).doc(docId);
+					
+					// Set the reference in the data object
+					dataToUpdate[actualPropertyName] = docRef;
+					
+					// Remove the original __ref property
+					delete dataToUpdate[key];
+				}
+			}
+		}
+	}
+	
 	// Only update the fields that are provided in the data object
-	const r = await d.update(data);
+	const r = await d.update(dataToUpdate);
 	if (r === null) { res(null); return; }
 	
+	// Create a clean version of data without __ref properties for the event
+	const cleanData = { ...data };
+	for (const key in cleanData) {
+		if (key.endsWith('__ref')) {
+			delete cleanData[key];
+		}
+	}
+	
 	// Merge the new data with existing data in memory
-	const updateddata = { ...existingdata, ...data };
+	const updateddata = { ...existingdata, ...cleanData };
 	
 	// Trigger event with the complete merged document of existing and new data -- so we dont pull again from database
 	sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC_PATCH, { path: path, data: updateddata }, { exclude:[ sse_id ] });
