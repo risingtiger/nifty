@@ -82,14 +82,17 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}, sse_id:str|null) {   return new Promise<null|number>(async (res, _rej)=> {
 
     let d = parse_request(db, path, null);
-    const doc_ref = d.doc()
+    const docId = newdoc.id;
+    const doc_ref = d.doc(docId);
     
-    const r = await doc_ref.set(newdoc).catch(()=> null);
+    // Remove id from the document before saving to avoid duplication
+    const { id, ...docWithoutId } = newdoc;
+    
+    const r = await doc_ref.set(docWithoutId).catch(()=> null);
     if (r === null) { res(null); return; }
     
-    const data = { id: doc_ref.id, ...newdoc };
-    
-    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC_ADD, { path, data }, { exclude:[ sse_id ] });
+    // Use the original newdoc with id for the event
+    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC_ADD, { path, data: newdoc }, { exclude:[ sse_id ] });
 
     res(1)
 })}
