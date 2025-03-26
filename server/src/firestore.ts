@@ -1,7 +1,7 @@
 
 
 
-type str = string; type int = number; type bool = boolean;
+type str = string; type int = number; type num = number; type bool = boolean;
 
 import { SSETriggersE } from "./defs.js"
 
@@ -79,16 +79,14 @@ function Retrieve(db:any, pathstr:str[], opts:RetrieveOptsT[]|null|undefined) { 
 
 
 
-function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}, sse_id:str|null) {   return new Promise<null|number>(async (res, _rej)=> {
+function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}, id:str, ts:num, sse_id:str|null) {   return new Promise<null|number>(async (res, _rej)=> {
 
     let d = parse_request(db, path, null);
-    const docId = newdoc.id;
-    const doc_ref = d.doc(docId);
+    const doc_ref = d.doc(id)
+
+	newdoc.ts = ts
     
-    // Remove id from the document before saving to avoid duplication
-    const { id, ...docWithoutId } = newdoc;
-    
-    const r = await doc_ref.set(docWithoutId).catch(()=> null);
+    const r = await doc_ref.set(newdoc).catch(()=> null);
     if (r === null) { res(null); return; }
     
     // Use the original newdoc with id for the event
@@ -100,9 +98,8 @@ function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}, sse_id:str|nu
 
 
 
-function Patch(db:any, sse:any, path:str, data:any, sse_id:str|null) {   return new Promise<null|number>(async (res, _rej)=> {
+function Patch(db:any, sse:any, path:str, data:any, oldts:num, newts:num, sse_id:str|null) {   return new Promise<null|number>(async (res, _rej)=> {
 
-	debugger
     let d = parse_request(db, path, null);
     
 	// First, get the existing document to check if exists, but more importantly, to check if the incoming patch is older and should be ignored
@@ -111,7 +108,9 @@ function Patch(db:any, sse:any, path:str, data:any, sse_id:str|null) {   return 
 	
 	const existingdata = docsnapshot.data();
 	
-	if (data.ts && existingdata.ts && data.ts < existingdata.ts) {  console.log("patch is older ts:", path); res(0); return; }
+	if (oldts !== existingdata.ts) {  console.log("patch is older ts:", path); res(0); return; }
+
+	data.ts = newts
 	
 	// Only update the fields that are provided in the data object
 	const r = await d.update(data);
