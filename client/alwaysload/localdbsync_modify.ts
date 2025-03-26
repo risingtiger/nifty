@@ -16,6 +16,11 @@ const Add = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<Ge
 
 	if (!path.docid) throw new Error('docid in path is required for Patch')
 
+	// Generate a unique ID for the document if not provided
+	if (!data.id) {
+		data.id = crypto.randomUUID ? crypto.randomUUID() : 
+			Date.now().toString(36) + Math.random().toString(36).substring(2, 15);
+	}
 
 	let are_there_any_put_errors = false
 	let objectstores = [path.syncobjectstore.name]
