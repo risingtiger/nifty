@@ -99,6 +99,7 @@ function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}, sse_id:str|nu
 
 function Patch(db:any, sse:any, path:str, data:any, sse_id:str|null) {   return new Promise<null|number>(async (res, _rej)=> {
 
+	debugger
     let d = parse_request(db, path, null);
     
 	// First, get the existing document to check if exists, but more importantly, to check if the incoming patch is older and should be ignored
@@ -107,10 +108,11 @@ function Patch(db:any, sse:any, path:str, data:any, sse_id:str|null) {   return 
 	
 	const existingdata = docsnapshot.data();
 	
-	if (existingdata.ts && data.ts < existingdata.ts) {  console.log("patch is older ts:", path); res(0); return; }
+	if (data.ts && existingdata.ts && data.ts < existingdata.ts) {  console.log("patch is older ts:", path); res(0); return; }
 	
 	// Only update the fields that are provided in the data object
-	await d.update(data);
+	const r = await d.update(data);
+	if (r === null) { res(null); return; }
 	
 	// Merge the new data with existing data in memory
 	const updateddata = { ...existingdata, ...data };
