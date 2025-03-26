@@ -80,9 +80,22 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 	getrequest.onsuccess = (event: any) => {
 		existingdata = event.target.result || {}
 
-		// loop through all data properties. If property ends with '__ref', then split it by '__ref' and use the first part as the property name. The value will always be a path, something like 'users/12344/roles/1234'. The value needs to be something like { __path: ['users/12344/roles', '1234'] } AI!
+		// Process data to handle reference paths
+		const processedData: GenericRowT = {}
+		for (const key in data) {
+			if (key.endsWith('__ref')) {
+				const baseKey = key.split('__ref')[0]
+				const pathValue = data[key] as string
+				const pathParts = pathValue.split('/')
+				const collection = pathParts.slice(0, -1).join('/')
+				const docId = pathParts[pathParts.length - 1]
+				processedData[baseKey] = { __path: [collection, docId] }
+			} else {
+				processedData[key] = data[key]
+			}
+		}
 
-		mergeddata = { ...existingdata, ...data, ts:newts }
+		mergeddata = { ...existingdata, ...processedData, ts:newts }
 		
 		const putrequest = pathos.put(mergeddata)
 		putrequest.onerror = (_event: any) => are_there_any_put_errors = true
