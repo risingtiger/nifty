@@ -12,23 +12,20 @@ declare var $N:$NT
 
 
 
-const Add = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<GenericRowT|null>(async (res,_rej)=> {  
+const Add = (db:IDBDatabase, objecstorepath:PathSpecT, data:GenericRowT) => new Promise<GenericRowT|null>(async (res,_rej)=> {  
 
-	if (!path.docid) throw new Error('docid in path is required for Patch')
+	if (!objecstorepath.docid) throw new Error('docid in path is required for Patch')
 
-	// Generate a unique ID for the document if not provided
-	if (!data.id) {
-		data.id = crypto.randomUUID ? crypto.randomUUID() : 
-			Date.now().toString(36) + Math.random().toString(36).substring(2, 15);
-	}
+	const newid = crypto.randomUUID() 
+	const newts = Math.floor( Date.now() / 1000 )
 
 	let are_there_any_put_errors = false
-	let objectstores = [path.syncobjectstore.name]
+	let objectstores = [objecstorepath.syncobjectstore.name]
 
 	const tx:IDBTransaction = db.transaction(objectstores, "readwrite", { durability: "relaxed" })
 
-	const pathos       = tx.objectStore(path.syncobjectstore.name)
-	const p_db_put     = pathos.add(data)
+	const pathos       = tx.objectStore(objecstorepath.syncobjectstore.name)
+	const p_db_put     = pathos.add( { ...data, ts:newts, id:newid } )
 	p_db_put.onerror   = (_event:any) => are_there_any_put_errors = true
 
 	tx.onerror     = (_event:any) => res(null)
@@ -37,7 +34,7 @@ const Add = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<Ge
 		if (are_there_any_put_errors) {res(null); return;}
 
 
-		const body = { path:path.path, data } 
+		const body = { path:objecstorepath.path, data, ts:newts, id:newid } 
 
 		const opts:{method:'POST',body:string} = {
 			method: 'POST',
@@ -45,7 +42,10 @@ const Add = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<Ge
 		}
 
 		const r = await $N.FetchLassie('/api/firestore_add', opts, null) as GenericRowT | null
-		if (!r || !r.ok) { res(null); return; } // the server is down
+		if (!r || !r.ok) { 
+			alert ('is offline or server down. data not saved')
+			res(null); return; 
+		} // the server is down
 
 		res(data) 
 	}
@@ -66,6 +66,8 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 
 
 	let mergeddata:GenericRowT|null = null
+	let existingdata:GenericRowT|null = null
+	let newts = Math.floor( Date.now() / 1000 )
 	let are_there_any_put_errors = false
 	let objectstores = [path.syncobjectstore.name]
 
@@ -76,8 +78,11 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 	const getrequest = pathos.get(path.docid)
 	
 	getrequest.onsuccess = (event: any) => {
-		const existingdata = event.target.result || {}
-		mergeddata = { ...existingdata, ...data }
+		existingdata = event.target.result || {}
+
+		// loop through all data properties. If property ends with '__ref', then split it by '__ref' and use the first part as the property name. The value will always be a path, something like 'users/12344/roles/1234'. The value needs to be something like { __path: ['users/12344/roles', '1234'] } AI!
+
+		mergeddata = { ...existingdata, ...data, ts:newts }
 		
 		const putrequest = pathos.put(mergeddata)
 		putrequest.onerror = (_event: any) => are_there_any_put_errors = true
@@ -93,7 +98,7 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 		if (are_there_any_put_errors) {res(null); return;}
 
 
-		const body = { path:path.path, data:{...data, ts:mergeddata!.ts} } 
+		const body = { path:path.path, data, oldts: existingdata!.ts, newts} 
 
 		const opts:any = {   
 			method: "POST",  
@@ -102,9 +107,13 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 
 		const r = await $N.FetchLassie('/api/firestore_patch', opts, null) as GenericRowT | null
 
-		if (!r || !r.ok) { res(null); return; } 
+		if (!r || !r.ok) { 
+			alert ('is offline or server down. data not saved')
+			res(null); return;
+		} 
 
 		// need to send message from server if the data is nerwer
+		// which I believe would be r === 0
 
 		res(mergeddata)
 	}
@@ -140,7 +149,10 @@ const Delete = (db:IDBDatabase, path:PathSpecT) => new Promise<num|null>(async (
 		}
 
 		const r = await $N.FetchLassie('/api/firestore_delete', opts, null) as GenericRowT | null
-		if (!r || !r.ok) { res(null); return; } // the server is down
+		if (!r || !r.ok) { 
+			alert ('is offline or server down. data not saved')
+			res(null); return; 
+		} // the server is down
 
 		res(1) 
 	}
