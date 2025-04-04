@@ -1,10 +1,13 @@
 
 
 import { num, str, bool } from "../defs_server_symlink.js"
-import { $NT, CMechViewT, CMechViewPartT, EngagementListenerTypeT } from "../defs.js"
+import { $NT, GenericRowT, CMechLoadStateE, CMechViewT, CMechViewPartT, CMechLoadedDataT, EngagementListenerTypeT } from "../defs.js"
 import { EnsureObjectStoresActive as LocalDBSyncEnsureObjectStoresActive } from "./localdbsync.js"
 
 declare var $N: $NT;
+
+type LoadAFuncT = (pathparams:GenericRowT, searchparams:URLSearchParams)=>Promise<Map<str,GenericRowT[]>|null>
+type LoadBFuncT = (pathparams:GenericRowT, old_searchparams:URLSearchParams, new_searchparams:URLSearchParams)=>Promise<Map<str,GenericRowT[]>|null>
 
 
 
@@ -13,9 +16,10 @@ declare var $N: $NT;
 
 // these are set when a new view is added, and removed when that view is rmoved (or when load view failed) 
 
-let _loadeddata:Map<str, {remote:Map<str,any>, localdb:Map<str,any>}> = new Map() // map by view name of Map by path name with data
-let _searchparams:Map<str, URLSearchParams> = new Map() // map by view name
-let _pathparams:Map<str, { [key: string]: string }> = new Map() // map by view name
+let _loadeddata:Map<str, CMechLoadedDataT> = new Map() // map by view name of Map by path name with data
+let _searchparams:Map<str, GenericRowT> = new Map() // map by view name
+let _pathparams:Map<str, GenericRowT> = new Map() // map by view name
+let _load_b_funcs:Map<str, LoadBFuncT> = new Map() // map by view name
 
 
 
@@ -28,27 +32,43 @@ const Init = () => {
 
 const AddView = (
 	componentname:str, 
-	pathparams: { [key: string]: string }, 
+	pathparams: GenericRowT, 
 	searchparams:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
 	views_attach_point:"beforeend"|"afterbegin", 
-	loadremote:(pathparams:{ [key: string]: string }, searchparams: URLSearchParams, isinitial:bool)=>Promise<Map<str,any>|null>
+	load_a:LoadAFuncT,
+	load_b:LoadBFuncT,
 ) => new Promise<num|null>(async (res, _rej)=> {
 
-	//_viewloadspecs.set(componentname, loadspecs)
+	{
+		const promises:Promise<any>[] = []
+		
+		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
 
-	const promises:Promise<any>[] = []
+		promises.push( localdbsync_promise )
+		promises.push( load_a(pathparams, searchparams) )
 
-	promises.push(localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1))
-	promises.push( loadremote(pathparams, searchparams, false) )
+		promises.push( new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej)=> {
+			await localdbsync_promise
+			const r = await load_b(pathparams, new URLSearchParams, searchparams)
+			res(r);
+		}));
 
-	const r = Promise.all(promises)
+		const r = await Promise.all(promises)
 
-	if (r[0] === null || r[1] === null) { res(null); return; }
+		if (r[0] === null || r[1] === null || r[2] === null) { res(null); return; }
+
+		const loadeddata = new Map<str, GenericRowT[]>();
+		for (const [path, val] of r[1].entries())   loadeddata.set(path, val)
+		for (const [path, val] of r[2].entries())   loadeddata.set(path, val)
+
+		_loadeddata.set(componentname, loadeddata)
+	}
 	
-	_loadeddata.set(componentname, {remote:r[1], localdb:new Map()})
+	
 	_searchparams.set(componentname, searchparams)
 	_pathparams.set(componentname, pathparams)
+	_load_b_funcs.set(componentname, load_b)
 
 	const parentEl = document.querySelector("#views")!;
 	parentEl.insertAdjacentHTML(views_attach_point, `<v-${componentname} class='view'></v-${componentname}>`);
@@ -62,16 +82,52 @@ const AddView = (
 		_loadeddata.delete(componentname)
 		_searchparams.delete(componentname)
 		_pathparams.delete(componentname)
+		_load_b_funcs.delete(componentname)
 		el.remove()
 		res(null); 
 	})
 
+	el.addEventListener("lateloaded", lateloaded)
+
 	parentEl.addEventListener("visibled", visibled)
+
+	let has_late_loaded = false
+	let has_visibled    = false
 
 
 	function visibled() {
-		if (el.visibled) el.visibled()
+		if (el.opts?.kdonvisibled) { 
+			el.kd(
+					_loadeddata.get(componentname)!, 
+					CMechLoadStateE.VISIBLED,
+					_pathparams.get(componentname)!,
+					_searchparams.get(componentname)!
+				)
+			el.sc()
+			has_visibled = true
+			handle_visibled_and_late_loaded()
+		}
 		parentEl.removeEventListener("visibled", visibled)
+	}
+
+	function lateloaded() {
+		if (el.opts?.kdonvisibled) { 
+			has_late_loaded = true
+			handle_visibled_and_late_loaded()
+		}
+		parentEl.removeEventListener("lateloaded", lateloaded)
+	}
+
+	function handle_visibled_and_late_loaded() {
+		if (has_late_loaded && has_visibled && el.opts?.kdonlateloaded) {
+			el.kd(
+					_loadeddata.get(componentname)!, 
+					CMechLoadStateE.LATELOADED,
+					_pathparams.get(componentname)!,
+					_searchparams.get(componentname)!
+				)
+			el.sc()
+		}
 	}
 })
 
@@ -82,30 +138,34 @@ const AddView = (
 
 
 
-const ViewConnectedCallback = async (component:HTMLElement & CMechViewT) => new Promise<void>(async (res, _rej)=> {
+const ViewConnectedCallback = async (component:HTMLElement & CMechViewT, opts:GenericRowT = {kdonvisibled:false, kdonlateloaded:false}) => new Promise<void>(async (res, _rej)=> {
 
 	const tagname                            = component.tagName.toLowerCase()
 	const tagname_split                      = tagname.split("-")
 	const viewname                           = tagname_split[1]
+	const pathparams                         = _pathparams.get(viewname)!
+	const searchparams						 = _searchparams.get(viewname)!
 
 	if (tagname_split[0] !== 'v') throw new Error("Not a view component")
 
 	for(const prop in component.a) component.a[prop] = component.getAttribute(prop);
 
+	if (!opts.kdonvisilbed)   opts.kdonvisilbed   = false
+	if (!opts.kdonlateloaded) opts.kdonlateloaded = false
+
+	component.opts = opts
+
 	component.subelshldr = []
 
 	const loadeddata = _loadeddata.get(viewname)!
-	const searchparams = _searchparams.get(viewname)!
 
-	loadeddata.localdb = await component.loadlocaldb(loadeddata.remote, searchparams)
-
-	component.kd(loadeddata)
-
+	component.kd(loadeddata, CMechLoadStateE.INITIAL, pathparams, searchparams)
 	component.sc()
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {   component.sc();   });
 
 	// component.subelshldr array will be populated by the sub elements of the view if they exist after initial render -- keep in mind they will be EVEN AFTER the view is initially hydrated at any point later 
+
 	component.subelshldr?.forEach((el:any)=>  {
 		el.addEventListener("failed", ()=> { component.dispatchEvent(new CustomEvent("failed")); res(); return; })
 		el.addEventListener("hydrated", ()=> {
@@ -136,21 +196,14 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 	for(const prop in component.a) component.a[prop] = component.getAttribute(prop)
 
 	host.subelshldr!.push(component)
+	component.hostview = host
 
-	const loadeddata = _loadeddata.get(ancestor_viewname)!
+	const loadeddata    = _loadeddata.get(ancestor_viewname)!
+	const pathparams    = _pathparams.get(ancestor_viewname)!
+	const searchparams  = _searchparams.get(ancestor_viewname)!
 
-	if (component.kd) component.kd(loadeddata)
+	component.kd(loadeddata, CMechLoadStateE.INITIAL, pathparams, searchparams)
 	component.sc()
-
-	/*
-	if (component.loadother) {
-		const r = await component.loadother()
-		if (r === null) { component.dispatchEvent(new CustomEvent("failed")); res(); return; }
-	}
-	*/
-
-	//set_component_m_data(false, component, tagname, loadspecs!, _viewloadeddata.get(ancestor_viewname)!)
-
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {
 		component.sc()
@@ -163,6 +216,9 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 
 
 const AttributeChangedCallback = (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
+
+	//TODO: Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc
+	console.log("Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
 
 	if (oldval === null) return
 
@@ -188,86 +244,111 @@ const ViewDisconnectedCallback = (component:HTMLElement) => {
 
 	const componentname           = component.tagName.toLowerCase().split("-")[1]
 
-	_loadeddata.delete(componentname) // should already be deleted by the time this is called - but just in case
-	_searchparams.delete(componentname) // should already be deleted by the time this is called - but just in case
-	_pathparams.delete(componentname) // should already be deleted by the time this is called - but just in case
+	_loadeddata.delete(componentname) 
+	_searchparams.delete(componentname) 
+	_pathparams.delete(componentname) 
+	_load_b_funcs.delete(componentname)
 }
 
 
 
 
-const UpdateFromSearchParamsChanged = (oldparams:URLSearchParams, newparams:URLSearchParams) => {
+const ViewPartDisconnectedCallback = (component:HTMLElement & CMechViewPartT) => {
 
-	// search params are only relevant to active view. ignore inactive views
+	if (!component.tagName.startsWith("VP-")) throw new Error("Not a view part component")
 
-	const activeviewel = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
 
-	activeviewel.searchchanged(oldparams, newparams)
-	
-	// If we need to notify all views in the future, use this pattern:
-	// const viewElements = document.getElementById("views")!.querySelectorAll(".view")
-	// Array.from(viewElements).forEach((viewEl: Element) => {
-	//     const typedViewEl = viewEl as HTMLElement & CMechViewT;
-	//     if (typedViewEl.searchchngd) typedViewEl.searchchngd(oldparams, newparams);
-	// });
+	const index = component.hostview!.subelshldr!.indexOf(component)
+	component.hostview!.subelshldr!.splice(index, 1)
 }
 
 
 
 
+const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise<void>(async (res, _rej)=> {
 
-type GenericRowT = { [key:string]: any }
+	//TODO: Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc
+	console.log("Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
 
-const UpdateFromModelChanged = (updated:Map<str, GenericRowT[]>) => {
-	// Loop through all entries in _loadeddata
-	for (const [viewName, _] of _loadeddata) {
-		// Get the corresponding view element from the DOM
-		const viewEl = document.querySelector(`v-${viewName}`) as HTMLElement & CMechViewT;
+	const activeviewel      = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
+
+	const componentname     = activeviewel.tagName.toLowerCase().split("-")[1]
+	const loadeddata        = _loadeddata.get(componentname)!
+	const pathparams        = _pathparams.get(componentname)!
+	const oldsearchparams   = _searchparams.get(componentname)!
+	const load_b_func       = _load_b_funcs.get(componentname)!
+
+
+
+	const r = await load_b_func(pathparams, oldsearchparams, newsearchparams)
+	if (r === null) { res(); return; }
+
+	for (const [path, val] of r.entries())   loadeddata.set(path, val)   
+
+	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, pathparams, newsearchparams)
+	activeviewel.sc()
+
+	_searchparams.set(componentname, newsearchparams)
+
+	res()
+})
+
+
+
+
+const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async (res, _rej)=> {
+
+	// map key is path e.g. 'machines/1234' or 'machines/1234/parts/5678' or just 'machines'
+	// map value is always an array -- even if of just one object
+
+	const viewsel = document.getElementById("views")!
+
+	for (const [view_component_name, loadeddata] of _loadeddata) { 
+
+		const viewel = viewsel.querySelector(`v-${view_component_name}`) as HTMLElement & CMechViewT
+		let   matching_loadeddata:GenericRowT[]|null = null
 		
-		// If the element exists and has modelchanged method, call it
-		if (viewEl && viewEl.modelchanged) {
-			const paths = Array.from(updated.keys());
-			const datas = Object.fromEntries(updated);
-			viewEl.modelchanged(paths, datas);
+		for (const [path, updatedlist] of updated) {
+			matching_loadeddata = loadeddata.get(path) || null
+			if (!matching_loadeddata) continue
+
+			UpdateArrayIfPresent(matching_loadeddata, updatedlist)
 		}
+
+		if (!matching_loadeddata) continue
+
+
+		viewel.kd(loadeddata, CMechLoadStateE.DATACHANGED)		
+		viewel.sc()
 	}
-}
+
+	//TODO: Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc
+	console.log("Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
+
+	res()
+})
 
 
 
 
-const UpdateArrayIfPresent = (tolist:GenericRowT[], path:str, updatedpathdatas:UpdatedDataT[]) => {
+const UpdateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
 
-	const updatedpathdata = updatedpathdatas.find((d:UpdatedDataT) => d.path === path)
-
-	if (!updatedpathdata || !updatedpathdata.data || !updatedpathdata.data.length) return
-
+	// we create a map because we have to assume this could be a large array and we want to avoid O(n^2) complexity
+	// thus why we createa a map of the ids
 
 	const index_map = new Map();
 	tolist.forEach((row:any, i:num) => index_map.set(row.id, i))
 
-	for(const d of updatedpathdata.data) {
+	for(const d of updatedlist) {
 		const rowindex = index_map.get(d.id)
-		if (rowindex)   tolist.push(d);   else   tolist[rowindex] = d;
+		if (!rowindex)   tolist.push(d);   else   tolist[rowindex] = d;
 	}
 }
 
 
 
 
-const UpdateItemIfPresent = (toitem:GenericRowT, path:str, updatedpathdatas:UpdatedDataT[]) => {
-
-	const updatedpathdata = updatedpathdatas.find((d:UpdatedDataT) => d.path === path)
-
-	if (!updatedpathdata || !updatedpathdata.data || !updatedpathdata.data.length) return
-
-
-	const r = updatedpathdata.data.find((fromitem:any) => fromitem.id === toitem.id)
-	if (r) toitem = r
-}
-
-
-
+/*
 const HandleFirestoreDataUpdated = async (updateddata:FirestoreFetchResultT) => {
 
 	if (updateddata === null) return // updateddata is always an array of objects, never null. This line here is to shut up typescript linting
@@ -349,6 +430,7 @@ const HandleFirestoreDataUpdated = async (updateddata:FirestoreFetchResultT) => 
 		return { path:p, collection, subcollection, doc, subdoc, isdoc }
 	}
 }
+*/
 
 
 
@@ -405,10 +487,10 @@ function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, comp
 
 
 
-export { Init, AddView, UpdateFromSearchParamsChanged, UpdateFromModelChanged }
+export { Init, AddView, SearchParamsChanged, DataChanged }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback };
+((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
 
 
 
