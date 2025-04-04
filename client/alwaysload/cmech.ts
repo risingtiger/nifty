@@ -278,17 +278,20 @@ const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise
 	const oldsearchparams   = _searchparams.get(componentname)!
 	const load_b_func       = _load_b_funcs.get(componentname)!
 
+	const newsearchparams:GenericRowT = {}
+	for (const [key, value] of newsearchparams_raw.entries()) {
+		newsearchparams[key] = value
+	}
 
-
-	const r = await load_b_func(pathparams, oldsearchparams, newsearchparams)
+	const r = await load_b_func(pathparams, oldsearchparams, newsearchparams_raw)
 	if (r === null) { res(); return; }
 
 	for (const [path, val] of r.entries())   loadeddata.set(path, val)   
 
-	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, pathparams, newsearchparams)
+	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, pathparams, newsearchparams_raw)
 	activeviewel.sc()
 
-	_searchparams.set(componentname, newsearchparams)
+	_searchparams.set(componentname, newsearchparams_raw)
 
 	res()
 })
