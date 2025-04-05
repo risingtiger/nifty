@@ -48,10 +48,11 @@ const AddView = (
 		
 		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
 
-		const searchparams_genericrowt:GenericRowT = searchparams_raw.entries().map(([key, value])=> { }
+		const searchparams_genericrowt:GenericRowT = {};
+		for (const [key, value] of searchparams_raw.entries()) { searchparams_genericrowt[key] = value; }
 
 		promises.push( localdbsync_promise )
-		promises.push( load_a(pathparams, searchparams) )
+		promises.push( load_a(pathparams, searchparams_genericrowt) )
 
 		promises.push( new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej)=> {
 			await localdbsync_promise
