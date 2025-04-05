@@ -33,17 +33,22 @@ const Init = () => {
 const AddView = (
 	componentname:str, 
 	pathparams: GenericRowT, 
-	searchparams:URLSearchParams, 
+	searchparams_raw:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
 	views_attach_point:"beforeend"|"afterbegin", 
 	load_a:LoadAFuncT,
 	load_b:LoadBFuncT,
 ) => new Promise<num|null>(async (res, _rej)=> {
 
+	const searchparams:GenericRowT = {}
+	for (const [key, value] of searchparams_raw.entries()) searchparams_raw[key] = value
+
 	{
 		const promises:Promise<any>[] = []
 		
 		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
+
+		const searchparams_genericrowt:GenericRowT = searchparams_raw.entries().map(([key, value])=> { }
 
 		promises.push( localdbsync_promise )
 		promises.push( load_a(pathparams, searchparams) )
@@ -100,8 +105,6 @@ const AddView = (
 			el.kd(
 					_loadeddata.get(componentname)!, 
 					CMechLoadStateE.VISIBLED,
-					_pathparams.get(componentname)!,
-					_searchparams.get(componentname)!
 				)
 			el.sc()
 			has_visibled = true
@@ -122,9 +125,7 @@ const AddView = (
 		if (has_late_loaded && has_visibled && el.opts?.kdonlateloaded) {
 			el.kd(
 					_loadeddata.get(componentname)!, 
-					CMechLoadStateE.LATELOADED,
-					_pathparams.get(componentname)!,
-					_searchparams.get(componentname)!
+					CMechLoadStateE.LATELOADED
 				)
 			el.sc()
 		}
@@ -143,8 +144,6 @@ const ViewConnectedCallback = async (component:HTMLElement & CMechViewT, opts:Ge
 	const tagname                            = component.tagName.toLowerCase()
 	const tagname_split                      = tagname.split("-")
 	const viewname                           = tagname_split[1]
-	const pathparams                         = _pathparams.get(viewname)!
-	const searchparams						 = _searchparams.get(viewname)!
 
 	if (tagname_split[0] !== 'v') throw new Error("Not a view component")
 
@@ -159,7 +158,7 @@ const ViewConnectedCallback = async (component:HTMLElement & CMechViewT, opts:Ge
 
 	const loadeddata = _loadeddata.get(viewname)!
 
-	component.kd(loadeddata, CMechLoadStateE.INITIAL, pathparams, searchparams)
+	component.kd(loadeddata, CMechLoadStateE.INITIAL)
 	component.sc()
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {   component.sc();   });
@@ -199,10 +198,8 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 	component.hostview = host
 
 	const loadeddata    = _loadeddata.get(ancestor_viewname)!
-	const pathparams    = _pathparams.get(ancestor_viewname)!
-	const searchparams  = _searchparams.get(ancestor_viewname)!
 
-	component.kd(loadeddata, CMechLoadStateE.INITIAL, pathparams, searchparams)
+	component.kd(loadeddata, CMechLoadStateE.INITIAL)
 	component.sc()
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {
@@ -279,19 +276,19 @@ const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise
 	const load_b_func       = _load_b_funcs.get(componentname)!
 
 	const newsearchparams:GenericRowT = {}
-	for (const [key, value] of newsearchparams_raw.entries()) {
-		newsearchparams[key] = value
-	}
+	for (const [key, value] of newsearchparams_raw.entries()) newsearchparams[key] = value
 
-	const r = await load_b_func(pathparams, oldsearchparams, newsearchparams_raw)
+	//TODO: Either put in load_a_func or figure out why I didn't put it in already 
+
+	const r = await load_b_func(pathparams, oldsearchparams, newsearchparams)
 	if (r === null) { res(); return; }
 
 	for (const [path, val] of r.entries())   loadeddata.set(path, val)   
 
-	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, pathparams, newsearchparams_raw)
+	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED)
 	activeviewel.sc()
 
-	_searchparams.set(componentname, newsearchparams_raw)
+	_searchparams.set(componentname, newsearchparams)
 
 	res()
 })
@@ -306,6 +303,7 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 
 	const viewsel = document.getElementById("views")!
 
+
 	for (const [view_component_name, loadeddata] of _loadeddata) { 
 
 		const viewel = viewsel.querySelector(`v-${view_component_name}`) as HTMLElement & CMechViewT
@@ -315,7 +313,7 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 			matching_loadeddata = loadeddata.get(path) || null
 			if (!matching_loadeddata) continue
 
-			UpdateArrayIfPresent(matching_loadeddata, updatedlist)
+			updateArrayIfPresent(matching_loadeddata, updatedlist)
 		}
 
 		if (!matching_loadeddata) continue
@@ -334,7 +332,38 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 
 
 
-const UpdateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
+const GetViewParams = (component:HTMLElement) => { 
+
+	let viewname = ""
+	let tagname  = component.tagName.toLowerCase()
+
+	if (tagname.startsWith("v-")) {
+		viewname = tagname.split("-")[1]
+	
+	} else if (tagname.startsWith("vp-")) {
+
+		const rootnode                    = component.getRootNode()
+		const host                        = ( rootnode as any ).host as HTMLElement
+		const ancestor_view_tagname       = host.tagName.toLowerCase()
+		const ancestor_view_tagname_split = ancestor_view_tagname.split("-")
+		const ancestor_viewname           = ancestor_view_tagname_split[1]
+
+		viewname = ancestor_viewname
+
+	} else { 
+		throw new Error("Not a component sent to GetPathParams")
+	}
+
+	const path   = _pathparams.get(viewname)!
+	const search = _searchparams.get(viewname)!
+
+	return { path, search }
+}
+
+
+
+
+const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
 
 	// we create a map because we have to assume this could be a large array and we want to avoid O(n^2) complexity
 	// thus why we createa a map of the ids
@@ -344,7 +373,7 @@ const UpdateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) =
 
 	for(const d of updatedlist) {
 		const rowindex = index_map.get(d.id)
-		if (!rowindex)   tolist.push(d);   else   tolist[rowindex] = d;
+		if (rowindex === undefined)   tolist.push(d);   else   tolist[rowindex] = d;
 	}
 }
 
@@ -493,7 +522,7 @@ function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, comp
 export { Init, AddView, SearchParamsChanged, DataChanged }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
+((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback, GetViewParams };
 
 
 
