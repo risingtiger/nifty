@@ -355,85 +355,87 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 		const available_space = returnnewdata_limit - rp.length
 		rp.push(...docs.slice(0, available_space))
 	}
-})
-
-
-
-
-const __write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:{ispartial:bool}[] = []) => new Promise<void>(async (resolve, _reject) => {
+const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:{ispartial:bool}[] = []) => new Promise<void>(async (resolve, reject) => {
 
 	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
 
-	if( !db ) db = await openindexeddb()
+	if( !db ) db = await openindexeddb() // Assuming openindexeddb handles its own errors/rejections
 
 	const tx:IDBTransaction = db.transaction(syncobjectstores.map(ds => ds.name), "readwrite", { durability: "relaxed" })
 
 	while (opts.length < syncobjectstores.length)   opts.push({ ispartial: false });
 
-	let are_there_any_put_errors = false
+	let operations_failed = false // Flag to track if any operation within the transaction fails
 
 	for(let i = 0; i < syncobjectstores.length; i++) {
 		const ds = syncobjectstores[i]
-
 		if (datas[i].length === 0) continue
-
 		const ispartial = opts[i].ispartial
-
 		const os = tx.objectStore(ds.name)
 
 		for(let ii = 0; ii < datas[i].length; ii++) {
-			const db_put = os.put(datas[i][ii])
-			db_put.onerror = (_event:any) => are_there_any_put_errors = true
+            const currentData = datas[i][ii] as GenericRowT; // Type assertion for clarity
+
+            // Centralized error handler for operations within the loop
+            const handleError = (operation: string, id: string | number | undefined, error: any) => {
+                console.error(`IndexedDB ${operation} error for id ${id || 'N/A'} in store ${ds.name}:`, error);
+                operations_failed = true; // Mark that an operation failed
+            };
+
+			if (ispartial) {
+				const id = currentData.id; // Assumes data object has an 'id' property for lookup
+				if (!id) {
+					// Log a warning and fallback to a full put if ID is missing for a partial update
+					console.warn("Partial update requested but data has no ID:", currentData, "in store", ds.name, ". Performing full put instead.");
+                    const putRequest = os.put(currentData);
+                    putRequest.onerror = (event: any) => handleError('put (partial fallback)', id, event.target.error);
+				} else {
+					// Perform get -> merge -> put for partial update
+					const getRequest = os.get(id);
+					getRequest.onerror = (event: any) => handleError('get (partial)', id, event.target.error);
+					
+					// Define onsuccess handler for the get request
+					getRequest.onsuccess = (event: any) => {
+						const existingData = getRequest.result;
+						let dataToPut;
+						if (existingData) {
+							// Merge existing data with partial data
+							dataToPut = { ...existingData, ...currentData };
+						} else {
+							// If record doesn't exist, warn and insert the partial data as a new record
+							console.warn(`Record with id ${id} not found for partial update in store ${ds.name}. Inserting new record.`);
+							dataToPut = currentData;
+						}
+						// Put the merged or new data back into the object store
+						const putRequest = os.put(dataToPut);
+						putRequest.onerror = (event: any) => handleError('put (partial merge)', id, event.target.error);
+					};
+				}
+			} else {
+				// Perform a standard full put (overwrite)
+				const putRequest = os.put(currentData);
+                putRequest.onerror = (event: any) => handleError('put (full)', currentData.id, event.target.error);
+			}
 		}
 	}
 
+	// Transaction completion handler
 	tx.oncomplete = (_event:any) => {
-		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
-		resolve()
-	}
-
-	tx.onerror = (_event:any) => {
-		redirect_from_error("Firestorelive Error putting data from IndexedDB")
-	}
-})
-
-
-
-
-const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:{ispartial:bool}[] = []) => new Promise<void>(async (resolve, _reject) => {
-
-	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
-
-	if( !db ) db = await openindexeddb()
-
-	const tx:IDBTransaction = db.transaction(syncobjectstores.map(ds => ds.name), "readwrite", { durability: "relaxed" })
-
-	while (opts.length < syncobjectstores.length)   opts.push({ ispartial: false });
-
-	let are_there_any_put_errors = false
-
-	for(let i = 0; i < syncobjectstores.length; i++) {
-		const ds = syncobjectstores[i]
-
-		if (datas[i].length === 0) continue
-
-		const ispartial = opts[i].ispartial
-
-		const os = tx.objectStore(ds.name)
-
-		for(let ii = 0; ii < datas[i].length; ii++) {
-			const db_put = os.put(datas[i][ii])
-			db_put.onerror = (_event:any) => are_there_any_put_errors = true
+		if (operations_failed) {
+            // If any operation failed, reject the promise
+            const errorMsg = `IndexedDB transaction completed, but one or more operations failed in stores: ${syncobjectstores.map(s=>s.name).join(', ')}`;
+            console.error(errorMsg);
+            reject(new Error(errorMsg)); // Reject the promise
+		} else {
+			resolve(); // All operations succeeded, resolve the promise
 		}
 	}
 
-	tx.oncomplete = (_event:any) => {
-		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
-		resolve()
-	}
-
-	tx.onerror = (_event:any) => {
-		redirect_from_error("Firestorelive Error putting data from IndexedDB")
+	// Transaction error handler (catches transaction-level errors, e.g., aborts)
+	tx.onerror = (event:any) => {
+        const errorMsg = `IndexedDB Transaction Error aborted in stores: ${syncobjectstores.map(s=>s.name).join(', ')} - ${(event.target as IDBTransaction).error}`;
+		console.error(errorMsg);
+        reject(new Error(errorMsg)); // Reject the promise
 	}
 })
 
