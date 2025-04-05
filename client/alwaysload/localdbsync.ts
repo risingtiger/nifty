@@ -483,21 +483,45 @@ const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<DataFet
 
 async function redirect_from_error(errmsg:str) {
 
-	if( !db ) db = await openindexeddb()
+	if (!db) db = await openindexeddb()
 
-	const transaction = db.transaction(_syncobjectstores.map(s=>s.name), "readwrite");
+	const storeNames = _syncobjectstores.map(s => s.name);
+	const transaction = db.transaction(storeNames, "readwrite");
 
-	const objectStore = transaction.objectStore("toDoList");
+	let clearCount = 0;
+	let errorOccurred = false;
 
-	const objectStoreRequest = objectStore.clear();
+	storeNames.forEach(storeName => {
+		const objectStore = transaction.objectStore(storeName);
+		const objectStoreRequest = objectStore.clear();
 
-	objectStoreRequest.onsuccess = (event) => {
-		console.log("Cleared all data from the object store.");
-	};
+		objectStoreRequest.onsuccess = () => {
+			clearCount++;
+			if (!errorOccurred && clearCount === storeNames.length) {
+				console.log(`Cleared all data from ${storeNames.length} object stores.`);
+			}
+		};
 
+		objectStoreRequest.onerror = (event) => {
+			errorOccurred = true;
+			console.error(`Error clearing object store ${storeName}:`, event);
+			// We might still want to redirect even if clearing fails partially
+		};
+	});
 
-	transaction.oncomplete = (event) => {
-		console.log("Transaction completed successfully.");
+	transaction.oncomplete = () => {
+		if (!errorOccurred) {
+			console.log("Transaction to clear all stores completed successfully.");
+		} else {
+			console.warn("Transaction to clear stores completed, but errors occurred during clearing.");
+		}
+		// Proceed with redirect regardless of partial clear errors, as the DB state is inconsistent.
+		$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.indexeddb_error, errmsg);
+		if (window.location.protocol === "https:") {
+			window.location.href = `/index.html?error_subject=${LoggerSubjectE.indexeddb_error}`;
+		} else {
+			throw new Error(LoggerSubjectE.indexeddb_error + " -- " + errmsg);
+		}
 	};
 
 	transaction.onerror = (event) => {
