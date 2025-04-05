@@ -360,7 +360,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 
 
-const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:any[] = []) => new Promise<void>(async (resolve, _reject) => {
+const __write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:{ispartial:bool}[] = []) => new Promise<void>(async (resolve, _reject) => {
 
 	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
 
@@ -368,10 +368,7 @@ const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:A
 
 	const tx:IDBTransaction = db.transaction(syncobjectstores.map(ds => ds.name), "readwrite", { durability: "relaxed" })
 
-	// Ensure opts array has the same length as syncobjectstores, padding with default if needed
-	while (opts.length < syncobjectstores.length) {
-		opts.push({ ispartial: false });
-	}
+	while (opts.length < syncobjectstores.length)   opts.push({ ispartial: false });
 
 	let are_there_any_put_errors = false
 
@@ -380,11 +377,49 @@ const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:A
 
 		if (datas[i].length === 0) continue
 
-		const thisopts = opts[i] // Access options corresponding to the current syncobjectstore
+		const ispartial = opts[i].ispartial
 
 		const os = tx.objectStore(ds.name)
 
-		// TODO: Use thisopts.ispartial if needed for partial updates in the future
+		for(let ii = 0; ii < datas[i].length; ii++) {
+			const db_put = os.put(datas[i][ii])
+			db_put.onerror = (_event:any) => are_there_any_put_errors = true
+		}
+	}
+
+	tx.oncomplete = (_event:any) => {
+		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
+		resolve()
+	}
+
+	tx.onerror = (_event:any) => {
+		redirect_from_error("Firestorelive Error putting data from IndexedDB")
+	}
+})
+
+
+
+
+const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:{ispartial:bool}[] = []) => new Promise<void>(async (resolve, _reject) => {
+
+	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
+
+	if( !db ) db = await openindexeddb()
+
+	const tx:IDBTransaction = db.transaction(syncobjectstores.map(ds => ds.name), "readwrite", { durability: "relaxed" })
+
+	while (opts.length < syncobjectstores.length)   opts.push({ ispartial: false });
+
+	let are_there_any_put_errors = false
+
+	for(let i = 0; i < syncobjectstores.length; i++) {
+		const ds = syncobjectstores[i]
+
+		if (datas[i].length === 0) continue
+
+		const ispartial = opts[i].ispartial
+
+		const os = tx.objectStore(ds.name)
 
 		for(let ii = 0; ii < datas[i].length; ii++) {
 			const db_put = os.put(datas[i][ii])
