@@ -54,6 +54,8 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 		localStorage.setItem("synccollections", JSON.stringify(localstorage_synccollections))
 
 		_activepaths = []
+
+		openindexeddb()
 	}
 
 
@@ -78,7 +80,7 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, (event:{path:string,data:object})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, (_event:{path:string,data:object})=> {
 		//TODO: not handling delete yet. REALLY NEED TO. Not too hard to remove from local database and pass to cmech. But, when about when user has been offline and missed delete calls. Need a server side list to send of delete history since ts
 	});
 
@@ -167,7 +169,7 @@ const Add = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_re
 	const p = parse_into_pathspec(path)
 	if (!db) db = await openindexeddb()
 	const r = await M_Add(db, p, data)
-	if (!r) { redirect_from_error("IndexedDB Error adding data"); res(null); return; }
+	if (!r) { redirect_from_error("LocalDBSync Add Error"); res(null); return; }
 
 	handle_firestore_doc_add_or_patch(path, r, false, false)
 	res(1)
@@ -180,7 +182,7 @@ const Patch = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_
 	const p = parse_into_pathspec(path)
 	if (!db) db = await openindexeddb()
 	const r = await M_Patch(db, p, data)
-	if (!r) { redirect_from_error("IndexedDB Error patching data"); res(null); return; }
+	if (!r) { redirect_from_error("LocalDBSync Patch Error"); res(null); return; }
 
 	handle_firestore_doc_add_or_patch(path, r, false, false)
 	res(1)
@@ -193,7 +195,7 @@ const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {
 	const p = parse_into_pathspec(path)
 	if (!db) db = await openindexeddb()
 	const r = await M_Delete(db, p)
-	if (!r) { redirect_from_error("IndexedDB Error deleting data"); res(null); return; }
+	if (!r) { redirect_from_error("LocalDBSync Delete Error"); res(null); return; }
 
 	res(r)
 })
@@ -204,7 +206,13 @@ const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {
 async function handle_firestore_doc_add_or_patch(path:str, data:object, ispartial:bool = false, save_to_indexeddb:bool = true) {
 
 	const pathspec = parse_into_pathspec(path)!
-	if (pathspec.syncobjectstore && save_to_indexeddb) {   await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data], [{ispartial}] ]);   }
+
+	if (pathspec.syncobjectstore && save_to_indexeddb && !ispartial) {   
+		if (!ispartial) 
+			await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data] ]);   
+		else 
+			await write_a_partial_record_to_indexeddb_store(pathspec.syncobjectstore, data as GenericRowT)
+	}
 
 	const returnmap = new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data]]])
 
@@ -322,7 +330,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 	while (continue_calling) {
 		const r = await $N.FetchLassie('/api/firestore_get_batch', { method: "POST", body: JSON.stringify(body) }, { retries })
-		if (r === null || !(r as any).ok) { continue_calling = false; cleanup(); res(null); return; }
+		if (r === null || (r as any).ok === false ) { continue_calling = false; cleanup(); res(null); return; }
 
 		for(let i = 0; i < paths.length; i++) {
 			if (r[i].docs.length === 0) continue
@@ -355,87 +363,71 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 		const available_space = returnnewdata_limit - rp.length
 		rp.push(...docs.slice(0, available_space))
 	}
-const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:{ispartial:bool}[] = []) => new Promise<void>(async (resolve, reject) => {
+})
+
+
+
+
+const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>) => new Promise<void>(async (resolve, _reject) => {
 
 	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
 
-	if( !db ) db = await openindexeddb() // Assuming openindexeddb handles its own errors/rejections
+	if( !db ) db = await openindexeddb()
 
 	const tx:IDBTransaction = db.transaction(syncobjectstores.map(ds => ds.name), "readwrite", { durability: "relaxed" })
 
-	while (opts.length < syncobjectstores.length)   opts.push({ ispartial: false });
-
-	let operations_failed = false // Flag to track if any operation within the transaction fails
+	let are_there_any_put_errors = false
 
 	for(let i = 0; i < syncobjectstores.length; i++) {
 		const ds = syncobjectstores[i]
+
 		if (datas[i].length === 0) continue
-		const ispartial = opts[i].ispartial
+
 		const os = tx.objectStore(ds.name)
 
 		for(let ii = 0; ii < datas[i].length; ii++) {
-            const currentData = datas[i][ii] as GenericRowT; // Type assertion for clarity
-
-            // Centralized error handler for operations within the loop
-            const handleError = (operation: string, id: string | number | undefined, error: any) => {
-                console.error(`IndexedDB ${operation} error for id ${id || 'N/A'} in store ${ds.name}:`, error);
-                operations_failed = true; // Mark that an operation failed
-            };
-
-			if (ispartial) {
-				const id = currentData.id; // Assumes data object has an 'id' property for lookup
-				if (!id) {
-					// Log a warning and fallback to a full put if ID is missing for a partial update
-					console.warn("Partial update requested but data has no ID:", currentData, "in store", ds.name, ". Performing full put instead.");
-                    const putRequest = os.put(currentData);
-                    putRequest.onerror = (event: any) => handleError('put (partial fallback)', id, event.target.error);
-				} else {
-					// Perform get -> merge -> put for partial update
-					const getRequest = os.get(id);
-					getRequest.onerror = (event: any) => handleError('get (partial)', id, event.target.error);
-					
-					// Define onsuccess handler for the get request
-					getRequest.onsuccess = (event: any) => {
-						const existingData = getRequest.result;
-						let dataToPut;
-						if (existingData) {
-							// Merge existing data with partial data
-							dataToPut = { ...existingData, ...currentData };
-						} else {
-							// If record doesn't exist, warn and insert the partial data as a new record
-							console.warn(`Record with id ${id} not found for partial update in store ${ds.name}. Inserting new record.`);
-							dataToPut = currentData;
-						}
-						// Put the merged or new data back into the object store
-						const putRequest = os.put(dataToPut);
-						putRequest.onerror = (event: any) => handleError('put (partial merge)', id, event.target.error);
-					};
-				}
-			} else {
-				// Perform a standard full put (overwrite)
-				const putRequest = os.put(currentData);
-                putRequest.onerror = (event: any) => handleError('put (full)', currentData.id, event.target.error);
-			}
+			const db_put = os.put(datas[i][ii])
+			db_put.onerror = (_event:any) => are_there_any_put_errors = true
 		}
 	}
 
-	// Transaction completion handler
 	tx.oncomplete = (_event:any) => {
-		if (operations_failed) {
-            // If any operation failed, reject the promise
-            const errorMsg = `IndexedDB transaction completed, but one or more operations failed in stores: ${syncobjectstores.map(s=>s.name).join(', ')}`;
-            console.error(errorMsg);
-            reject(new Error(errorMsg)); // Reject the promise
-		} else {
-			resolve(); // All operations succeeded, resolve the promise
-		}
+		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
+		resolve()
 	}
 
-	// Transaction error handler (catches transaction-level errors, e.g., aborts)
-	tx.onerror = (event:any) => {
-        const errorMsg = `IndexedDB Transaction Error aborted in stores: ${syncobjectstores.map(s=>s.name).join(', ')} - ${(event.target as IDBTransaction).error}`;
-		console.error(errorMsg);
-        reject(new Error(errorMsg)); // Reject the promise
+	tx.onerror = (_event:any) => {
+		redirect_from_error("Firestorelive Error putting data from IndexedDB")
+	}
+})
+
+
+
+
+const write_a_partial_record_to_indexeddb_store = (syncobjectstore: SyncObjectStoresT, data:GenericRowT) => new Promise<void>(async (resolve, _reject) => {
+
+	if( !db ) db = await openindexeddb()
+
+	const tx:IDBTransaction = db.transaction(syncobjectstore.name, "readwrite", { durability: "relaxed" })
+
+	let are_there_any_put_errors = false
+
+	const os = tx.objectStore(syncobjectstore.name)
+
+	const request = os.get(data.id)
+	request.onsuccess = (event:any) => {
+		const db_put       = os.put( { ...event.target.result, ...data } )
+		db_put.onerror     = (_event:any) => are_there_any_put_errors = true
+	}
+	request.onerror = (_event:any) => are_there_any_put_errors = true
+
+	tx.oncomplete = (_event:any) => {
+		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
+		resolve()
+	}
+
+	tx.onerror = (_event:any) => {
+		redirect_from_error("Firestorelive Error putting data from IndexedDB")
 	}
 })
 
@@ -489,7 +481,29 @@ const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<DataFet
 
 
 
-function redirect_from_error(errmsg:str) {
+async function redirect_from_error(errmsg:str) {
+
+	if( !db ) db = await openindexeddb()
+
+	const transaction = db.transaction(_syncobjectstores.map(s=>s.name), "readwrite");
+
+	const objectStore = transaction.objectStore("toDoList");
+
+	const objectStoreRequest = objectStore.clear();
+
+	objectStoreRequest.onsuccess = (event) => {
+		console.log("Cleared all data from the object store.");
+	};
+
+
+	transaction.oncomplete = (event) => {
+		console.log("Transaction completed successfully.");
+	};
+
+	transaction.onerror = (event) => {
+		console.error("Transaction error:", event);
+	};
+
 	$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.indexeddb_error, errmsg)
 	if (window.location.protocol === "https:") {
 		window.location.href = `/index.html?error_subject=${LoggerSubjectE.indexeddb_error}`; 
