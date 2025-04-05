@@ -13,7 +13,7 @@ declare var $N:$NT
 
 type SyncObjectStoresT = { name: string, ts: num|null, lock:boolean, indexes:string[]|null }
 
-type PathSpecT = {
+export type PathSpecT = {
 	path:string,
 	p: string[],
 	collection: string,
@@ -68,46 +68,35 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc", [SSETriggersE.FIRESTORE_DOC_ADD], 100, (event:{path:string,data:object})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_add", [SSETriggersE.FIRESTORE_DOC_ADD], 100, (event:{path:string,data:object})=> {
 		handle_firestore_doc_add_or_patch(event.path, event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc", [SSETriggersE.FIRESTORE_DOC_PATCH], 100, (event:{path:string,data:object})=> {
-		handle_firestore_doc_add_or_patch(event.path, event.data)
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_patch", [SSETriggersE.FIRESTORE_DOC_PATCH], 100, (event:{path:string,data:object, ispartial?:bool})=> {
+		handle_firestore_doc_add_or_patch(event.path, event.data, event.ispartial || false)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, (event:{path:string,data:object})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, (event:{path:string,data:object})=> {
 		//TODO: not handling delete yet. REALLY NEED TO. Not too hard to remove from local database and pass to cmech. But, when about when user has been offline and missed delete calls. Need a server side list to send of delete history since ts
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_collection", [SSETriggersE.FIRESTORE_COLLECTION], 100, async (event:{paths:str[]})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_collection", [SSETriggersE.FIRESTORE_COLLECTION], 100, async (event:{paths:str[]})=> {
 
 		// event.paths is only going to be collections, never a singe document. Single doc goes through SSETriggersE.FIRESTORE_DOC
 
 		const pathspecs = findrelevantpathspecs_from_ssepaths(event.paths)
 		if (!pathspecs) return
 
-		const r = await datasetter(pathspecs, {}, true, false)
+		const r = await datasetter(pathspecs, {}, true, true)
 		if (r === null || r === 1) return
 
 		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	});
 
 	return true
-
-
-
-	async function handle_firestore_doc_add_or_patch(path:str, data:object) {
-		const ssepathspec = parse_into_pathspec(path)!
-		if (ssepathspec.syncobjectstore) {   await write_to_indexeddb_store([ ssepathspec.syncobjectstore ], [ [data] ]);   }
-
-		const returnmap = new Map<str, GenericRowT[]>([[ssepathspec.path, [data]]])
-
-		CMechDataChanged(returnmap)
-	}
 
 
 
@@ -138,7 +127,6 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 			return
 		}	
 
-		// Only call CMechDataChanged if at least one of the returns has data with length >= 1
 		if ([...returns].some(rr => rr[1].length >= 1)) {
 			CMechDataChanged(returns)
 		}
@@ -171,6 +159,57 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 	res(1)
 })
+
+
+
+
+const Add = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
+	const p = parse_into_pathspec(path)
+	if (!db) db = await openindexeddb()
+	const r = await M_Add(db, p, data)
+	if (!r) { redirect_from_error("IndexedDB Error adding data"); res(null); return; }
+
+	handle_firestore_doc_add_or_patch(path, r, false, false)
+	res(1)
+})
+
+
+
+
+const Patch = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
+	const p = parse_into_pathspec(path)
+	if (!db) db = await openindexeddb()
+	const r = await M_Patch(db, p, data)
+	if (!r) { redirect_from_error("IndexedDB Error patching data"); res(null); return; }
+
+	handle_firestore_doc_add_or_patch(path, r, false, false)
+	res(1)
+})
+
+
+
+
+const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {  
+	const p = parse_into_pathspec(path)
+	if (!db) db = await openindexeddb()
+	const r = await M_Delete(db, p)
+	if (!r) { redirect_from_error("IndexedDB Error deleting data"); res(null); return; }
+
+	res(r)
+})
+
+
+
+
+async function handle_firestore_doc_add_or_patch(path:str, data:object, ispartial:bool = false, save_to_indexeddb:bool = true) {
+
+	const pathspec = parse_into_pathspec(path)!
+	if (pathspec.syncobjectstore && save_to_indexeddb) {   await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data], [{ispartial}] ]);   }
+
+	const returnmap = new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data]]])
+
+	CMechDataChanged(returnmap)
+}
 
 
 
@@ -283,7 +322,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 	while (continue_calling) {
 		const r = await $N.FetchLassie('/api/firestore_get_batch', { method: "POST", body: JSON.stringify(body) }, { retries })
-		if (r === null) { continue_calling = false; cleanup(); res(null); return; }
+		if (r === null || !(r as any).ok) { continue_calling = false; cleanup(); res(null); return; }
 
 		for(let i = 0; i < paths.length; i++) {
 			if (r[i].docs.length === 0) continue
@@ -321,7 +360,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 
 
-const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>) => new Promise<void>(async (resolve, _reject) => {
+const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:Array<object[]>, opts:any[] = []) => new Promise<void>(async (resolve, _reject) => {
 
 	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
 
@@ -335,6 +374,8 @@ const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:A
 		const ds = syncobjectstores[i]
 
 		if (datas[i].length === 0) continue
+
+		const thisopts = opts[]
 
 		const os = tx.objectStore(ds.name)
 
@@ -412,61 +453,6 @@ function redirect_from_error(errmsg:str) {
 		throw new Error(LoggerSubjectE.indexeddb_error + " -- " + errmsg)
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const Add = (db:IDBDatabase, path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
-	const r = M_Add(db, path, data)
-	if (r === null) { redirect_from_error("IndexedDB Error adding data"); res(null); return; }
-
-	res(r)
-})
-
-
-
-
-const Patch = (db:IDBDatabase, path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
-	const r = M_Patch(db, path, data)
-	if (r === null) { redirect_from_error("IndexedDB Error patching data"); res(null); return; }
-
-	res(r)
-})
-
-
-
-
-const Delete = (db:IDBDatabase, path:str, id:string) => new Promise<num|null>(async (res,_rej)=> {  
-	const r = M_Delete(db, path, id)
-	if (r === null) { redirect_from_error("IndexedDB Error deleting data"); res(null); return; }
-
-	res(r)
-})
-
-
-
-
-
-
-
-
 
 
 
