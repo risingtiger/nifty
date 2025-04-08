@@ -1,4 +1,18 @@
 
+## 1.1.7 -- UNRELEASED
+
+### FEATURES
+- ...
+
+### ENHANCEMENTS
+- ...
+
+### BUGFIXES
+- ...
+
+
+
+
 ## 1.1.6 -- RELEASED
 
 ### FEATURES
