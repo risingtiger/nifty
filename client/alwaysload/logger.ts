@@ -25,6 +25,10 @@ enum BrowserE {
 
 function Log(type:LoggerTypeE, subject:LoggerSubjectE, message:string) {
 
+	if ( window.location.hostname === "localhost" )
+		return
+
+
 	const logs = localStorage.getItem("logs") || ""
 	const ts = Math.floor(Date.now() / 1000)
 
@@ -38,6 +42,10 @@ function Log(type:LoggerTypeE, subject:LoggerSubjectE, message:string) {
 
 async function Save() {
 
+	if ( window.location.hostname === "localhost" )
+		return
+
+
 	let logs = localStorage.getItem("logs")
 	let user_email = localStorage.getItem("user_email")
 
@@ -45,7 +53,6 @@ async function Save() {
 		return
 
 
-	let is_localhost = window.location.hostname === "localhost"
 	let device = get_device()
 	let browser = get_browser()
 
@@ -60,7 +67,7 @@ async function Save() {
 			headers: { 
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({user_email, device, browser, is_localhost, logs}),
+			body: JSON.stringify({user_email, device, browser, logs}),
 		}
 
 		const fr = await fetch(url, (fetchopts as any))

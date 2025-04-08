@@ -85,12 +85,14 @@ function Add(db:any, sse:any, path:str, newdoc:{[key:string]:any}, id:str, ts:nu
     const doc_ref = d.doc(id)
 
 	newdoc.ts = ts
+
+	const parseddata = parse_data_to_update(db, newdoc);
     
-    const r = await doc_ref.set(newdoc).catch(()=> null);
+    const r = await doc_ref.set(parseddata).catch(()=> null);
     if (r === null) { res(null); return; }
     
     // Use the original newdoc with id for the event
-    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC_ADD, { path, data: newdoc }, { exclude:[ sse_id ] });
+    sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC_ADD, { path, data: parseddata }, { exclude:[ sse_id ] });
 
     res(1)
 })}
@@ -108,51 +110,17 @@ function Patch(db:any, sse:any, path:str, data:any, oldts:num, newts:num, sse_id
 	
 	const existingdata = docsnapshot.data();
 	
-	if (oldts !== existingdata.ts) {  console.log("patch is older ts:", path); res(0); return; }
+	if (oldts !== existingdata.ts) {  console.log("patch is older ts:", path); res(null); return; }
 
 	data.ts = newts
 	
-	// Process any reference fields (ending with __ref)
-	const dataToUpdate = { ...data };
-	for (const key in dataToUpdate) {
-		if (key.endsWith('__ref')) {
-			const actualPropertyName = key.substring(0, key.length - 5); // Remove '__ref' suffix
-			const pathValue = dataToUpdate[key];
-			
-			if (typeof pathValue === 'string') {
-				// Split the path to get collection path and document ID
-				const lastSlashIndex = pathValue.lastIndexOf('/');
-				if (lastSlashIndex !== -1) {
-					const collectionPath = pathValue.substring(0, lastSlashIndex);
-					const docId = pathValue.substring(lastSlashIndex + 1);
-					
-					// Create a reference to the document
-					const docRef = db.collection(collectionPath).doc(docId);
-					
-					// Set the reference in the data object
-					dataToUpdate[actualPropertyName] = docRef;
-					
-					// Remove the original __ref property
-					delete dataToUpdate[key];
-				}
-			}
-		}
-	}
+	const parseddata = parse_data_to_update(db, data);
 	
 	// Only update the fields that are provided in the data object
-	const r = await d.update(dataToUpdate);
+	const r = await d.update(parseddata);
 	if (r === null) { res(null); return; }
 	
-	// Create a clean version of data without __ref properties for the event
-	const cleanData = { ...data };
-	for (const key in cleanData) {
-		if (key.endsWith('__ref')) {
-			delete cleanData[key];
-		}
-	}
-	
-	// Merge the new data with existing data in memory
-	const updateddata = { ...existingdata, ...cleanData };
+	const updateddata = { ...existingdata, ...parseddata };
 	
 	// Trigger event with the complete merged document of existing and new data -- so we dont pull again from database
 	sse.TriggerEvent(SSETriggersE.FIRESTORE_DOC_PATCH, { path: path, data: updateddata }, { exclude:[ sse_id ] });
@@ -179,7 +147,7 @@ function Delete(db:any, sse:any, path:str, sse_id:str|null) {   return new Promi
 
 
 const callers:{ runid:string, paths:string[], tses:number[], startafters: Array<object|null>, isdones: boolean[] }[] = []
-const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<Array<{isdone:boolean, docs:object[]}>>(async (res, _rej)=> {
+const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<Array<{isdone:boolean, docs:object[]}>|null>(async (res, _rej)=> {
 
 	let   caller = callers.find((c:any)=> c.runid === runid)
 	if (!caller)   callers.push({ runid, paths, tses, startafters: paths.map(()=> null), isdones: paths.map(()=> false) })
@@ -208,7 +176,9 @@ const GetBatch = (db:any, paths:str[], tses:number[], runid:str) => new Promise<
 		promises.push( q.get() )
 	}
 
-	const r = await Promise.all(promises)
+	const r = await Promise.all(promises).catch(()=> null)
+	if (!r) { res(null); return; }
+
 
 	const returns:Array<{ isdone:boolean, docs:object[] }> = []
 
@@ -374,6 +344,32 @@ function parse_request(db:any, pathstr:str, ts:int|null) : any {
         }
     }
     return d
+}
+
+
+
+
+function parse_data_to_update(db:any, data:any) {
+	const datatoupdate = { ...data };
+	for (const key in datatoupdate) {
+		if (key.endsWith('__ref')) {
+			const actualpropertyname         = key.substring(0, key.length - 5); // Remove '__ref' suffix
+			const pathValue                  = datatoupdate[key];
+			
+			const last_slash_index           = pathValue.lastIndexOf('/');
+			const collectionpath             = pathValue.substring(0, last_slash_index);
+			const docid                      = pathValue.substring(last_slash_index + 1);
+			
+			const docref                     = db.collection(collectionpath).doc(docid);
+			
+			datatoupdate[actualpropertyname] = docref;
+			
+			// Remove the original __ref property
+			delete datatoupdate[key];
+		}
+	}
+
+	return datatoupdate;
 }
 
 

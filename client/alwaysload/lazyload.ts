@@ -2,33 +2,14 @@ import { bool, str } from "../defs_server_symlink.js";
 import { LazyLoadT } from "../defs.js";
 
 
-const TIMEOUT_TS = 9000;
+const TIMEOUT_TS = 4000;
 
 
-function importWithTimeout<T>(path: string, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Timeout loading ${path}`));
-    }, timeoutMs);
-
-    import(path)
-      .then((module: T) => {
-        clearTimeout(timer);
-        resolve(module);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
-}
 
 
 let lazyloads:LazyLoadT[] = [];
-
 const _loaded:LazyLoadT[] = [];
-
-let loadstart_ts = 0;
+let timeoutWaitingAnimateId:any = null
 
 
 
@@ -36,29 +17,22 @@ let loadstart_ts = 0;
 
 function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, _rej)=> {
 
-    if (loadstart_ts > 0) {
-        res(1)
-        return;
-    }
+	if (loads.length === 0) { res(1); return; }
+
+	setBackgroundOverlay(true)
+	timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 1000);
 
     const loadque:LazyLoadT[] = []
 
-    for(const load of loads) {
-        addtoque(load, loadque)
-    }
+    for(const load of loads) addtoque(load, loadque)
 
-    if (loadque.length > 0) {
+	const r = await retrieve_loadque(loadque)
 
-        loadstart_ts = Date.now()
+	clearTimeout(timeoutWaitingAnimateId)
+	setBackgroundOverlay(false)
+	setWaitingAnimate(false)
 
-        const r = await retrieve_loadque(loadque)
-		if (r === null) { res(null); return; }
-
-        loadstart_ts = 0
-
-    } else {
-        console.log("LazyLoad loadque.length === 0, returning early.")
-    }
+	if (r === null) { res(null); return; }
 
     res(1)
 })}
@@ -103,8 +77,7 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
 	try {
 		for(const f of filepaths) {
-			// Each file will timeout after 4000 ms (4 seconds)
-			promises.push(importWithTimeout(f, 4000));
+			promises.push(importWithTimeout(f, TIMEOUT_TS));
 		}
 
 		await Promise.all(promises);
@@ -116,6 +89,27 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
     res(1)
 })}
+
+
+
+
+function importWithTimeout<T>(path: string, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout loading ${path}`));
+    }, timeoutMs);
+
+    import(path)
+      .then((module: T) => {
+        clearTimeout(timer);
+        resolve(module);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
 
 
 
@@ -151,14 +145,17 @@ function get_filepath(type:str, name:str, is_instance:bool|null) {
 
 
 
-function throwup_and_leave(errmsg:str, errmsg_long:str="") {
+function setBackgroundOverlay(ison:boolean) {
+    const xel = document.querySelector("#lazyload_overlay")!
+    if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
+}
 
-	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	if (window.location.protocol === "https:") {
-		window.location.href = `/index.html?errmsg=${errmsg}`
-	} else {
-		throw new Error(errmsg + " -- " + errmsg_long)
-	}
+
+
+
+function setWaitingAnimate(ison:boolean) {
+    const xel = document.querySelector("#lazyload_overlay .waiting_animate")!
+    if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
 }
 
 

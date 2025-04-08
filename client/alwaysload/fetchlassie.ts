@@ -1,11 +1,16 @@
 
-import { num, str } from "../defs_server_symlink.js"
-import { FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs.js"
+
+//import { num, str } from "../defs_server_symlink.js"
+import { FetchResultT, FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs.js"
 
 
-const enum RequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
+//declare var $N: $NT;
 
 
+//const enum RequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
+
+
+/*
 type RequestT = {
     url: str,
     ts: num,
@@ -14,65 +19,89 @@ type RequestT = {
     state: RequestStateE,
     cb: (_:any)=>void,
 }
+*/
+
+const EXITDELAY = 4000
+
+
+let timeoutWaitingAnimateId:any = null
 
 
 
 
-async function FetchLassie(url: string, http_optsP: FetchLassieHttpOptsT | undefined, opts: FetchLassieOptsT | null | undefined): Promise<any> {
-    http_optsP = http_optsP || { method: "GET", headers: {}, body: null }
-    opts = opts || { isbackground: false, timeout: 9000 }
+function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined|null, opts:FetchLassieOptsT|undefined|null) { return new Promise<FetchResultT>(async (response_callback:(_:any)=>void)=> { 
 
-    opts.isbackground = typeof opts.isbackground !== "undefined" ? opts.isbackground : false
-    opts.timeout = typeof opts.timeout !== "undefined" ? opts.timeout : 9000
+    const http_opts     = http_optsP || { method: "GET", headers: {}, body: null }
 
-    let http_opts: FetchLassieHttpOptsT = {
-        method: typeof http_optsP.method !== "undefined" ? http_optsP.method : "GET",
-        headers: typeof http_optsP.headers !== "undefined" ? http_optsP.headers : {},
-        body: typeof http_optsP.body !== "undefined" ? http_optsP.body : null
-    }
+    http_opts.method    = typeof http_opts.method !== "undefined" ? http_opts.method : "GET"
+    http_opts.headers   = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
+    http_opts.body      = typeof http_opts.body !== "undefined" ? http_opts.body : null
 
-    http_opts.method = typeof http_opts.method !== "undefined" ? http_opts.method : "GET"
-    http_opts.headers = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
-    http_opts.body = typeof http_opts.body !== "undefined" ? http_opts.body : null
+	if (!opts) { opts   = { retries: 0, background: true, animate: true, exitdelay: EXITDELAY }; }
 
-    if (!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
-    if (!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
+	opts.retries        = opts.retries || 0
+	opts.background     = opts.background || true
+	opts.animate        = opts.animate || true
+	opts.exitdelay      = opts.exitdelay || EXITDELAY
 
-    setBackgroundOverlay(opts.isbackground)
+	if (opts.background) {   setBackgroundOverlay(true);   }
+	if (opts.background && opts.animate) { 
+		timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 1000);
+	}
 
-    const controller = new AbortController();
-    const { signal } = controller;
+    if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
+    if(!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
 
-    let timeoutControllerId: number;
-    let timeoutWaitingAnimateId: number;
+	http_opts.headers["exitdelay"] = opts.exitdelay.toString()
 
-    try {
-        timeoutControllerId = setTimeout(() => { controller.abort(); }, opts.timeout);
-        timeoutWaitingAnimateId = setTimeout(() => { setWaitingAnimate(true); }, 600);
+	http_opts.headers["sse_id"] = localStorage.getItem('sse_id') || null
 
-        const fetchResponse = await fetch(url, { ...http_opts, signal });
+	let result:any = null
+	for(let i = 0; i < opts.retries+1; i++) {
+		if (i > 1)   http_opts.headers["retry"] = "true"
+		result = await fetchit(url, http_opts)
 
-        if (!fetchResponse.ok) {
-            throw new Error(`Network response was not ok: ${fetchResponse.status} ${fetchResponse.statusText}`);
-        }
+		if (result.status !== 503) break
 
-        const data = await (http_opts.headers["Accept"] === "application/json" ? fetchResponse.json() : fetchResponse.text());
-        return data;
-    } catch (error) {
-        throw error;
-    } finally {
-        clearTimeout(timeoutControllerId);
-        clearTimeout(timeoutWaitingAnimateId);
-        setBackgroundOverlay(false);
-        setWaitingAnimate(false);
-    }
-}
+		await new Promise(r => setTimeout(r, 1000))
+	}
+
+	clearTimeout(timeoutWaitingAnimateId)
+	setBackgroundOverlay(false)
+	setWaitingAnimate(false)
+
+	if (result.status !== 200) {
+		response_callback(null)
+		return
+	}
+
+	const data = await (http_opts.headers["Accept"] === "application/json" ? result.json() : result.text()) as FetchResultT
+	response_callback(data)
+})}
+
+
+
+
+const fetchit = (url:string, http_opts:FetchLassieHttpOptsT) => new Promise<Response>((response_callback,_rej)=> {
+	fetch( url, http_opts )
+		.then(async (server_response:Response)=> {
+            if (server_response && server_response.status === 200 && server_response.ok) {
+                response_callback(server_response)
+				// do nothing different, for now atleast
+            } else {
+				response_callback(server_response)
+			}
+		})
+		.catch((err_response) => {
+			response_callback(err_response)
+		})
+})
 
 
 
 
 function setBackgroundOverlay(ison:boolean) {
-    const xel = document.getElementById("fetchlassy_overlay")!
+    const xel = document.querySelector("#fetchlassy_overlay")!
     if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
 }
 
@@ -80,10 +109,26 @@ function setBackgroundOverlay(ison:boolean) {
 
 
 function setWaitingAnimate(ison:boolean) {
-    const xel = document.getElementById("fetchlassy_overlay .waiting_animate")!
+    const xel = document.querySelector("#fetchlassy_overlay .waiting_animate")!
     if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
 }
 
+
+
+
+/*
+function error_out(errsubject:LoggerSubjectE, errmsg:string="") {
+
+	Looks like error_out is no longer being used. Maybe remove this function. Make sure to remove Logger fetchlassie subjects too
+
+	$N.Logger.Log(LoggerTypeE.error, errsubject, errmsg)
+	if (window.location.protocol === "https:") {
+		window.location.href = `/index.html?error_subject=${errsubject}`; 
+	} else {
+		throw new Error(errsubject + " -- " + errmsg)
+	}
+}
+*/
 
 
 

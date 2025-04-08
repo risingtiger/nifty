@@ -10,8 +10,7 @@ declare var html: any;
 
 
 
-enum ModeT { EDIT = 0, VIEW = 1, SAVING = 2, SAVED = 3, ERRORED = 4, YAP = 156 }
-enum LayoutT { ROW = 0, INLINE = 1 }
+enum ModeT { EDIT = 0, VIEW = 1, SAVING = 2, SAVED = 3, ERRORED = 4 }
 enum TypeT { INPUT = 0, DSELECT = 1, TOGGLE = 2 }
 type InputStrT = "none" | "text" | "phone" | "email" | "password" | "number" | "url" | "date" | "time" | "datetime" | "month" | "week" | "color" | "search" | "file" | "range"
 //enum InputTypeT { NONE = 0, TEXT = 1, PHONE = 2, EMAIL = 3, PASSWORD = 4, NUMBER = 5, URL = 6, DATE = 7, TIME = 8, DATETIME = 9, MONTH = 10, WEEK = 11, COLOR = 12, SEARCH = 13, FILE = 14, RANGE = 15 }
@@ -25,8 +24,6 @@ type StateT = {
 }
 
 type ModelT = {
-    layout: LayoutT,
-    cansave: bool,
     name: str,
     type: TypeT,
     inputtype: InputStrT,
@@ -87,13 +84,11 @@ class CIn extends Lit_Element {
         this.shadow = this.attachShadow({mode: 'open'});
 
         this.s = { mode: ModeT.VIEW, val: "", isanimating: false, err_msg: "" }
-        this.m = { layout: LayoutT.ROW, cansave:true, name: "", type: TypeT.INPUT, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
+        this.m = { name: "", type: TypeT.INPUT, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
         this.els = { label: null, section: null, view: null, edit: null, displayval: null, action: null, editdone: null, animeffect: null, input: null, switch: null, dselect: null}
 
         this.animatehandles = { view: null, edit: null, }// label: null}
         this.keyframes = { view: null, edit: null, }// label: null}
-
-
     }
 
 
@@ -108,8 +103,6 @@ class CIn extends Lit_Element {
         this.s.val   = this.getAttribute("val") || ""
         this.m.label = this.getAttribute("label") || ""
         this.m.labelwidth = parseInt(this.getAttribute("labelwidth") || "125")
-        this.m.layout = this.hasAttribute("inline") ? LayoutT.INLINE : LayoutT.ROW
-        this.m.cansave = this.hasAttribute("nosave") ? false : true
         this.m.name = this.getAttribute("name") || ""
 
         if (attr_typestr === "toggle") {
@@ -118,12 +111,12 @@ class CIn extends Lit_Element {
             this.m.inputtype = "none"
 
         } else if (attr_typestr === "dselect") {
-            this.s.mode = !this.m.cansave ? ModeT.EDIT : ( this.hasAttribute("edit") ? ModeT.EDIT : ModeT.VIEW )
+			this.s.mode = ModeT.VIEW
             this.m.type = TypeT.DSELECT
             this.m.inputtype = "none"
 
         } else { 
-            this.s.mode = !this.m.cansave ? ModeT.EDIT : ( this.hasAttribute("edit") ? ModeT.EDIT : ModeT.VIEW )
+			this.s.mode = ModeT.VIEW
             this.m.type = TypeT.INPUT
             this.m.inputtype = attr_typestr as any
         }
@@ -149,8 +142,6 @@ class CIn extends Lit_Element {
         this.shadow.appendChild(frag)
 
         this.addEventListener("click", (e:any) => this.clicked(e), true)
-
-        this.classList.add ( this.m.layout === LayoutT.ROW ? 'row' : 'inline' )
     }
 
 
@@ -158,39 +149,43 @@ class CIn extends Lit_Element {
 
     async attributeChangedCallback(name:str, oldval:str, newval:str) {
 
+		if (oldval === null || newval === oldval) return
 
-        if (name === "val" && oldval !== null) { 
+
+        if (name === "val") { 
 
 			this.s.val = newval
 
-			if (this.m.type === TypeT.INPUT && this.els.input?.value !== newval) {
-				this.els.input!.value = newval
+			if (this.s.mode === ModeT.VIEW && !this.s.isanimating) {
+				// TOGGLE IS NEVER IN VIEW MODE
+				if (this.m.type === TypeT.INPUT) {  
+					this.els.displayval!.textContent = this.s.val
+				}
+				else if (this.m.type === TypeT.DSELECT) {  
+					this.els.displayval!.textContent = this.gettextofoptionsval()
+				}
+			}
+			else if (this.s.mode === ModeT.EDIT && !this.s.isanimating) {
+				if (this.m.type === TypeT.TOGGLE) {  
+					if (this.s.val === "true") { this.els.switch!.classList.add("istrue"); } else { this.els.switch!.classList.remove("istrue"); } 
+				}
+				if (this.m.type === TypeT.INPUT) {  
+					this.els.input!.value = this.s.val
+				}
+				else if (this.m.type === TypeT.DSELECT) {  
+					this.els.dselect!.setAttribute("val", this.s.val)
+				}
 			}
         }
-
-        /*
-        if (name === "val" && this.s.mode === 'saving' && this.s.isanimating === false) { 
-            this.to_saved(new_val)
-        }
-
-        else if (name === "gomodeedit" && old_val !== null && this.s.mode === 'view' && this.s.isanimating === false) {
-            this.to_edit()
-        }
-        */
     }
 
 
 
 
-    public set_save_success(newval:str)         {   this.to_saved_result(newval);            }
-    public set_save_fail(newval:str, error:str) {   this.to_error_result(newval, error);     }
-
-
-
-
-    trigger_changed(newval:any, oldval:any) {
-
-		this.dispatchEvent(new CustomEvent("changed", {detail: {newval, oldval}}))
+    public set_update_fail(reverttoval:str, error:str) {      
+		if (this.s.mode === ModeT.SAVING) {
+			this.to_error_result(reverttoval, error);
+		}
 	}
 
 
@@ -212,19 +207,14 @@ class CIn extends Lit_Element {
             }
 
             else if (this.m.type === TypeT.DSELECT) {
-
                 allow_propagation = true
             }
         }
 
         else if (this.s.mode === ModeT.VIEW) {
-
-            if (this.m.type === TypeT.INPUT) {
+            if (this.m.type === TypeT.INPUT || this.m.type === TypeT.DSELECT) {
                 this.to_edit()
-            }
-
-            else if (this.m.type === TypeT.DSELECT) {
-                this.to_edit()
+				this.els.input?.focus()
             }
         }
 
@@ -242,6 +232,20 @@ class CIn extends Lit_Element {
         */
     }
 
+
+
+
+
+    set_existing_dom_according_to_attr_val() {
+
+            if (this.m.type === TypeT.TOGGLE) {
+			}
+
+
+
+
+
+	}
 
 
 
@@ -274,18 +278,18 @@ class CIn extends Lit_Element {
 
             this.els.switch.addEventListener("click", () => {
                 const newval = this.s.val === "true" ? "false" : "true"
-				this.trigger_changed(newval, this.s.val)
                 if (newval === "true") { this.els.switch!.classList.add("istrue") } else { this.els.switch!.classList.remove("istrue") }
-
-                if (this.m.cansave) {  this.to_saving(newval, this.s.val) } else { this.setAttribute("val", newval); }
+				this.to_updating(this.s.val, newval)
             })
 
         } else if (this.m.type === TypeT.INPUT) {
 
             this.els.input = document.createElement("input")
-            this.els.input.type = this.els.input.type
+            this.els.input.type = this.m.inputtype
             this.els.input.value = this.s.val
             this.els.input.placeholder = this.getAttribute("placeholder") || ""
+			this.els.input.enterKeyHint="done" 
+
 
             if (this.els.input.type === "range") {
                 this.els.input.min = this.getAttribute("min") || ""
@@ -296,30 +300,29 @@ class CIn extends Lit_Element {
 
 				
             this.els.input.addEventListener("input", () => {
-
-				this.trigger_changed(this.els.input?.value, this.s.val)
-
-				if (!this.m.cansave) {
-					this.setAttribute("val", this.els.input?.value || "")
-				}
+				this.dispatchEvent(new CustomEvent("change", {detail: {newval:this.els.input!.value, oldval:this.s.val}}))
             })
 
-            if (this.m.cansave) {
-                this.els.editdone = document.createElement("i")
-				this.els.editdone.innerHTML = "&#xf115;"
+			this.els.editdone = document.createElement("i")
+			this.els.editdone.innerHTML = "&#xf103;"
 
-                this.els.editdone.addEventListener("click", () => {
-                    const newval = this.els.input?.value || ""
-                    const oldval = this.s.val
+			this.els.input.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					const newval = this.els.input?.value || ""
+					const oldval = this.s.val
+					this.to_updating(oldval, newval)
+					this.els.input?.blur()
+				}
+			})
 
-                    if (this.m.cansave)   this.to_saving(newval, oldval); else this.s.val = newval;
-                })
+			this.els.editdone.addEventListener("click", () => {
+				const newval = this.els.input?.value || ""
+				const oldval = this.s.val
+				this.to_updating(oldval, newval)
+			})
 
-                this.els.edit.appendChild(this.els.editdone)
-
-            } else {
-                //
-            }
+			this.els.edit.appendChild(this.els.editdone)
 
             if (immediate_focus) {
                 setTimeout(()=>this.els.input!.focus(), 800)
@@ -333,24 +336,14 @@ class CIn extends Lit_Element {
 
 
             this.els.dselect.addEventListener("changed", (e:Event) => {
-
-				const e_newval = (e as CustomEvent).detail.newval || ""
-				const e_oldval = (e as CustomEvent).detail.oldval
-
-				this.trigger_changed(e_newval, e_oldval)
-
-                if (this.m.cansave) {
-                    this.to_saving((e as CustomEvent).detail.newval, (e as CustomEvent).detail.oldval); 
-                } else { 
-                    this.setAttribute("val", e_newval)
-                }
+				const newval = (e as CustomEvent).detail.newval || ""
+				const oldval = (e as CustomEvent).detail.oldval
+				this.to_updating(oldval, newval); 
             })
 
             this.els.dselect.addEventListener("cancelled", (_e:Event) => {
-                if (this.m.cansave) {
-                    this.s.mode = ModeT.SAVED
-                    this.to_view()
-                }
+				this.s.mode = ModeT.SAVED
+				this.to_view()
             })
 
             this.els.edit.appendChild(this.els.dselect)
@@ -372,22 +365,11 @@ class CIn extends Lit_Element {
         this.els.view.id = "view"
         this.els.displayval = document.createElement("p")
         this.els.action = document.createElement("i")
-		this.els.action.innerHTML = "&#xf105;" 
+		this.els.action.innerHTML = "&#xf113;" 
 
 		if (this.m.type === TypeT.DSELECT) {
-
-			const options = this.getAttribute("options") || ""
-			if (options) {
-				const options_arr = options.split(",")
-				const option = options_arr.find((o:str) => o.split(":")[1] === this.s.val)
-				this.els.displayval.textContent = option ? option.split(":")[0] : this.s.val
-
-			} else {
-				this.els.displayval.textContent = this.s.val
-			}
-
+			this.els.displayval.textContent = this.gettextofoptionsval()
 		} else {
-
 			this.els.displayval.textContent = this.s.val
 		}
 
@@ -431,28 +413,18 @@ class CIn extends Lit_Element {
 
 
 
-    to_saving(newval:str, oldval:str|null = null) { 
+    to_updating(oldval:str|null = null, newval:str) { 
 
         if (this.s.mode === ModeT.EDIT && this.s.isanimating === false) {
 
             this.s.mode = ModeT.SAVING
 
-            if (newval === oldval) {
-                this.to_saved_result(newval)
-                return
-            }
+			if (newval === oldval) {   this.to_updated_result(newval); return;   }
 
 
-            if (this.m.type === TypeT.TOGGLE) {
-                //
-
-            } else if (this.m.type === TypeT.INPUT) {
+			if (this.m.type === TypeT.INPUT) {
                 this.els.editdone?.classList.add("hide_while_spinner")
-
-            } else if (this.m.type === TypeT.DSELECT) {
-                //
             }
-
 
             this.els.animeffect = document.createElement("c-animeffect")
             this.els.animeffect.setAttribute("active", "")
@@ -468,86 +440,74 @@ class CIn extends Lit_Element {
             this.els.animeffect.offsetWidth
             this.els.animeffect.className = "active"
 
+			this.dispatchEvent(new CustomEvent("update", {detail: { 
+				name:this.m.name, 
+				newval, oldval,
+				set_update_fail: this.set_update_fail.bind(this)
+			}}))
+
             setTimeout(() => {
-                this.dispatchEvent(new CustomEvent("save", {detail: { 
-					name:this.m.name, 
-					newval, oldval, 
-					set_save_success: this.set_save_success.bind(this), 
-					set_save_fail: this.set_save_fail.bind(this)
-				}}))
-            }, 500)
+				this.to_updated_result(newval)
+            }, 350)
         }
     }
 
 
 
 
-    to_saved_result(newval:str) {
+    to_updated_result(newval:str) {
 
-        if (this.s.mode === ModeT.SAVING && this.s.isanimating === false) {
+		this.s.err_msg = ""
 
-			this.s.err_msg = ""
+		this.s.mode = ModeT.SAVED
 
-            this.s.mode = ModeT.SAVED
+		// this triggers attribute changed right away, so mode will be SAVED and thus NOT run further event code, just set the s.val thats it
+		this.setAttribute("val", newval)
 
-            if (this.m.type === TypeT.TOGGLE) {
+		if (this.m.type === TypeT.TOGGLE) {
 
-                this.els.animeffect?.remove()
+			console.log("about to move forward on toggle mode set")
+			this.els.animeffect?.remove()
+			this.s.mode = ModeT.EDIT
 
-                if (newval === "true") { this.els.switch!.classList.add("istrue"); } else { this.els.switch!.classList.remove("istrue"); } 
+		} else if (this.m.type === TypeT.INPUT) {
 
-                this.setAttribute("val", newval!)
+			this.to_view()
 
-                this.s.mode = ModeT.EDIT
+		} else if (this.m.type === TypeT.DSELECT) {
 
-            } else if (this.m.type === TypeT.INPUT) {
-
-                this.setAttribute("val", newval!)
-                this.to_view()
-
-            } else if (this.m.type === TypeT.DSELECT) {
-
-                this.setAttribute("val", newval!)
-                this.to_view()
-            }
-        }
+			this.to_view()
+		}
     }
 
 
 
 
-    to_error_result(newval:str, error:str) {
+    to_error_result(reverttoval:str, error:str) {
 
-        if (this.s.mode === ModeT.SAVING && this.s.isanimating === false) {
+		this.s.err_msg = error || "";
 
-            this.s.err_msg = error || "";
+		if (this.m.type === TypeT.TOGGLE) {
 
-            if (this.m.type === TypeT.TOGGLE) {
+			this.els.animeffect?.remove()
+			if (reverttoval === "true") { this.els.switch!.classList.add("istrue"); } else { this.els.switch!.classList.remove("istrue"); } 
+			this.s.mode = ModeT.EDIT
 
-                this.els.animeffect?.remove()
+		} else if (this.m.type === TypeT.INPUT) {
 
-                if (this.s.val === "true") { this.els.switch!.classList.add("istrue"); } else { this.els.switch!.classList.remove("istrue"); } 
+			this.s.mode = ModeT.ERRORED
+			this.setAttribute("val", (reverttoval ? reverttoval : this.s.val))
+			this.els.input!.value = this.s.val
+			this.to_view()
 
-                this.s.mode = ModeT.EDIT
+		} else if (this.m.type === TypeT.DSELECT) {
 
-            } else if (this.m.type === TypeT.INPUT) {
+			this.s.mode = ModeT.ERRORED
+			this.setAttribute("val", (reverttoval ? reverttoval : this.s.val))
+			this.to_view()
+		}
 
-                this.s.mode = ModeT.ERRORED
-				this.setAttribute("val", (newval ? newval : this.s.val))
-                this.els.input!.value = this.s.val
-                this.to_view()
-
-            } else if (this.m.type === TypeT.DSELECT) {
-
-				this.setAttribute("val", this.s.val)
-
-                this.s.mode = ModeT.ERRORED
-
-                this.to_view()
-            }
-
-            console.error("error: " + error)
-        }
+		console.error("error: unable to save " + this.m.name + " -- " + error)
     }
 
 
@@ -598,6 +558,20 @@ class CIn extends Lit_Element {
         a.edit = new Animation(k.edit, document.timeline);
     }
 
+
+
+
+	gettextofoptionsval() {
+		const options = this.getAttribute("options") || ""
+		if (options) {
+			const options_arr = options.split(",")
+			const option = options_arr.find((o:str) => o.split(":")[1] === this.s.val)
+			return option ? option.split(":")[0] : this.s.val
+
+		} else {
+			return this.s.val
+		}
+	}
 
 
 

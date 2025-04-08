@@ -45,19 +45,17 @@ async function Send_Msg(db:Firestore, title:str, body:str, tags:str[]) {
 			const all_user_docs = await db.collection("users").get()
 			const all_users = all_user_docs.docs.map((d:any)=> d.data())
 
-			const all_subscriptions:any[] = []
-
+			const regtokens:any[] = []
 			all_users.forEach((u:any)=> {
 				if (u.notifications.fcm_token && u.notifications.tags.some((t:any)=> tags.includes(t))) {
-					all_subscriptions.push(u.notifications.fcm_token)
+					regtokens.push(u.notifications.fcm_token)
 				}
 			})
 
-			const all_messages = all_subscriptions.map((t:any)=> ( { token:t, data: { title, body } } ) )
+			const message  =  { data: { title, body }, tokens: regtokens }
+			const response = await getMessaging().sendEachForMulticast(message)
 
-			if (all_messages.length === 0) { return new Promise<number>((res, _rej)=> res(0)) }
-
-			await getMessaging().sendEach(all_messages)
+			console.log(`FCM Send Msg success count: ${response.successCount}`)                               
 			 
 			promise_res(1)
 		} 

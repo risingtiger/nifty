@@ -1,51 +1,46 @@
 
 
-enum EListenerTypeT {
-    focus = "focus",
-    blur = "blur"
-}
+import { EngagementListenerTypeT, EngagementListenerT } from "../defs.js"
 
-type EListenerT = {
-    name: string,
-    type: EListenerTypeT,
-    callback:(isfocused:boolean)=>void
-}
 
-const elisteners:EListenerT[] = []
+const elisteners:EngagementListenerT[] = []
 
 
 
 
-function Add_Listener(name:string, type_:'focus'|'blur', callback_:()=>void) {
+function Add_Listener(el:HTMLElement, name:string, type_:EngagementListenerTypeT, priority_:number|null, callback_:()=>void) {
 
-    const type = type_ === 'focus' ? EListenerTypeT.focus : EListenerTypeT.blur
+    const type = type_
+
+	for(let i = 0; i < elisteners.length; i++) {
+		if (!elisteners[i].el.parentElement) {
+			elisteners.splice(i, 1)   
+		}
+	}
 
     const existing_listener = elisteners.find(l=> l.type === type && l.name === name)
 
-    if (existing_listener) {
-        redirect_from_error("engagementlisten_already_exists","AppFocus Listener with that name and type already exists")
-        return
-    }
+    if (existing_listener) Remove_Listener(el, name, type)
+
+	const priority = priority_ || 0
 
     elisteners.push({
-        name: name,
-        type: EListenerTypeT.focus,
+		el,
+        name,
+        type,
+		priority,
         callback: callback_
     })
+
+	elisteners.sort((a, b)=> a.priority - b.priority)
 }
 
 
 
 
-function Remove_Listener(name:string, type_:'focus'|'blur') {   
-
-    const type = type_ === 'focus' ? EListenerTypeT.focus : EListenerTypeT.blur
-    const i = elisteners.findIndex(l=> l.name === name && l.type === type)
-
-    if (i === -1) {
-        return
-    }
-
+function Remove_Listener(el:HTMLElement, name:string, type_:EngagementListenerTypeT) {   
+    const i = elisteners.findIndex(l=> l.el.tagName === el.tagName && l.name === name && l.type === type_)
+    if (i === -1) return
     elisteners.splice(i, 1)   
 }
 
@@ -54,40 +49,34 @@ function Remove_Listener(name:string, type_:'focus'|'blur') {
 
 function Init() {
 
-    window.onblur = () => {
-        for(const l of elisteners.filter(l=> l.type === EListenerTypeT.blur)) {
-            l.callback(false)
-        }
-    }
+	document.addEventListener('visibilitychange', () => { 
+		if (document.visibilityState === 'visible') {
+			setTimeout(() => { 
+				for(const l of elisteners.filter(l=> l.type === EngagementListenerTypeT.visible)) {
+					l.callback()
+				}
+			}, 500)
+		}
+		else if (document.visibilityState === 'hidden') {
+			setTimeout(() => { 
+				for(const l of elisteners.filter(l=> l.type === EngagementListenerTypeT.hidden)) {
+					l.callback()
+				}
+			}, 500)
+		}
+	})
 
-    window.onfocus = async () => {
-        for(const l of elisteners.filter(l=> l.type === EListenerTypeT.focus)) {
-            l.callback(false)
-        }
-    }
-}
-
-
-
-
-function IsDocFocused() {
-    return document.hasFocus()
-}
-
-
-
-
-function redirect_from_error(errmsg:string, errmsg_long:string) {
-	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	if (window.location.protocol === "https:") {
-		window.location.href = `/index.html?errmsg=${errmsg}`
-	} else {
-		throw new Error(errmsg + " -- " + errmsg_long)
-	}
+	window.addEventListener('resize', () => {
+		for(const l of elisteners.filter(l=> l.type === EngagementListenerTypeT.resize)) {
+			l.callback()
+		}
+	});
 }
 
 
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).EngagementListen = { Init, IsDocFocused, Add_Listener, Remove_Listener };
+((window as any).$N as any).EngagementListen = { Init, Add_Listener, Remove_Listener };
+
+

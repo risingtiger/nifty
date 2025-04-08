@@ -19,6 +19,7 @@ pub fn runit(appversion:u32) -> Result<u32> {
     let _          = process_manifest(appversion)?;
     let _          = process_indexhtml(appversion)?;
     let _          = process_sw(appversion)?;
+    let _          = process_thirdparty()?;
     let _          = process_css()?;
     let _          = process_media()?;
     let _          = process_server(appversion)?;
@@ -75,6 +76,23 @@ fn process_sw(appversion:u32) -> Result<()> {
     let sw_str       = sw_content.replace("cacheV__0__", format!("cacheV__{}__", appversion).as_str());
 
     fs::write(&sw_out_str, &sw_str)?;
+
+    Ok(())
+}
+
+
+
+
+fn process_thirdparty() -> Result<()> {
+
+    let in_path     = pathp(PathE::ClientOutputDev, "thirdparty/");
+    let out_path    = pathp(PathE::ClientOutputDist, "thirdparty/");
+
+    let in_instance_path     = pathp(PathE::InstanceClientOutputDev, "thirdparty/");
+    let out_instance_path    = pathp(PathE::InstanceClientOutputDist, "thirdparty/");
+
+    common_helperfuncs::copy_deep(in_path, out_path, "**/*", "_____").unwrap();
+    common_helperfuncs::copy_deep(in_instance_path, out_instance_path, "**/*", "_____").unwrap();
 
     Ok(())
 }

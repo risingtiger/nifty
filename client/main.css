@@ -12,6 +12,7 @@
 }
 */
 
+
 div,
 span,
 h1,
@@ -60,12 +61,18 @@ header.viewheader {
     height: 34px;
     box-sizing: border-box;
     background: white;
+    justify-content: flex-start;
+    
+    
 
     & .left {
         display: block;
-        width: 21%;
+        width: 42px;
+        padding-left: 2px;
         overflow: hidden;
+        box-sizing: border-box;
         padding-top: 1px;
+		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 
         & span:nth-child(1) {
             display: inline-block;
@@ -88,26 +95,36 @@ header.viewheader {
     }
 
     & .middle {
-        width: 60%;
+        width: 65%;
+        box-sizing: border-box;
+
 
         & h1 {
             font-size: 18px;
             font-weight: bold;
-            text-align: center;
+            text-align: left;
         }
     }
 
     & .right {
         display: block;
         color: var(--actioncolor);
-        width: 20%;
+        width: calc(35% - 42px);
         text-align: right;
         box-sizing: border-box;
-        padding-right: 10px;
+        padding-top: 3px;
 
         & > i {
             font-size: 22px;
+            box-sizing: border-box;
+            padding: 0px 12px 8px 9px;
+            display: inline-block;
+			cursor:pointer;
         }
+
+		& > i:hover {
+			background: var(--background-highlight);
+		}
     }
 }
 
@@ -129,11 +146,14 @@ ul.items {
         border-bottom-width: 0.5px;
         border-bottom-style: solid;
         border-bottom-color: var(--bordercolor);
+		cursor: pointer;
         /*transition: border 0.8s ease-in-out;*/
 
         & > .thumbnail {
             padding-top: 0px;
-            width: 43px;
+            width: 48px;
+            min-width: 48px;
+            box-sizing: border-box;
 
             & img {
                 width: 27px;
@@ -240,20 +260,9 @@ ul.items {
         }
     }
 
-    & li:nth-child(1) {
-        /* border-top: 0.5px solid var(--bordercolor); */
-    }
-
-    & li:not(.active):hover {
-        cursor: pointer;
-        background-color: #f9f9f9;
-        background-color: var(--background-highlight);
-
-        & > h5 {
-            /*text-decoration: underline;*/
-        }
-        /*background-color: var(--background-highlight);*/
-    }
+	& li:hover {
+		background: var(--background-highlight);
+	}
 }
 
 dl.define {
@@ -343,6 +352,7 @@ span.justinput.search {
         border-radius: 25px;
         border: none;
         background: #e7f4f3;
+		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     }
     & > i {
         color: #a1a1a1;
@@ -357,12 +367,6 @@ dialog::backdrop {
 }
 
 /*
-
-
-
-
-
-
     & select, select.form-control {
         appearance: none;
         font-weight: 900;
@@ -399,92 +403,118 @@ i[class*=" icon-"]:before {
     -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-arrowright1:before {
+
+
+.icon-tripledot:before {
     content: "\f101";
 }
-
-.icon-arrowleft1:before {
+.icon-copy:before {
     content: "\f102";
 }
-
-.icon-arrowright2:before {
+.icon-save:before {
     content: "\f103";
 }
-
-.icon-checkcircle:before {
+.icon-burger:before {
     content: "\f104";
 }
-
-.icon-edit1:before {
+.icon-add:before {
     content: "\f105";
 }
-
-.icon-edit2:before {
+.icon-list:before {
     content: "\f106";
 }
-
-.icon-tune:before {
+.icon-piggy:before {
     content: "\f107";
 }
-
-.icon-search:before {
+.icon-bucket:before {
     content: "\f108";
 }
-
-.icon-refresh:before {
+.icon-stopwatch:before {
     content: "\f109";
 }
-
-.icon-location:before {
+.icon-pressure:before {
     content: "\f10a";
 }
-
-.icon-graph:before {
+.icon-meter:before {
     content: "\f10b";
 }
-
 .icon-info:before {
     content: "\f10c";
 }
-
-.icon-meter:before {
+.icon-graph:before {
     content: "\f10d";
 }
-
-.icon-pressure:before {
+.icon-location:before {
     content: "\f10e";
 }
-
-.icon-stopwatch:before {
+.icon-refresh:before {
     content: "\f10f";
 }
-
-.icon-bucket:before {
+.icon-search:before {
     content: "\f110";
 }
-
-.icon-piggy:before {
+.icon-tune:before {
     content: "\f111";
 }
-
-.icon-list:before {
+.icon-edit2:before {
     content: "\f112";
 }
-
-.icon-add:before {
+.icon-edit1:before {
     content: "\f113";
 }
-
-.icon-burger:before {
+.icon-checkcircle:before {
     content: "\f114";
 }
-
-.icon-save:before {
+.icon-arrowright2:before {
     content: "\f115";
 }
+.icon-arrowleft1:before {
+    content: "\f116";
+}
+.icon-arrowright1:before {
+    content: "\f117";
+}
+
+
+
+
+
+
+
+
+
 
 @media only screen and (max-device-width: 767px) {
+
+	header.viewheader {
+		padding-top: 0px;
+		height: 26px;
+		
+		& .left {
+			padding-top: 0px;
+		}
+
+		& .right {
+			padding-top: 0;
+
+			& > i {
+				padding-right: 15px;
+			}
+		}
+	}
 }
+
+
+
+
+
+
+
+
 
 @media only screen and (min-device-width: 768px) {
 }
+
+
+
+

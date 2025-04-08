@@ -181,7 +181,7 @@ async function firestore_retrieve(req:any, res:any) {
     if (! await validate_request(res, req)) return 
 
     const r = await Firestore.Retrieve(db, req.body.paths, req.body.opts)
-	if (r === null) {  res.status(200).send(null); return }
+	if (r === null) {  res.status(200).send({ok:false}); return }
 
 	
     const jsoned = JSON.stringify(r)
@@ -204,10 +204,12 @@ async function firestore_add(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const sse_id = req.headers['sse-id']
-    const r = await Firestore.Add(db, SSE, req.body.path, req.body.data, sse_id)
+    const sse_id = req.headers['sse_id'] || null
+	const id = req.body.id
+	const ts = req.body.ts
+    const r = await Firestore.Add(db, SSE, req.body.path, req.body.data, id, ts, sse_id)
 
-	res.status(200).send(r)
+	res.status(200).send(JSON.stringify({ok: !r ? false : true}))
 }
 
 
@@ -217,9 +219,15 @@ async function firestore_patch(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const r = await Firestore.Patch(db, SSE, req.body.path, req.body.data)
+	const sse_id = req.headers['sse_id'] || null
+	const path = req.body.path
+	const data = req.body.data
+	const oldts = req.body.oldts
+	const newts = req.body.newts
 
-    res.status(200).send(r)
+    const r = await Firestore.Patch(db, SSE, path, data, oldts, newts, sse_id)
+
+	res.status(200).send(JSON.stringify({ok: !r ? false : true}))
 }
 
 
@@ -229,9 +237,10 @@ async function firestore_delete(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const r = await Firestore.Delete(db, SSE, req.body.path)
+	const sse_id = req.headers['sse_id'] || null
+    const r = await Firestore.Delete(db, SSE, req.body.path, sse_id)
 
-    res.status(200).send(r)
+	res.status(200).send(JSON.stringify({ok: !r ? false : true}))
 }
 
 
@@ -241,9 +250,10 @@ async function firestore_get_batch(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-    const results = await Firestore.GetBatch(db, req.body.paths, req.body.tses, req.body.runid)
+    const r = await Firestore.GetBatch(db, req.body.paths, req.body.tses, req.body.runid)
+	if (!r) {  res.status(200).send({ok:false}); return }
 
-    const jsoned = JSON.stringify(results)
+    const jsoned = JSON.stringify(r)
     zlib.brotliCompress(jsoned, {
         params: {
             [zlib.constants.BROTLI_PARAM_QUALITY]: 4,

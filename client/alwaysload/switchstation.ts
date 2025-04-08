@@ -1,6 +1,6 @@
 
 
-import { $NT, GenericRowT, LazyLoadT, URIDetailT, LoggerSubjectE } from  "./../defs.js" 
+import { $NT, GenericRowT, LazyLoadT, LoggerSubjectE } from  "./../defs.js" 
 import { str, num } from  "../../defs_server_symlink.js" 
 import { Run as LazyLoadRun } from './lazyload.js'
 import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged } from "./cmech.js"
@@ -16,15 +16,24 @@ type Route = {
 
 let isSwipeBackGesture   = false;
 let _routes:Array<Route> = [];
+let db:IDBDatabase|null  = null;
+
+let _localdb_objectstores:any[] = [] 
+let _db_name = ""
+let _db_version = 0
 
 
 
+const Init = async (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, db_version: num)=> {
 
-const Init = async ()=> {
+	// will probably completely remove this from switchstation
+	_localdb_objectstores = localdb_objectstores
+	_db_name              = db_name
+	_db_version           = db_version
 
-	const pathname     = window.location.pathname.slice(3)
-    const searchParams = window.location.search ? window.location.search : '';
-    const initialPath  = window.location.pathname + searchParams;
+	const pathname        = window.location.pathname.slice(3)
+    const searchParams    = window.location.search ? window.location.search : '';
+    const initialPath     = window.location.pathname + searchParams;
 
     if (!history.state || history.state.index === undefined) {
 		await routeChanged(pathname, 'firstload');
@@ -32,6 +41,8 @@ const Init = async ()=> {
     } else {
 		await routeChanged(pathname, 'firstload');
     }
+
+
 
 
 	window.addEventListener("touchstart", (e: TouchEvent) => {
@@ -58,7 +69,6 @@ const Init = async ()=> {
 
 
 
-
 const AddRoute = (lazyload_view:LazyLoadT)=> {
 	const {regex, paramnames: pathparams_propnames} = RegExParams(lazyload_view.urlmatch!)
 	_routes.push({ lazyload_view, path_regex: regex, pathparams_propnames })
@@ -68,11 +78,14 @@ const AddRoute = (lazyload_view:LazyLoadT)=> {
 
 
 async function NavigateTo(newPath: string) {
+
     const r = await routeChanged(newPath, 'forward');
 	if (r === null) { 
-		$N.ToastShow("Couldnt navigate to page", 4, 5000000)
+		$N.ToastShow("Network down. Couldnt navigate to page", 4, 5000000)
 		return; 
 	}
+
+	newPath = "/v/" + newPath
 
     history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
 }
@@ -102,6 +115,8 @@ async function NavigateBack(opts:{ default:str}) {
 
 
 async function NavigateToSearchParams(newsearchparams:GenericRowT) {
+
+	//TODO: There be a problem. Navigating forward soley on searchparams works great. But the moment the user hits back in the browser all be cotton drenched tar
 
 	const searchparams = new URLSearchParams(window.location.search);
 	Object.entries(newsearchparams).forEach(([key, value]) => {
@@ -138,7 +153,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
-			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`)
+			$N.LocalDBSync.ClearAllObjectStores()
+			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`, "")
 			res(null);
 			return;
 		}
@@ -153,6 +169,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
+			$N.LocalDBSync.ClearAllObjectStores()
+			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`, "")
 			res(null);
 			return;
 		}
@@ -198,7 +216,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 			const loadresult = await routeload(routeindex, path, urlmatches, "afterbegin");
 
             if (loadresult === "failed") {
-				$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`)
+				$N.LocalDBSync.ClearAllObjectStores()
+				$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`, "")
 				res(null);
 				return;
             }
@@ -227,7 +246,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
 
 
-const routeload = (routeindex:num, uri:str, urlmatches:str[], views_attach_point:'beforeend'|'afterbegin') => new Promise<string>( async (res, _rej) => {
+
+const routeload = (routeindex:num, _uri:str, urlmatches:str[], views_attach_point:'beforeend'|'afterbegin') => new Promise<string>( async (res, _rej) => {
 	 
 	const route           = _routes[routeindex];
 
@@ -237,6 +257,46 @@ const routeload = (routeindex:num, uri:str, urlmatches:str[], views_attach_point
 	const localdb_preload = route.lazyload_view.localdb_preload
 
 	const promises:Promise<any>[] = []
+
+	let loady_a:(pp:GenericRowT, sp:URLSearchParams) => Promise<null|Map<str,GenericRowT[]>> = home_loady_a
+	let loady_b:(pp:GenericRowT, osp:URLSearchParams, nsp:URLSearchParams) => Promise<Map<str,GenericRowT[]>|null> = home_loady_b
+
+	switch (route.lazyload_view.name) {
+		case "home":
+			loady_a = home_loady_a
+			loady_b = home_loady_b
+			break;
+
+		/* XEN */
+		case "finance":
+			loady_a = finance_loady_a
+			loady_b = finance_loady_b
+			break;
+		case "addtr":
+			loady_a = addtr_loady_a
+			loady_b = addtr_loady_b
+			break;
+		/* END XEN */
+
+
+		/* PWT */
+		case "machines":
+			loady_a = machines_loady_a
+			loady_b = machines_loady_b
+			break;
+		case "machine":
+			loady_a = machine_loady_a
+			loady_b = machine_loady_b
+			break;
+		case "machinetelemetry":
+			loady_a = machinetelemetry_loady_a
+			loady_b = machinetelemetry_loady_b
+			break;
+		/* END PWT */
+
+		default:
+			break;
+	}
 
 	promises.push( LazyLoadRun([route.lazyload_view]) )
 	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload, views_attach_point, loady_a, loady_b) )
@@ -283,6 +343,24 @@ if (!(window as any).$N) {   (window as any).$N = {};   }
 
 
 
+const home_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<null|Map<str,GenericRowT[]>>(async (res, _rej) => {
+	const a = new Map<str,GenericRowT[]>()
+	a.set("testy1", [{testy1:1}, {testy1:2}])
+	a.set("testy2", [{testy2:10}, {testy2:20}])
+	res(a)	
+})
+
+const home_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
+	const a = new Map<str,GenericRowT[]>()
+	a.set("b_testy1", [{testy1:1}, {testy1:2}])
+	a.set("b_testy2", [{testy2:10}, {testy2:20}])
+	res(a)
+})
+
+
+
+
+/* XEN */
 const finance_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<null|Map<str,GenericRowT[]>>(async (res, _rej) => {
 	const a = new Map<str,GenericRowT[]>()
 	a.set("testy1", [{testy1:1}, {testy1:2}])
@@ -290,11 +368,10 @@ const finance_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams
 	res(a)	
 })
 
-const finance_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>>(async (res, _rej) => {
-	const a = new Map<str,GenericRowT[]>()
-	a.set("b_testy1", [{testy1:1}, {testy1:2}])
-	a.set("b_testy2", [{testy2:10}, {testy2:20}])
-	res(a)
+const finance_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
+	const objectstores = await indexeddb_graball(["areas","cats","sources","tags", "payments", "transactions", "monthsnapshots"])
+	if (objectstores === null) { res(null); return; }
+	res(objectstores)
 })
 
 
@@ -302,21 +379,76 @@ const finance_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchPa
 
 const addtr_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<null|Map<str,GenericRowT[]>>(async (res, _rej) => {
 	const a = new Map<str,GenericRowT[]>()
-
-	const ynabraw = await $N.FetchLassie('/api/xen/finance/get_ynab_raw_transactions', {})
-	if (ynabraw === null) { res(null); return; }
-
-	a.set("ynabraw", ynabraw as GenericRowT[])
-
 	res(a)	
 })
 
-const addtr_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>>(async (res, _rej) => {
-	const a = new Map<str,GenericRowT[]>()
-	a.set("b_testy1", [{testy1:1}, {testy1:2}])
-	a.set("b_testy2", [{testy2:10}, {testy2:20}])
-	res(a)
+const addtr_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
+	const objectstores = await indexeddb_graball(["areas","cats","sources","tags"])
+	//TODO: I could be trying to get object stores that dont exist. A scenario is that a previous view could, by chance, have preloaded the object stores so in testing its all hunky dory and then shit itself in production. indexeddb_graball needs to be passed this views localdb_preload to check and make sure I don't shoot myself
+	if (objectstores === null) { res(null); return; }
+	res(objectstores)
 })
+/* END XEN */
+
+
+
+
+/* PWT */
+const machines_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<null|Map<str,GenericRowT[]>>(async (res, _rej) => {
+	const a = new Map<str,GenericRowT[]>()
+	res(a)	
+})
+
+const machines_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
+	const objectstores = await indexeddb_graball(["machines"])
+	//TODO: I could be trying to get object stores that dont exist. A scenario is that a previous view could, by chance, have preloaded the object stores so in testing its all hunky dory and then shit itself in production. indexeddb_graball needs to be passed this views localdb_preload to check and make sure I don't shoot myself
+	if (objectstores === null) { res(null); return; }
+	res(objectstores)
+})
+
+
+const machine_loady_a = (pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<null|Map<str,GenericRowT[]>>(async (res, _rej) => {
+
+	const a = new Map<str, GenericRowT[]>()
+
+	const paths    = [`machines/${ pathparams.id }/statuses2`]
+	const opts     = [{ order_by: "ts,desc", limit: 200 }]
+	
+	const httpopts = { method: "POST", body: JSON.stringify({ paths, opts })}
+
+	const r        = await $N.FetchLassie('/api/firestore_retrieve', httpopts, {}) as Promise<Array<object[]>|null>
+	if (r === null) { a.set(paths[0], []); res(a); return; } 
+
+	a.set(paths[0], r[0]) 
+	res(a)	
+})
+
+const machine_loady_b = (pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
+	const objectstores = await indexeddb_graball(["machines"]) as Map<str,GenericRowT[]>
+	const machine = objectstores.get("machines")!.find(m=> m.id === pathparams.id)
+	if (objectstores === null) { res(null); return; }
+	const n = new Map()
+	n.set("machines", [machine])
+	res(n)
+})
+
+
+const machinetelemetry_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<null|Map<str,GenericRowT[]>>(async (res, _rej) => {
+
+	const a = new Map<str, GenericRowT[]>()
+	a.set("none", []) 
+	res(a)	
+})
+
+const machinetelemetry_loady_b = (pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
+	const objectstores = await indexeddb_graball(["machines"]) as Map<str,GenericRowT[]>
+	const machine = objectstores.get("machines")!.find(m=> m.id === pathparams.id)
+	if (objectstores === null) { res(null); return; }
+	const n = new Map()
+	n.set("machines", [machine])
+	res(n)
+})
+/* END PWT */
 
 
 
@@ -332,11 +464,15 @@ const getAllPromise = (objectStore:IDBObjectStore) => new Promise((res, rej) => 
 
 const indexeddb_graball = (objectstore_names:str[]) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
 
-	const db = await openindexeddb()
+	if (!db) db = await openindexeddb()
+
+	const t1 = performance.now()
+
+	if (db === null) { res(null); return; }
 
 	const returns:Map<str,GenericRowT[]> = new Map<str,GenericRowT[]>() // key being the objectstore name
 
-	const transaction             = db.transaction(objectstore_names, 'readonly');
+	const transaction             = ( db as IDBDatabase ).transaction(objectstore_names, 'readonly');
 
 	const promises:Promise<any>[] = []
 
@@ -345,137 +481,58 @@ const indexeddb_graball = (objectstore_names:str[]) => new Promise<Map<str,Gener
 		promises.push(getAllPromise(objectstore))
 	}
 
-	const r = await Promise.all(promises)
-		.catch((_e) => { 
-			res(null); 
-			return null; 
-		})
+	const r = await Promise.all(promises).catch(_ => null);
+	if (r === null) { res(null); return; }
 
-	if (r === null) return; // Early return if Promise.all failed
-
-	const transaction_store       = transaction.objectStore('transactions');
-	const cat_store               = transaction.objectStore('cats');
-	const source_store            = transaction.objectStore('sources');
-
-	const t1 = performance.now()
-
-	const cats_request    = cat_store.getAll();
-	const sources_request = source_store.getAll();
-	
-	const catsPromise = new Promise<any[]>((resolveC, rejectC) => {
-		cats_request.onsuccess = () => {
-			resolveC(cats_request.result);
-		};
-		cats_request.onerror = () => {
-			rejectC('Error fetching cats');
-		};
-	});
-
-	const sourcesPromise = new Promise<any[]>((resolveC, rejectC) => {
-		sources_request.onsuccess = () => {
-			resolveC(sources_request.result);
-		};
-		sources_request.onerror = () => {
-			rejectC('Error fetching sources');
-		};
-	});
-
-	let count = 0;
-	transaction_store.openCursor().onsuccess = (event) => {
-		const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-		
-		if (cursor && count < 100) {
-			const transaction = cursor.value;
-			transactions.push(transaction);
-			count++;
-			cursor.continue();
-		} else {
-
-			Promise.all([catsPromise, sourcesPromise]).then((results) => {
-				const t2 = performance.now()
-				console.log("100testdb_a time: " + (t2 - t1));
-				cats = results[0];
-				sources = results[1];
-				resolve({transactions, cats, sources});
-			}).catch(error => {
-				console.error(error);
-				reject(error);
-			});
-		}
+	for (let i=0; i<r.length; i++) {
+		returns.set(objectstore_names[i], r[i])
 	}
+
+	const t2 = performance.now()
+	transaction.onerror = (_event:any) => res(null);
+
+	console.log("IndexedDB Grab All took " + (t2 - t1) + " milliseconds.")
+	res(returns)
 })
 
 
+const openindexeddb = () => new Promise<IDBDatabase|null>(async (res,_rej)=> {
 
+	/*
+	let databasename = "";
 
-const testdb_b = () => new Promise(async (resolve, reject) => {
-
-	const db = await openindexeddb()
-
-	let  transactions: any[]      = [];
-	let  cats:any[]               = [];
-	let  sources:any[]            = [];
-	let  cat_ids:Set<string>      = new Set<string>();
-	let  source_ids:Set<string>   = new Set<string>();
-        
-	const transaction             = db.transaction(['transactions', 'cats','sources'], 'readonly');
-	const transaction_store       = transaction.objectStore('transactions');
-	const cat_store               = transaction.objectStore('cats');
-	const source_store            = transaction.objectStore('sources');
-
-	const t1 = performance.now()
-
-	transaction_store.openCursor().onsuccess = (event) => {
-		const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-		
-		if (cursor) {
-			const transaction = cursor.value;
-			transactions.push(transaction);
-			
-			// Process cat if not already processed
-			if (!cat_ids.has(transaction.cat)) {
-				const cat_request = cat_store.get(transaction.cat);
-				
-				cat_request.onsuccess = () => {
-					cats.push(cat_request.result)	
-					cat_ids.add(transaction.cat)
-				};
-				
-				cat_request.onerror = () => {
-					console.error('Error retrieving cat:', cat_request.error);
-				};
-			}
-			
-			// Process source if not already processed
-			if (!source_ids.has(transaction.source)) {
-				const source_request = source_store.get(transaction.source);
-				
-				source_request.onsuccess = () => {
-					sources.push(source_request.result)	
-					source_ids.add(transaction.source)
-				};
-				
-				source_request.onerror = () => {
-					console.error('Error retrieving source:', source_request.error);
-				};
-			}
-
-			cursor.continue();
-		} else {
-			const t2 = performance.now()
-			console.log("-testdb_b time: " + (t2 - t1));
-
-			resolve({transactions, cats, sources});
-		}
+	if (
+		( window.location.hostname === "localhost" && window.location.port === "3003" ) ||
+		( window.location.hostname.includes("purewater") )
+	) {
+		databasename = "purewatertech";
 	}
-})
+
+	if (
+		( window.location.hostname === "localhost" && window.location.port === "3008" ) ||
+		( window.location.hostname.includes("xen") )
+	) {
+		databasename = "xenition";
+	}
+
+	let dbconnect = indexedDB.open(databasename, 9)
+
+	dbconnect.onerror = (event:any) => { 
+		console.log("IndexedDB Error - " + event.target.errorCode)
+		res(null)
+	}
+
+	dbconnect.onsuccess = async (event: any) => {
+		event.target.result.onerror = (event:any) => {
+			console.log("IndexedDB Error - " + event.target.errorCode)
+		}
+		const db = event.target.result
+		res(db)
+	}
+	*/
 
 
-
-
-const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
-
-	let dbconnect = indexedDB.open('xenition', 4)
+	let dbconnect = indexedDB.open(_db_name, _db_version)
 
 	dbconnect.onerror = (event:any) => { 
 		console.log("IndexedDB Error - " + event.target.errorCode)
@@ -487,6 +544,20 @@ const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
 		}
 		const db = event.target.result
 		res(db)
+	}
+
+	dbconnect.onupgradeneeded = (event: any) => {
+		const db = event.target.result
+		_localdb_objectstores.forEach((dc) => {
+			if (!db.objectStoreNames.contains(dc.name)) {
+
+				const objectStore = db.createObjectStore(dc.name, { keyPath: 'id' });
+                
+				(dc.indexes || []).forEach(( prop:any )=> { // could be empty and wont create index
+					objectStore.createIndex(prop, prop, { unique: false });
+				})
+			}
+		})
 	}
 })
 

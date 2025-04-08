@@ -1,7 +1,7 @@
 
 export type str = string; export type num = number; export type bool = boolean;
 
-export const enum SSETriggersE { FIRESTORE, PLACEHOLDER }
+export const enum SSETriggersE { FIRESTORE, FIRESTORE_DOC_ADD, FIRESTORE_DOC_PATCH, FIRESTORE_DOC_DELETE, FIRESTORE_COLLECTION, CUSTOM }
 
 export type ServerMainsT = {
 	app:any, 

@@ -70,9 +70,9 @@ pub fn run_swc(src: PathBuf, dest: PathBuf, glob_files: Vec<&str>) -> Result<()>
 
     let src_folder_name         = src.file_name().expect("file name error").to_str().expect("to str error");
     let src_parent_folder_str   = src.parent().expect("parent error").to_str().expect("to str error");
-    let dest_path_trimmed     = dest.to_string_lossy().trim_end_matches("/").to_string();
-    let swrc_path             = pathp(PathE::MainSrc,".swcrc");
-    let swrc_path             = swrc_path.to_str().expect("to str error");
+    let dest_path_trimmed       = dest.to_string_lossy().trim_end_matches("/").to_string();
+    let swrc_path               = pathp(PathE::MainSrc,".swcrc");
+    let swrc_path               = swrc_path.to_str().expect("to str error");
 
     let mut commandargs:Vec<String> = vec![
         String::from("swc"), 

@@ -3,25 +3,87 @@
 import { bool, num, str, SSETriggersE } from './defs_server_symlink.js'
 
 
+export type GenericRowT = { [key:string]: any }
+
+
 export type LazyLoadT = {
     type: "view" | "component" | "thirdparty" | "lib",
-    urlmatch: string|null,
+    urlmatch?: string,
     name: string,
     is_instance: bool,
     dependencies: { type: string, name: string, is_instance?: bool|null }[],
-    auth: string[]
+    auth: string[],
+	localdb_preload?: str[]
 }
 
 
 export type FetchLassieHttpOptsT = {
-	method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+	method?: string,
 	headers?: any,
-	body?: string | null
+	body?: string | null,
 }
 export type FetchLassieOptsT = {
-	isbackground?: bool,
-	timeout?: num,
+	retries?: num,
+	background?: boolean,
+	animate?: boolean,
+	exitdelay?: number
 }
+export type FetchResultT = number | string | boolean | object | Array<object|number|string|boolean> | null
+
+
+/*
+export type FirestoreOptsT = {
+    limit?: number
+    order_by?: string,
+	ts?: number|null
+}
+export type FirestoreLoadSpecT    = Map<string, { name:string, opts?:FirestoreOptsT, els?:str[] }>
+export type FirestoreFetchResultT = Map<string, Array<object>>|null
+*/
+
+
+
+export const enum EngagementListenerTypeT {
+    visible = "visible",
+    hidden = "hidden",
+	resize = "resize",
+}
+
+
+export type EngagementListenerT = {
+	el: HTMLElement,
+    name: string,
+    type: EngagementListenerTypeT,
+	priority: number,
+    callback:()=>void
+}
+
+
+export const enum CMechLoadStateE {
+	INITIAL, SEARCHCHANGED, DATACHANGED, VISIBLED, LATELOADED
+}
+export type CMechViewT = {
+	m: {[key:string]:any},
+	a: {[key:string]:any},
+	s: {[key:string]:any},
+	subelshldr?:HTMLElement[]
+	opts?: {kdonvisibled?:boolean, kdonlateloaded?:boolean}
+	disconnectedCallback:()=>void,
+	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
+	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE)=>void,
+	sc:(state_changes?:any)=>void,
+}
+export type CMechViewPartT = {
+	disconnectedCallback:()=>void,
+	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
+	hostview?:CMechViewT,
+	m: {[key:string]:any},
+	a: {[key:string]:any},
+	s: {[key:string]:any},
+	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE)=>void,
+	sc:(state_changes?:any)=>void,
+}
+export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
 
 export const enum LoggerTypeE {
@@ -33,6 +95,10 @@ export const enum LoggerTypeE {
 
 
 export const enum LoggerSubjectE {
+	switch_station_route_load_fail = "srf",
+	fetch_lassie_timeout = "flt",
+	fetch_lassie_error = "fle",
+	indexeddb_error = "ixe",
 	sse_listener_added = "ssa",
 	sse_listener_removed = "ssd",
 	sse_listener_connected = "ssc",
@@ -41,6 +107,7 @@ export const enum LoggerSubjectE {
     sse_received_firestore = "ssf",
 	sw_fetch_not_authorized = "sw4",
 	sw_fetch_error = "swe",
+	app_exit = "ape",
 }
 
 
@@ -67,56 +134,43 @@ export type DataSyncStoreMetaT = {
 
 
 
-export type IndexedDBStoreMetaT = {
-	name: str,
-	url: str
-}
 
 
 export type $NT = {
 	SSEvents: {
-		Init: () => void,
 		ForceStop: () => void,
-		Add_Listener: (el:HTMLElement, listener_name:string, eventname:SSETriggersE[], callback_func:any) => void
-		Remove_Listener: (name:string)=>void
+		WaitTilConnectedOrTimeout: () => Promise<boolean>,
+		Add_Listener: (el:HTMLElement, listener_name:string, eventname:SSETriggersE[], priority:number|null, callback_func:any) => void
+		Remove_Listener: (el:HTMLElement, name:string)=>void
 	},
-
-	IndexedDB: {
-		Init: (indexeddb_store_names:IndexedDBStoreMetaT[], firebase_project:string, dbversion:number) => Promise<void>,
-		GetAll: (store_names: str[]) => Promise<Map<string, any[]>>
-	}
-
-	DataSync: {
-		Init: (indexeddb_stores: IndexedDBStoreMetaT[], dbname:str, dbversion:number) => void
-		Subscribe: (el:HTMLElement, store_names:str[], callback:(data:any)=>void) => void
-	}
-
-	EngagementListen: {
-		Init: () => void
-	}
-
-	LazyLoad: {
-		Init: (lazyloads_:LazyLoadT[]) => void
-	}
-
-	SwitchStation: {
-		InitInterval: () => void,
-		AddRoute: (lazyload_view:LazyLoadT) => void
-	}
-
-	Firestore: {
-		Retrieve: (path:string|string[], opts?:any) => Promise<any>,
-		Patch: (path:string, opts?:any) => Promise<any>,
-		Add: (path:string, newdocs:any[]) => Promise<any>,
-	}
 
 	InfluxDB: {
 		Retrieve_Series: (bucket:str, begins:number[], ends:number[], msrs:str[], fields:str[], tags:str[], intrv:number[], priors:str[]) => Promise<any>
 	}
 
-	FetchLassie: (url:string, http_optsP?:FetchLassieHttpOptsT|undefined, opts?:FetchLassieOptsT|null|undefined) => Promise<any>
+	EngagementListen: {
+		Init: () => void,
+		Add_Listener: (el:HTMLElement, name:string, type:EngagementListenerTypeT, priority:number|null, callback:()=>void) => void
+		Remove_Listener: (name:string, type:EngagementListenerTypeT) => void
+	}
 
-	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
+	LocalDBSync: {
+		Add:   (path:string, newdocs:any[]) => Promise<any>,
+		Patch: (path:string, data:GenericRowT) => Promise<any>,
+		Delete:(path:string, id:string) => Promise<any>,
+		ClearAllObjectStores: () => Promise<num>,
+	}
+
+	CMech: {
+		ViewConnectedCallback: (component:HTMLElement & CMechViewT, opts?: {kdonvisibled?:boolean, kdonlateloaded?:boolean}) => Promise<void>
+		ViewPartConnectedCallback: (component:HTMLElement & CMechViewPartT) => Promise<void>
+		AttributeChangedCallback: (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => void
+		ViewDisconnectedCallback: (component:HTMLElement) => void
+		ViewPartDisconnectedCallback: (component:HTMLElement) => void,
+		GetViewParams: (component:HTMLElement) => { path:GenericRowT, search:GenericRowT }
+	}
+
+	FetchLassie: (url:string, http_optsP?:FetchLassieHttpOptsT|undefined|null, opts?:FetchLassieOptsT|null|undefined) => Promise<FetchResultT>
 
 	Logger: {
 		Log: (type:LoggerTypeE, subject:LoggerSubjectE, message:str) => void,
@@ -126,6 +180,16 @@ export type $NT = {
 
 	Utils: {
 		CSV_Download: (csvstr:string, filename:string) => void,
+		resolve_object_references: (list: {[key: str]: any}[], object_stores: Map<string, {[key: str]: any}[]>) => {[key: str]: any}[]
+	}
+
+	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
+	Unrecoverable: (subj:str, msg: str, btnmsg:string, redirecto:string, logerrmsg:string) => void
+
+	SwitchStation: {
+		NavigateTo: (newPath: string) => void,
+		NavigateBack: (opts:{default:str}) => void,
+		NavigateToSearchParams: (newsearchparams:GenericRowT) => void
 	}
 }
  
@@ -138,7 +202,7 @@ export type INSTANCE_T = {
 			identity_platform_key: string,
 			dbversion: number,
 		},
-		indexeddb_stores: IndexedDBStoreMetaT[],
+		localdb_objectstores: {name:str,indexes?:str[]}[],
 	},
 	LAZYLOADS: LazyLoadT[],
 }

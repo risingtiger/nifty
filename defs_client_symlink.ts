@@ -1,0 +1,1 @@
+/Users/dave/Code/nifty/client/defs.ts

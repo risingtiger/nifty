@@ -4,7 +4,7 @@
     position: relative;
     font-weight: 600;
     display: inline-block;
-    padding: 9px 15px 0px 15px;
+    padding: 8px 15px 0px 15px;
     border-radius: 22px;
     box-sizing: border-box;
     height: 36px;
@@ -23,10 +23,9 @@
 }
 
 :host(.primary) {
-    border: none;
+    border-color: white;
     background-color: var(--actioncolor);
 }
-
 
 :host(.primary) #slotwrap {
     color: white;

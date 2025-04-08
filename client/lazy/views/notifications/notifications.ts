@@ -8,27 +8,28 @@
 
 
 import { bool } from '../../../defs_server_symlink.js'
-
+import { $NT } from "../../../defs.js"
 
 
 declare var render: any;
 declare var html: any;
-declare var FetchLassie: any;
+declare var $N: $NT;
 
 
 
 
 const firebaseConfig = {
-    apiKey: "AIzaSyAx0ix0_Yz6RN6_-5kiwU-_uWm4sErpXdw",
-    authDomain: "purewatertech.firebaseapp.com",
-    databaseURL: "https://purewatertech.firebaseio.com",
-    projectId: "purewatertech",
-    storageBucket: "purewatertech.appspot.com",
-    messagingSenderId: "805737116651",
-    appId: "1:805737116651:web:9baada48dc65d9b72c9fae",
-    measurementId: "G-5VBS981F9K",
-    vapidKey: "BCj4QZByQuDUdWC5ai7S1m5sxAdyVwVu1z4ozyC0EPC_GOKdJkVDCouR4mmmxtReHL8txGHPFV4Z41cAMmgecSg"
-}
+  apiKey: "AIzaSyAx0ix0_Yz6RN6_-5kiwU-_uWm4sErpXdw",
+  authDomain: "purewatertech.firebaseapp.com",
+  databaseURL: "https://purewatertech.firebaseio.com",
+  projectId: "purewatertech",
+  storageBucket: "purewatertech.firebasestorage.app",
+  messagingSenderId: "805737116651",
+  appId: "1:805737116651:web:9baada48dc65d9b72c9fae",
+  measurementId: "G-5VBS981F9K"
+};
+
+const vapidKey = "BF6MOQVRtD-cw7q34V_3x2xGdnEyym2wNj0wS_qJQtnRnZHagqxV1vVpfVKX6Km-qkhCn4IIS_Pt4mMfqPxyd68"
 
 
 
@@ -41,18 +42,39 @@ firebase_service.messaging = {}
 
 
 
+type AttributesT = {
+    propa: string,
+}
 
-type State = {
+type ModelT = {
+	propa: string,
+}
+type StateT = {
     is_subscribed: bool,
 }
 
 
 
+
+const ATTRIBUTES:AttributesT = { propa: "" }
+
+
+
+
 class VNotifications extends HTMLElement {
 
-    $:any 
-    s:State
+	m:ModelT = { propa: "" };
+	a:AttributesT = { ...ATTRIBUTES };
+    s:StateT = {
+		is_subscribed: false,
+	}
+
     shadow:ShadowRoot
+
+
+
+
+	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
 
 
@@ -60,10 +82,6 @@ class VNotifications extends HTMLElement {
     constructor() {   
 
         super(); 
-
-        this.s = {
-            is_subscribed: false,
-        }
 
         this.shadow = this.attachShadow({mode: 'open'});
     }
@@ -73,23 +91,39 @@ class VNotifications extends HTMLElement {
 
     async connectedCallback() {   
 
+		await $N.CMech.ViewConnectedCallback(this)
+		this.dispatchEvent(new Event('hydrated'));
+
         await loadfirebase()
 
         navigator.serviceWorker.ready
-        .then((registration) => {
 
-            return registration.pushManager.getSubscription()
+			.then((registration) => {
+				return registration.pushManager.getSubscription()
+			})
 
-        }).then(subscription => {
-            if (subscription) {
-                this.s.is_subscribed = true
-            } else {
-                this.s.is_subscribed = false
-            }
-            this.sc()
-            setTimeout(()=> {   this.dispatchEvent(new Event('hydrated'))   }, 100)
+			.then(subscription => {
+				if (subscription) {
+					this.s.is_subscribed = true
+				} else {
+					this.s.is_subscribed = false
+				}
+				this.sc()
+				setTimeout(()=> {   this.dispatchEvent(new Event('hydrated'))   }, 100)
         })
     }
+
+
+
+
+	async attributeChangedCallback(name:string, oldval:string|boolean|number, newval:string|boolean|number) {
+		$N.CMech.AttributeChangedCallback(this,name,oldval,newval);
+	}
+
+
+
+
+	disconnectedCallback() {   $N.CMech.ViewDisconnectedCallback(this);   }
 
 
 
@@ -117,18 +151,18 @@ class VNotifications extends HTMLElement {
 
                 await reg.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(firebaseConfig.vapidKey)
+                    applicationServerKey: urlBase64ToUint8Array(vapidKey)
                 })
 
                 firebase_service.messaging = firebase_service.getMessaging()
 
                 const fcm_token = await firebase_service.getToken(firebase_service.messaging, { 
                     serviceWorkerRegistration: reg,
-                    vapidKey: firebaseConfig.vapidKey 
+                    vapidKey 
                 })
 
                 const user_email = localStorage.getItem('user_email')
-                await FetchLassie('/api/notifications_add_subscription?user_email=' + user_email + '&fcm_token='+fcm_token, {
+                await $N.FetchLassie('/api/notifications_add_subscription?user_email=' + user_email + '&fcm_token='+fcm_token, {
                     method: 'GET',
                     headers: {
                         'Content-type': 'application/json'
@@ -162,7 +196,7 @@ class VNotifications extends HTMLElement {
                   .then(async (_successful) => {
 
                     const user_email = localStorage.getItem('user_email')
-                    await FetchLassie('/api/notifications_remove_subscription?user_email=' + user_email, {
+                    await $N.FetchLassie('/api/notifications_remove_subscription?user_email=' + user_email, {
                         method: 'GET',
                         headers: {
                             'Content-type': 'application/json'
@@ -244,7 +278,7 @@ class VNotifications extends HTMLElement {
 
 
 
-    template = (_s:State) => { return html`{--css--}{--html--}`; }; 
+    template = (_s:StateT	) => { return html`{--css--}{--html--}`; }; 
 
 }
 
@@ -261,13 +295,11 @@ function loadfirebase() {   return new Promise(async (res:any, _rej:any)=> {
     const promises = []
 
     //@ts-ignore
-    promises.push(import ("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js") )
+    promises.push(import ("https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js") )
     //@ts-ignore
-    promises.push(import ("https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js") )
+    promises.push(import ("https://www.gstatic.com/firebasejs/11.2.0/firebase-messaging.js") )
 
     const r:any = await Promise.all(promises)
-
-    console.log(r)
 
     firebase_service.initializeApp = r[0].initializeApp
     firebase_service.getMessaging = r[1].getMessaging

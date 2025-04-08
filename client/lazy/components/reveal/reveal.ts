@@ -148,7 +148,7 @@ class CReveal extends HTMLElement {
 
         const height = this.offsetHeight
 
-        lih5_el!.style.transform = "scale(1.3)"
+        lih5_el!.style.transform = "scale(1.3) translateY(1px)"
 
         this.s.parent.style.boxShadow = "rgba(236, 236, 236,1) 0px 1px 0px inset"
         this.s.parent.style.backgroundColor = "rgba(200, 200, 200, 0.10)"

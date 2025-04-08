@@ -244,15 +244,16 @@ body, td {
 
 .unrecoverable-content {
   background: white;
-  width: 87.5%;
+  width: 88%;
   max-width: 480px;
-  height: 300px;
+  height: 147px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20px;
   text-align: center;
+  border-radius: 4px;
 }
 
 .unrecoverable-content h1 {
@@ -270,3 +271,6 @@ body, td {
   font-size: 16px;
   cursor: pointer;
 }
+
+
+

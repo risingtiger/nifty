@@ -40,23 +40,21 @@ const AddView = (
 	load_b:LoadBFuncT,
 ) => new Promise<num|null>(async (res, _rej)=> {
 
-	const searchparams:GenericRowT = {}
-	for (const [key, value] of searchparams_raw.entries()) searchparams_raw[key] = value
+	const searchparams_genericrowt:GenericRowT = {};
+	for (const [key, value] of searchparams_raw.entries()) { searchparams_genericrowt[key] = value; }
 
 	{
 		const promises:Promise<any>[] = []
 		
 		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
 
-		const searchparams_genericrowt:GenericRowT = {};
-		for (const [key, value] of searchparams_raw.entries()) { searchparams_genericrowt[key] = value; }
 
 		promises.push( localdbsync_promise )
-		promises.push( load_a(pathparams, searchparams_genericrowt) )
+		promises.push( load_a(pathparams, searchparams_raw) )
 
 		promises.push( new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej)=> {
 			await localdbsync_promise
-			const r = await load_b(pathparams, new URLSearchParams, searchparams)
+			const r = await load_b(pathparams, new URLSearchParams, searchparams_raw)
 			res(r);
 		}));
 
@@ -72,7 +70,7 @@ const AddView = (
 	}
 	
 	
-	_searchparams.set(componentname, searchparams)
+	_searchparams.set(componentname, searchparams_genericrowt)
 	_pathparams.set(componentname, pathparams)
 	_load_b_funcs.set(componentname, load_b)
 
@@ -281,7 +279,10 @@ const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise
 
 	//TODO: Either put in load_a_func or figure out why I didn't put it in already 
 
-	const r = await load_b_func(pathparams, oldsearchparams, newsearchparams)
+	const oldsearchparams_urlparams:URLSearchParams = new URLSearchParams()
+	for (const [key, value] of Object.entries(oldsearchparams)) { oldsearchparams_urlparams.append(key, value); }
+
+	const r = await load_b_func(pathparams, oldsearchparams_urlparams, newsearchparams_raw)
 	if (r === null) { res(); return; }
 
 	for (const [path, val] of r.entries())   loadeddata.set(path, val)   

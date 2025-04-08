@@ -90,61 +90,55 @@ class CGraphing extends HTMLElement {
 
 
 
+	async connectedCallback() {   
+
+		this.sc()
+
+		//await new Promise<void>(async res=> setTimeout(()=> res(), 20) )
+
+		await this.setit()
+
+		this.sc()
+
+		this.dispatchEvent(new Event('hydrated'))
+	}
+
+
+
+
     async attributeChangedCallback(name:str, oldValue:str|bool|num, newValue:str|bool|num) {
 
-        if ( name === "runupdate" && newValue !== oldValue) {
-            setTimeout(async ()=>{
-                this.s.bucket = this.getAttribute("bucket") as str
-                this.s.msr = this.getAttribute("measurement") as str
-                this.s.fields = this.getAttribute("fields")!
-                this.s.tags = this.getAttribute("tags")!
-                this.s.type = this.getAttribute("type")!
-                this.s.intrv = Number(this.getAttribute("intrv"))
-                this.s.ppf = Number(this.getAttribute("ppf"))
-                this.s.priors = this.getAttribute("priors")!
-                this.s.ismdn = this.getAttribute("ismdn") === "true" 
-                this.s.lowhigh = this.getAttribute("lowhigh")! 
-                this.s.unitterms = this.getAttribute("unitterms")! 
-                this.s.begin = Number(this.getAttribute("begintime")) 
-                this.s.tmzncy = this.getAttribute("tmzncy")!
+        if ( name === "runupdate" && oldValue !== null) {
 
-                const end = this.s.ismdn ? ( this.s.begin + 86400 ) : this.s.begin + (this.s.intrv * this.s.ppf)
+			await this.setit()
+			this.sc()
 
-                this.sc();
+			// lets take an example. Say, at 2:03am the machine records 10 gallons and then again at 2:46am records 20 gallons. 
+			//   The machine stores those records and then sums them at 3:00am. So now the telemetry's timestamp at 3:00am will show 30 gallons. 
+			//   But those gallons didn't happen at 3:00am. They happened during the preceding hour. 
+			// Now, the problem is that influxdb gets a telemetry point of 30 gallons at 3:00am and is assuming those gallons happened at 3:00am.
+			// If you run a influx query and ask for gallons between 2:00am and 3:00am it actually returns 0 gallons because that timestamp is at 3:00am.
+			// If you ask for gallons between 3:00am and 4:00am it returns 30 gallons which is not correct. 
+			// The problem gets exasperated when you ask influx to aggregate the data into time windows. If you do that it actually aggregates the gallons 
+			// to 4am instead of 3am. So, a reading that occured at 2:03am at the machine actually gets slotted at the 4am aggregated time window frame.
+			// thats why I'm moving the begin and end dates around so the graph will actually show gallons at the 2am x frame, which is 2 frames back from influxdb aggregated time window
+			// kinda funky I know.
 
-                // lets take an example. Say, at 2:03am the machine records 10 gallons and then again at 2:46am records 20 gallons. 
-                //   The machine stores those records and then sums them at 3:00am. So now the telemetry's timestamp at 3:00am will show 30 gallons. 
-                //   But those gallons didn't happen at 3:00am. They happened during the preceding hour. 
-                // Now, the problem is that influxdb gets a telemetry point of 30 gallons at 3:00am and is assuming those gallons happened at 3:00am.
-                // If you run a influx query and ask for gallons between 2:00am and 3:00am it actually returns 0 gallons because that timestamp is at 3:00am.
-                // If you ask for gallons between 3:00am and 4:00am it returns 30 gallons which is not correct. 
-                // The problem gets exasperated when you ask influx to aggregate the data into time windows. If you do that it actually aggregates the gallons 
-                // to 4am instead of 3am. So, a reading that occured at 2:03am at the machine actually gets slotted at the 4am aggregated time window frame.
-                // thats why I'm moving the begin and end dates around so the graph will actually show gallons at the 2am x frame, which is 2 frames back from influxdb aggregated time window
-                // kinda funky I know.
+			//const actual_begin = this.s.begin + this.s.intrv
+			//const actual_end = end + this.s.intrv
+			//const queries_list = await InfluxDB.Retrieve_Series(this.s.bucket, [actual_begin], [actual_end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
 
-                //const actual_begin = this.s.begin + this.s.intrv
-                //const actual_end = end + this.s.intrv
-                //const queries_list = await InfluxDB.Retrieve_Series(this.s.bucket, [actual_begin], [actual_end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
+			/*
+			queries_list[0].forEach((q:any)=> {
+				q.points.forEach((p:any)=> {
+					const s = Math.floor(p.date.getTime() / 1000 - (this.s.intrv * 2))
+					p.date = new Date(s * 1000)
+				})
+			})
+			*/
+			// .... AND now all that crap in previous comments is irrelevant 
 
-                /*
-                queries_list[0].forEach((q:any)=> {
-                    q.points.forEach((p:any)=> {
-                        const s = Math.floor(p.date.getTime() / 1000 - (this.s.intrv * 2))
-                        p.date = new Date(s * 1000)
-                    })
-                })
-                */
-                // .... AND now all that crap in previous comments is irrelevant 
 
-                const queries_list = await $N.InfluxDB.Retrieve_Series(this.s.bucket, [this.s.begin], [end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
-
-                render_graph_frame(this.shadow.querySelector('.ct-chart')!, this.s.type, queries_list[0], this.s.lowhigh, this.s.unitterms)
-
-                this.sc();
-
-                this.dispatchEvent(new Event('hydrated'))
-            }, 10)
         }
     }
 
@@ -152,6 +146,33 @@ class CGraphing extends HTMLElement {
 
 
     sc() {   render(this.template(this.s, this.m), this.shadow);   }
+
+
+
+
+	setit = () => new Promise<void>(async (res, _rej) => {
+		this.s.bucket = this.getAttribute("bucket") as str
+		this.s.msr = this.getAttribute("measurement") as str
+		this.s.fields = this.getAttribute("fields")!
+		this.s.tags = this.getAttribute("tags")!
+		this.s.type = this.getAttribute("type")!
+		this.s.intrv = Number(this.getAttribute("intrv"))
+		this.s.ppf = Number(this.getAttribute("ppf"))
+		this.s.priors = this.getAttribute("priors")!
+		this.s.ismdn = this.getAttribute("ismdn") === "true" 
+		this.s.lowhigh = this.getAttribute("lowhigh")! 
+		this.s.unitterms = this.getAttribute("unitterms")! 
+		this.s.begin = Number(this.getAttribute("begintime")) 
+		this.s.tmzncy = this.getAttribute("tmzncy")!
+
+		const end = this.s.ismdn ? ( this.s.begin + 86400 ) : this.s.begin + (this.s.intrv * this.s.ppf)
+
+		const queries_list = await $N.InfluxDB.Retrieve_Series(this.s.bucket, [this.s.begin], [end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
+
+		render_graph_frame(this.shadow.querySelector('.ct-chart')!, this.s.type, queries_list[0], this.s.lowhigh, this.s.unitterms)
+
+		res()
+	})
 
 
 

@@ -4,11 +4,11 @@ import { str } from './defs.js'
 
 
 
-const Save = (db:any, user_email:str, device:str, browser:str, logs_string:str, is_localhost:boolean) => new Promise(async (resolve, _reject) => { 
+const Save = (db:any, user_email:str, device:str, browser:str, logs_string:str) => new Promise(async (resolve, _reject) => { 
 
 	const logs = logs_string.split("-")
 
-	const collection = is_localhost ? db.collection("logslocal") : db.collection("logs")
+	const collection = db.collection("logs")
 
 	let batch = db.batch()
 
@@ -37,11 +37,11 @@ const Save = (db:any, user_email:str, device:str, browser:str, logs_string:str, 
 
 
 
-const Get = (db:any, user_email:str, is_localhost:boolean ) => new Promise(async (resolve, _reject) => { 
+const Get = (db:any, user_email:str ) => new Promise(async (resolve, _reject) => { 
 
 	const output_csv_header = `user_email,device,browser,type,subject,msg,datetime\n`
 
-	const collection = is_localhost ? db.collection("logslocal") : db.collection("logs")
+	const collection = db.collection("logs")
 
 	const items_snapshot = await collection.where("user_email", "==", user_email).limit(2000).get()
 

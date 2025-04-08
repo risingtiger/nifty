@@ -61,7 +61,7 @@ class CBtn extends HTMLElement {
 
 		this.sc()
 
-		this.shadow.querySelector("#slotwrap")!.addEventListener("click", () => { this.is_clicked() })
+		this.addEventListener("click", () => { this.is_clicked() })
     }
 
 
@@ -79,8 +79,8 @@ class CBtn extends HTMLElement {
 
 
     is_clicked() {
-        if (this.s.mode == ModeT.INERT && this.m.show_anime_on_click) {
-            this.to_start_anime()
+        if (this.s.mode == ModeT.INERT) {
+            if (this.m.show_anime_on_click) this.to_start_anime()
 			this.dispatchEvent(new CustomEvent("btnclick", {detail: {resolved: this.click_resolved.bind(this)}}))
         }
     }

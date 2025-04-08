@@ -115,13 +115,22 @@ function boot_up() {
         localStorage.setItem('sse_id', id)
     }
 
-    // Check if we're on localhost
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
-    // Use absolute path for localhost, otherwise use the full URL
-    const eventSourceUrl = isLocalhost 
-        ? "/api/sse_add_listener?id=" + id
-        : "https://webapp-805737116651.us-central1.run.app/api/sse_add_listener?id=" + id;
+    const isLocalhost = window.location.hostname === 'localhost'
+
+	let eventSourceUrl = ''
+
+	if (isLocalhost) 
+		eventSourceUrl = "/sse_add_listener?id=" + id
+
+	else if (location.hostname.includes('purewater')) 
+		eventSourceUrl = "https://webapp-805737116651.us-central1.run.app/sse_add_listener?id=" + id
+
+	else if (location.hostname.includes('purewater')) 
+		eventSourceUrl = "https://webapp-805737116651.us-central1.run.app/sse_add_listener?id=" + id
+
+	else 
+		eventSourceUrl = "https://xenwebapp-962422772741.us-central1.run.app/sse_add_listener?id=" + id
+
     
     evt = new EventSource(eventSourceUrl);
 	connect_ts = Date.now()
@@ -136,19 +145,11 @@ function boot_up() {
 		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_connected, ``)
     })
 
-    evt.addEventListener("a_"+SSETriggersE.FIRESTORE_DOC, (e) => {
-		const data = JSON.parse(e.data)
-		const ls = sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE_DOC))
-		if (!ls) throw new Error("should be at least one  listener for FIRESTORE_DOC, but none found")
-		ls.forEach(l=> l.cb(data))
-    }) 
+    evt.addEventListener("a_"+SSETriggersE.FIRESTORE_DOC_ADD, (e) => handle_firestore_docs(e, SSETriggersE.FIRESTORE_DOC_ADD)) 
+	evt.addEventListener("a_"+SSETriggersE.FIRESTORE_DOC_PATCH, (e) => handle_firestore_docs(e, SSETriggersE.FIRESTORE_DOC_PATCH))
+	evt.addEventListener("a_"+SSETriggersE.FIRESTORE_DOC_DELETE, (e) => handle_firestore_docs(e, SSETriggersE.FIRESTORE_DOC_DELETE))
+	evt.addEventListener("a_"+SSETriggersE.FIRESTORE_COLLECTION, (e) => handle_firestore_docs(e, SSETriggersE.FIRESTORE_COLLECTION))
 
-    evt.addEventListener("a_"+SSETriggersE.FIRESTORE_COLLECTION, (e) => {
-		const data = JSON.parse(e.data)
-		const ls = sse_listeners.filter(l=> l.triggers.includes(SSETriggersE.FIRESTORE_COLLECTION))
-		if (!ls) throw new Error("should be at least one listener for FIRESTORE_COLLECTION, but none found")
-		ls.forEach(l=> l.cb(data))
-    }) 
 
 
     // lets just see if the browser will take care of when user goes in and out of focus on window / app
@@ -156,121 +157,16 @@ function boot_up() {
 
 
 
-/*
-function __begin_it__() { 
 
-    let unique_identifier = localStorage.getItem('sse_unique_identifier')
-
-    if (!unique_identifier) {
-        unique_identifier = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-        localStorage.setItem('sse_unique_identifier', unique_identifier)
-    }
-
-    evt = new EventSource("/api/sse_begin?unique_identifier=" + unique_identifier)
-    evt_state = EventState_.CONNECTING
-
-
-    evt.onopen = (_e:Event) => {
-        if (evt!.readyState === EventSource.OPEN)
-            evt_state = EventState_.OPEN
-        else
-            evt_state = EventState_.ERRORED
-    }
-
-    evt.onerror = (_e) => {
-        evt_state = EventState_.ERRORED
-    }
-
-    evt.addEventListener("triggered", (e) => {
-
-        const data = JSON.parse(e.data)
-        const trigger = data.trigger
-        const paths = data.paths
-
-        sse_listeners.forEach((listener) => {
-            if (listener.trigger === trigger) {
-                listener.callback(paths)
-            }
-        })
-
-
-
-        if (trigger === SSE_Triggers.PWTSync) {
-            const viewsel = document.querySelector("#views") as HTMLDivElement
-            viewsel.setAttribute("data-pwtsync", "true")
-        }
-    })
-
-    evt.addEventListener("intervalmsg", (_e) => {
-        //const data = JSON.parse(e.data)
-    }) 
+function handle_firestore_docs(e:MessageEvent, trigger:SSETriggersE) {   
+	const data = JSON.parse(e.data)
+	const ls = sse_listeners.filter(l=> l.triggers.includes(trigger))
+	if (!ls) throw new Error("should be at least one listener for FIRESTORE_COLLECTION, but none found")
+	ls.forEach(l=> l.cb(data))
 }
-*/
-
-
-/*
-function sse_ticktock() {   
-
-    const next_timeout_millis:int = sse_ticktock_run()   
-
-    set_timeout_intrv = setTimeout(sse_ticktock, next_timeout_millis)   
-}
-*/
 
 
 
-/*
-function sse_ticktock_run() : int {
-
-    let new_timeout_millis:int = 15000
-
-    if (evt_state === EventState_.UNINITIALIZED) {
-        new_timeout_millis = 100
-        connection_init_time = Date.now()
-        begin_it()
-    }
-
-    if (evt_state === EventState_.CONNECTING) {
-        new_timeout_millis = 1000
-
-        if (Date.now() - connection_init_time > 7000) {
-            evt_state = EventState_.ERRORED
-            new_timeout_millis = 0
-        }    
-    }
-
-    else if (evt_state === EventState_.ERRORED) {
-        evt!.close()
-        evt = null
-        new_timeout_millis = 10000
-        evt_state = EventState_.ERROR_FLUSHING
-
-    } else if (evt_state === EventState_.ERROR_FLUSHING) {
-        new_timeout_millis = 0
-        evt_state = EventState_.UNINITIALIZED
-
-    } else if (evt_state === EventState_.OPEN) {
-    }
-
-    return new_timeout_millis
-}
-*/
-
-
-
-
-
-
-/*
-function redirect_from_error(errmsg:str, errmsg_long:str) {
-	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	if (window.location.protocol === "https:") {
-		window.location.href = `/index.html?errmsg=${errmsg}`
-	} else {
-		throw new Error(errmsg + " -- " + errmsg_long)
-	}
-}
-*/
 
 
 

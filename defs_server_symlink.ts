@@ -1,0 +1,1 @@
+/Users/dave/Code/nifty/server/src/defs.ts

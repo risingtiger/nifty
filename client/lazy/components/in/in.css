@@ -8,17 +8,13 @@
     justify-content: space-between;
     flex-wrap: nowrap;
     text-indent: 0;
-}
-:host(.row) {
+
     padding-left: 11px;
     height: 52px;
     border-bottom-width: 0.5px;
     border-bottom-style: solid;
     border-bottom-color: var(--bordercolor);
     padding-right: 8px;
-}
-:host(.inline) {
-    height: 35px;
 }
 
 :host > label {
@@ -28,12 +24,7 @@
     font-family: var(--fontfamily);
     font-weight: 700;
     color: rgb(190 56 151);
-}
-:host(.row) > label {
     padding: 17px 0 0 0px;
-}
-:host(.inline) > label {
-    padding-right: 12px;
 }
 :host > label::after {
     content: ":";
@@ -112,16 +103,13 @@
         transition: opacity 0.3s;
     }
 }
-:host(.row) > section > #view {
-    /* margin-top: 10px; */
-    /* padding-top: 8px; */
-}
 
 :host > section > #edit {
     display: flex;
     justify-content: flex-end;
     position: absolute;
     width: 100%;
+    top: 9px;
 
     & > input {
         font-family: var(--fontfamily);
@@ -136,6 +124,7 @@
         margin-top: 0;
         flex: 1;
         width: 100%;
+		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     }
 
     & > c-dselect {
@@ -185,12 +174,6 @@
         right: 3px;
     }
 }
-:host(.row) > section > #edit {
-    top: 9px;
-}
-:host(.inline) > section > #edit {
-    top: -7px;
-}
 
 :host span.switch {
     position: relative;
@@ -205,6 +188,9 @@
     user-select: none;
     transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
     transition-property: background-color, border-color;
+
+    margin-top: 6px;
+    margin-right: 2px;
 
     & > .inner {
         position: relative;
@@ -237,9 +223,4 @@
         background-color: white;
         transform: translateX(14px);
     }
-}
-:host(.row) span.switch {
-    margin-top: 6px;
-
-    margin-right: 2px;
 }

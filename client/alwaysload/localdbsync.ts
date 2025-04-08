@@ -29,6 +29,7 @@ let DBVERSION:num = 0
 let db:IDBDatabase|null = null
 let _syncobjectstores:SyncObjectStoresT[] = []
 let _activepaths:PathSpecT[] = []
+let _a_millis = 0
 //let _listens: FirestoreLoadSpecT = new Map()
 //let _nonsync_tses: Map<str,num> = new Map()
 
@@ -36,6 +37,8 @@ let _activepaths:PathSpecT[] = []
 
 
 const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, db_version: num) => { 
+
+	_a_millis = Math.floor(Date.now() / 1000)
 
 	DBNAME    = db_name
 	DBVERSION = db_version
@@ -62,6 +65,13 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 	$N.EngagementListen.Add_Listener(document.body, 'firestore', EngagementListenerTypeT.visible, 100, async ()=> {
 
 		if (_activepaths.length === 0) return
+
+		const nowsecs = Math.floor(Date.now() / 1000)
+		if (nowsecs - _a_millis > 28800) { // 8 hours
+			await ClearAllObjectStores()
+			$N.Unrecoverable("Data Needs Synced", "", "Sync Data", `/index.html`, "")
+			return
+		}
 
 		const r = await datasetter(_activepaths, {retries:2}, true, true)
 		if (r === null || r === 1) return
@@ -481,59 +491,50 @@ const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<DataFet
 
 
 
-async function redirect_from_error(errmsg:str) {
+const ClearAllObjectStores = () => new Promise<num>(async (res, _reject) => {
 
 	if (!db) db = await openindexeddb()
 
-	const storeNames = _syncobjectstores.map(s => s.name);
-	const transaction = db.transaction(storeNames, "readwrite");
+	const storenames = _syncobjectstores.map(s => s.name);
+	const transaction = db.transaction(storenames, "readwrite");
 
-	let clearCount = 0;
-	let errorOccurred = false;
+	let clearcount = 0;
+	let error_occurred = false;
 
-	storeNames.forEach(storeName => {
-		const objectStore = transaction.objectStore(storeName);
-		const objectStoreRequest = objectStore.clear();
+	storenames.forEach(storeName => {
+		const stores   = transaction.objectStore(storeName)
+		const storereq = stores.clear()
 
-		objectStoreRequest.onsuccess = () => {
-			clearCount++;
-			if (!errorOccurred && clearCount === storeNames.length) {
-				console.log(`Cleared all data from ${storeNames.length} object stores.`);
-			}
-		};
+		storereq.onsuccess = ()  => {   clearcount++;            }
+		storereq.onerror   = ()  => {   error_occurred = true;   }
+	})
 
-		objectStoreRequest.onerror = (event) => {
-			errorOccurred = true;
-			console.error(`Error clearing object store ${storeName}:`, event);
-			// We might still want to redirect even if clearing fails partially
-		};
-	});
+	transaction.onerror = (event) => {   console.error("Transaction error:", event); }
 
 	transaction.oncomplete = () => {
-		if (!errorOccurred) {
-			console.log("Transaction to clear all stores completed successfully.");
-		} else {
+		if (error_occurred) {
 			console.warn("Transaction to clear stores completed, but errors occurred during clearing.");
 		}
-		// Proceed with redirect regardless of partial clear errors, as the DB state is inconsistent.
-		$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.indexeddb_error, errmsg);
-		if (window.location.protocol === "https:") {
-			window.location.href = `/index.html?error_subject=${LoggerSubjectE.indexeddb_error}`;
-		} else {
-			throw new Error(LoggerSubjectE.indexeddb_error + " -- " + errmsg);
-		}
-	};
 
-	transaction.onerror = (event) => {
-		console.error("Transaction error:", event);
-	};
-
-	$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.indexeddb_error, errmsg)
-	if (window.location.protocol === "https:") {
-		window.location.href = `/index.html?error_subject=${LoggerSubjectE.indexeddb_error}`; 
-	} else {
-		throw new Error(LoggerSubjectE.indexeddb_error + " -- " + errmsg)
+		localStorage.removeItem("synccollections")
+		res(1)
 	}
+})
+
+
+
+
+async function redirect_from_error(errmsg:str) {
+
+	await ClearAllObjectStores()
+
+	$N.Unrecoverable(
+		"Error", 
+		"Error in LocalDBSync", 
+		"Reset App", 
+		`/index.html?error_subject=${LoggerSubjectE.indexeddb_error}`, 
+		errmsg
+	)
 }
 
 
@@ -543,7 +544,7 @@ async function redirect_from_error(errmsg:str) {
 
 export { Init, EnsureObjectStoresActive } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).LocalDBSync = { Add, Patch, Delete };
+((window as any).$N as any).LocalDBSync = { Add, Patch, Delete, ClearAllObjectStores };
 
 
 

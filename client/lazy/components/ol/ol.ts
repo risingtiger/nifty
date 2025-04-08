@@ -361,6 +361,7 @@ class COl extends HTMLElement {
 
         wrapper_el.style.width = this.s.width
         wrapper_el.style.maxHeight = this.s.height
+        wrapper_el.style.height = this.s.height
         wrapper_el.style.top = this.s.top
         wrapper_el.style.left = this.s.left
         wrapper_el.style.marginLeft = this.s.margin_left
@@ -489,14 +490,14 @@ ol_animations.set("background_fade_in", [
 const ol_timings = new Map<str, any>()
 
 ol_timings.set("mobile_a", {
-    duration: 500,
+    duration: 300,
     easing: "cubic-bezier(0.69, 0, 0.29, 1)",
     fill: "both",
     iterations: 1,
 })
 
 ol_timings.set("dekstop_a", {
-    duration: 500,
+    duration: 300,
     easing: "cubic-bezier(0.69, 0, 0.29, 1)",
     fill: "both",
     iterations: 1,

@@ -4,6 +4,7 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
+const EXITDELAY = 4000
 
 let cache_name = 'cacheV__0__';
 let cache_version = Number(cache_name.split("__")[1])
@@ -12,6 +13,7 @@ let token_expires_at = 0
 let refresh_token = ""
 let user_email = ""
 let isoffline = false
+let is_checking_connectivity = false
 
 
 
@@ -69,38 +71,9 @@ self.addEventListener('fetch', (e:any) => {
 		if (match_r) { 
 			res(match_r) 
 
-		} else if (isoffline) {
+		} else if (isoffline && !e.request.headers.get('retry')) {
 			res(new Response(null, { status: 503, statusText: 'Network error' }))
 			return
-
-		} else if (e.request.url.includes('/api/sse_add_listener')) {
-			res(fetch(e.request))
-
-		} else if (should_url_be_cached(e.request)) {
-			try {
-				// Create an AbortController to set a timeout
-				const controller = new AbortController();
-				const { signal } = controller;
-				// Set a reasonable timeout (5 seconds)
-				const timeoutId = setTimeout(() => controller.abort(), 5000);
-				
-				const r = await fetch(e.request, { signal });
-				// Clear the timeout since fetch completed
-				clearTimeout(timeoutId);
-				
-				if (r.ok)
-					cache.put(e.request, r.clone());
-					
-				res(r);
-			} catch (error: any) {
-				logit(40, 'swe', `Failed to fetch cached resource: ${e.request.url}, error: ${error.message}`);
-				// If we have a network error, return a specific error response
-				if (error.name === 'AbortError') {
-					res(new Response(null, { status: 504, statusText: 'Gateway Timeout' }));
-				} else {
-					res(new Response(null, { status: 503, statusText: 'Network error' }));
-				}
-			}
 
 		} else if (e.request.url.includes("/api/")) {
 
@@ -112,7 +85,7 @@ self.addEventListener('fetch', (e:any) => {
 
 			const controller = new AbortController();
 			const { signal } = controller;
-			const exitdelay = e.request.headers.get("exitdelay")
+			const exitdelay = e.request.headers.get("exitdelay") || EXITDELAY;
 			const timeoutControllerId     = setTimeout(() => { controller.abort(); }, Number(exitdelay));
 
 			const new_request = new Request(e.request, {
@@ -124,6 +97,7 @@ self.addEventListener('fetch', (e:any) => {
 			fetch(new_request)
 				.then(async (server_response:any)=> {
 					
+					isoffline = false;
 					clearTimeout(timeoutControllerId)
 
 					if (server_response.status === 401) { // unauthorized
@@ -151,12 +125,34 @@ self.addEventListener('fetch', (e:any) => {
 				})
 				.catch(async (err:any)=> {
 					logit(40, 'swe', "fetch catch. url: " + new_request.url + '. errmsg: ' + err.message)
+					isoffline = true
+					check_connectivity()
 					res(new Response(null, { status: 503, statusText: 'Network error' }))
 				})
 
 		} else {
-			const r = await fetch(e.request)
-			res(r)
+			try {
+				const controller = new AbortController();
+				const { signal } = controller;
+				const exitdelay = e.request.headers.get("exitdelay") || EXITDELAY;
+				const timeoutId = setTimeout(() => controller.abort(), Number(exitdelay));
+				
+				const r = await fetch(e.request, { signal });
+				clearTimeout(timeoutId);
+				
+				if (r.ok && should_url_be_cached(e.request))    {
+					cache.put(e.request, r.clone());
+					isoffline = false;
+				}
+					
+				res(r);
+
+			} catch (error: any) {
+				logit(40, 'swe', "fetch catch. url: " + e.request.url + '. errmsg: ' + error.message)
+				isoffline = true
+				check_connectivity()
+				res(new Response(null, { status: 503, statusText: 'Network error' }));
+			}
 		}
     })
 
@@ -270,12 +266,32 @@ async function check_update_polling() {
 
 
 function should_url_be_cached(request:Request) {
-    if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v#")) {
+    if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v/")) {
         return true;
     }
     else {
         return false;
     }
+}
+
+
+
+function check_connectivity() {
+
+	if (is_checking_connectivity) return
+
+	is_checking_connectivity = true;
+
+	fetch('/api/ping', { cache: 'no-store' })
+		.then(response => {
+			if (response.ok) {
+				isoffline = false;
+				is_checking_connectivity = false;
+			}
+		})
+		.catch(_err => {
+			setTimeout(check_connectivity, 5000);
+		})
 }
 
 

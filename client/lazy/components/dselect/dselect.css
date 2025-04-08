@@ -3,8 +3,8 @@
 }
 
 :host > #instigator {
-    display: flex;
-    justify-content: space-between;
+	display: flex;
+	justify-content: space-between;
     cursor: pointer;
     position: relative;
     padding: 7px 5px 8px 8px;
@@ -13,6 +13,8 @@
     width: 100%;
     box-sizing: border-box;
     background: white;
+	outline: none;
+	cursor:pointer;
 
     & > [name='instigator'] > .cnt {
         color: #6d6d6d;
@@ -37,9 +39,14 @@
         top: 1px;
     }
 }
+:host > #instigator:hover {
+	background: var(--background-highlight);
+}
 
 ::part(instigator) {
 }
+
+
 
 :host > dialog {
     position: relative;
@@ -53,9 +60,9 @@
     inset: 0;
     outline: none;
     opacity: 0;
-    transform: translateY(-10px) scale(0.96);
-    transition: 0.17s cubic-bezier(0.93, 0, 0.18, 1);
-    transition-property: opacity, transform;
+	transform: translateY(-40px) scale(0.73);
+	transition: 0.25s cubic-bezier(0.13, 0.15, 0.35, 1);
+	transition-property: opacity, transform;
 
     &[open] {
         opacity: 1;
@@ -78,11 +85,13 @@
             list-style-type: none;
             padding: 5px 4px;
             margin: 0;
+            max-height: 500px;
+            overflow-y: scroll;
 
             & > li {
                 display: flex;
                 justify-content: space-between;
-                padding: 3px 4px 5px 8px;
+                padding: 7px 4px 9px 8px;
                 cursor: pointer;
 
                 & > .postpend {

@@ -8,16 +8,13 @@ declare var $N: $NT;
 
 // --THE FOLLOWING GET BUNDLED INTO THE MAIN BUNDLE
 
-import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation/switchstation.js';
+import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import { Init as FirestoreInit } from './alwaysload/firestore.js';
-//import './alwaysload/firestore_live.js';
+import { Init as LocalDBSyncInit } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 import { Init as LazyLoadInit } from './alwaysload/lazyload.js';
 import { Init as SSEInit } from './alwaysload/sse.js';
-import './alwaysload/indexeddb.js';
-import './alwaysload/datasync.js';
 import './alwaysload/logger.js';
 import './alwaysload/engagementlisten.js';
 import {Init as CMechInit} from './alwaysload/cmech.js';
@@ -175,10 +172,12 @@ window.addEventListener("load", async (_e) => {
 
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
 
+	//const localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, "__localwrites" ]
+
 	{
 		LazyLoadInit(lazyloads)
 		$N.EngagementListen.Init()
-		FirestoreInit(INSTANCE.INFO.datasync_collections, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+		LocalDBSyncInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 		CMechInit()
 	}
 
@@ -186,7 +185,7 @@ window.addEventListener("load", async (_e) => {
 
 	localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
 	lazyloads.filter(l => l.type === "view").forEach(r => SwitchStationAddRoute(r))
-	SwitchStationInit();
+	SwitchStationInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion);
 
 	SSEInit()
 })
@@ -195,7 +194,7 @@ window.addEventListener("load", async (_e) => {
 
 
 
-document.querySelector("#views")!.addEventListener("view_load_done", () => {
+document.querySelector("#views")!.addEventListener("visibled", () => {
 	if (_is_in_initial_view_load)   _is_in_initial_view_load = false
 })
 
@@ -231,25 +230,27 @@ $N.ToastShow = ToastShow
 
 
 
-function Unrecoverable(subj: string, msg: string) {
-  const modal = document.getElementById('unrecoverable_notice');
-  if (!modal) return;
-  
-  // Show the modal by adding an "active" class
-  modal.classList.add('active');
+function Unrecoverable(subj: string, msg: string, btnmsg:string, redirecto:string, logerrmsg:string="") {
 
-  const titleEl = document.getElementById('unrecoverable_notice_title');
-  const msgEl = document.getElementById('unrecoverable_notice_msg');
-  const btnReset = document.getElementById('unrecoverable_notice_reset');
+	const modal = document.getElementById('unrecoverable_notice')!
 
-  if (titleEl) titleEl.textContent = subj;
-  if (msgEl) msgEl.textContent = msg;
+	modal.classList.add('active');
 
-  if (btnReset) {
-    btnReset.addEventListener('click', () => {
-      window.location.href = '/';
-    });
-  }
+	const titleEl = document.getElementById('unrecoverable_notice_title')!
+	const msgEl = document.getElementById('unrecoverable_notice_msg')!
+	const btnReset = document.getElementById('unrecoverable_notice_btn')!
+
+	titleEl.textContent = subj;
+	msgEl.textContent   = msg;
+	btnReset.textContent = btnmsg;
+
+	if (btnReset) {
+		btnReset.addEventListener('click', () => {
+			window.location.href = redirecto;
+		})
+	}
+
+	$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.indexeddb_error, logerrmsg)
 }
 $N.Unrecoverable = Unrecoverable
 
@@ -287,16 +288,16 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 
 			else if (event.data.action === 'update_init') {
 				$N.SSEvents.ForceStop()
-				serviceworker_reg?.update()
+				setTimeout(() => {
+					localStorage.clear();
+					serviceworker_reg?.update()
+				}, 300)
 			}
 
 			else if (event.data.action === 'error_out') {
 				$N.Logger.Log(LoggerTypeE.error, event.data.subject, `${event.data.errmsg}`)
-				if (window.location.protocol === "https:") {
-					window.location.href = `/index.html?error_subject=${event.data.subject}`; 
-				} else {
-					throw new Error(event.data.subject + " -- " + event.data.errmsg)
-				}
+				$N.LocalDBSync.ClearAllObjectStores()
+				Unrecoverable("App Error", "unknown reason.", "Restart App", `/index.html?error_subject=${event.data.subject}`)
 			}
 
 			else if (event.data.action === 'logit') {
@@ -316,16 +317,12 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 				hasPreviousController = true
 				return;
 			}
-
-			localStorage.clear();
-
-			setTimeout(() => {
-				if (window.location.protocol === "https:") {
-					window.location.href = "/index.html?update=done";
-				} else {
-					alert("Update complete. Redirect to /index.html?update=done")
-				}
-			}, 2000)
+			$N.LocalDBSync.ClearAllObjectStores()
+			Unrecoverable("App Update", "app has been updated. needs restarted", "Restart App", "/index.html?update=done")
 		}
 	});
 })
+
+
+
+
