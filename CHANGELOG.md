@@ -1,8 +1,8 @@
 
-## 1.1.2 -- UNRELEASED
+## 1.1.6 -- RELEASED
 
 ### FEATURES
-- ...
+- DataSync v0.9
 
 ### ENHANCEMENTS
 - ...
