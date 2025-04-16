@@ -230,10 +230,8 @@ $N.ToastShow = ToastShow
 
 
 
-function Unrecoverable(subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string="") {
-
+function setalertbox(subj: string, msg: string, btnmsg: string, redirect: string, clickHandler?: () => void) {
 	const modal = document.getElementById('alert_notice')!
-
 	modal.classList.add('active');
 
 	const titleEl = document.getElementById('alert_notice_title')!
@@ -241,18 +239,24 @@ function Unrecoverable(subj: string, msg: string, btnmsg:string, logsubj:LoggerS
 	const btnReset = document.getElementById('alert_notice_btn')!
 
 	titleEl.textContent = subj;
-	msgEl.textContent   = msg;
+	msgEl.textContent = msg;
 	btnReset.textContent = btnmsg;
-
-	const redirect = `/index.html?error_subject=${logsubj}`
 
 	if (btnReset) {
 		btnReset.addEventListener('click', () => {
-			window.location.href = redirect;
-		})
+			if (clickHandler) {
+				clickHandler();
+			} else {
+				window.location.href = redirect;
+			}
+		});
 	}
+}
 
-	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg)
+function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
+	const redirect = `/index.html?error_subject=${logsubj}`;
+	setalertbox(subj, msg, btnmsg, redirect);
+	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
 }
 $N.Unrecoverable = Unrecoverable
 
@@ -319,32 +323,13 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 				return;
 			}
 			$N.LocalDBSync.ClearAllObjectStores()
-			Unrecoverable("App Update", "app has been updated. needs restarted", "Restart App", "/index.html?update=done")
+			Unrecoverable("App Update", "app has been updated. needs restarted", "Restart App", LoggerSubjectE.app_update, "")
 
 
-			function showappupdate(subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string="") {
-
-				const modal = document.getElementById('alert_notice')!
-
-				modal.classList.add('active');
-
-				const titleEl = document.getElementById('alert_notice_title')!
-				const msgEl = document.getElementById('alert_notice_msg')!
-				const btnReset = document.getElementById('alert_notice_btn')!
-
-				titleEl.textContent = subj;
-				msgEl.textContent   = msg;
-				btnReset.textContent = btnmsg;
-
-				const redirect = `/index.html?logsubj=${logsubj}`
-
-				if (btnReset) {
-					btnReset.addEventListener('click', () => {
-						window.location.href = redirect;
-					})
-				}
-
-				$N.Logger.Log(LoggerTypeE.info, LoggerSubjectE.app_update, "")
+			function showappupdate(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
+				const redirect = `/index.html?logsubj=${logsubj}`;
+				setalertbox(subj, msg, btnmsg, redirect);
+				$N.Logger.Log(LoggerTypeE.info, LoggerSubjectE.app_update, "");
 			}
 		}
 	});
@@ -353,9 +338,6 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 
 
 
-function setalertbox() {
-
-}
 
 
 
