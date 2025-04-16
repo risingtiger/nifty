@@ -230,27 +230,29 @@ $N.ToastShow = ToastShow
 
 
 
-function Unrecoverable(subj: string, msg: string, btnmsg:string, redirecto:string, logerrmsg:string="") {
+function Unrecoverable(subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string="") {
 
-	const modal = document.getElementById('unrecoverable_notice')!
+	const modal = document.getElementById('alert_notice')!
 
 	modal.classList.add('active');
 
-	const titleEl = document.getElementById('unrecoverable_notice_title')!
-	const msgEl = document.getElementById('unrecoverable_notice_msg')!
-	const btnReset = document.getElementById('unrecoverable_notice_btn')!
+	const titleEl = document.getElementById('alert_notice_title')!
+	const msgEl = document.getElementById('alert_notice_msg')!
+	const btnReset = document.getElementById('alert_notice_btn')!
 
 	titleEl.textContent = subj;
 	msgEl.textContent   = msg;
 	btnReset.textContent = btnmsg;
 
+	const redirect = `/index.html?error_subject=${logsubj}`
+
 	if (btnReset) {
 		btnReset.addEventListener('click', () => {
-			window.location.href = redirecto;
+			window.location.href = redirect;
 		})
 	}
 
-	$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.indexeddb_error, logerrmsg)
+	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg)
 }
 $N.Unrecoverable = Unrecoverable
 
@@ -295,13 +297,12 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 			}
 
 			else if (event.data.action === 'error_out') {
-				$N.Logger.Log(LoggerTypeE.error, event.data.subject, `${event.data.errmsg}`)
 				$N.LocalDBSync.ClearAllObjectStores()
-				Unrecoverable("App Error", "unknown reason.", "Restart App", `/index.html?error_subject=${event.data.subject}`)
+				Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject as LoggerSubjectE, event.data.errmsg)
 			}
 
 			else if (event.data.action === 'logit') {
-				$N.Logger.Log(Number(event.data.type), event.data.subject, `${event.data.msg}`)
+				$N.Logger.Log(Number(event.data.type) as LoggerTypeE, event.data.subject as LoggerSubjectE, `${event.data.msg}`)
 			}
 		});
 
@@ -319,9 +320,42 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 			}
 			$N.LocalDBSync.ClearAllObjectStores()
 			Unrecoverable("App Update", "app has been updated. needs restarted", "Restart App", "/index.html?update=done")
+
+
+			function showappupdate(subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string="") {
+
+				const modal = document.getElementById('alert_notice')!
+
+				modal.classList.add('active');
+
+				const titleEl = document.getElementById('alert_notice_title')!
+				const msgEl = document.getElementById('alert_notice_msg')!
+				const btnReset = document.getElementById('alert_notice_btn')!
+
+				titleEl.textContent = subj;
+				msgEl.textContent   = msg;
+				btnReset.textContent = btnmsg;
+
+				const redirect = `/index.html?logsubj=${logsubj}`
+
+				if (btnReset) {
+					btnReset.addEventListener('click', () => {
+						window.location.href = redirect;
+					})
+				}
+
+				$N.Logger.Log(LoggerTypeE.info, LoggerSubjectE.app_update, "")
+			}
 		}
 	});
 })
+
+
+
+
+function setalertbox() {
+
+}
 
 
 
