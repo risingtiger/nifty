@@ -370,7 +370,9 @@ async function logger_get(req:any, res:any) {
 	const r = await Logger.Get(db, req.query.user_email)
 	if (!r) { res.status(204).send(null); return; }
 
-
+	// Convert to CSV format
+	res.setHeader('Content-Type', 'text/csv');
+	res.setHeader('Content-Disposition', 'attachment; filename="logs.csv"');
 	res.status(200).send(r)
 }
 
