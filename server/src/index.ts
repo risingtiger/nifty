@@ -367,8 +367,11 @@ async function logger_save(req:any, res:any) {
 
 async function logger_get(req:any, res:any) {
 
-	const logs = await Logger.Get(db, req.query.user_email)
-	res.status(200).send(logs)
+	const r = await Logger.Get(db, req.query.user_email)
+	if (!r) { res.status(204).send(null); return; }
+
+
+	res.status(200).send(r)
 }
 
 
