@@ -473,14 +473,13 @@ async function init() { return new Promise(async (res, _rej)=> {
 
     else if (VAR_NODE_ENV === 'gcloud') { 
 
-        /*
         const googleauth = new googleapis.auth.GoogleAuth({
-            keyFile: process.cwd() + '/sheets_key.json',
+            keyFile: INSTANCE.SHEETS_KEYJSONFILE, // Using instance config for consistency
+            // keyFile: process.cwd() + '/sheets_key.json', // Original path
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         })
         let google_auth:any = await googleauth.getClient();
         sheets = googleapis.sheets({version: 'v4', auth: google_auth});
-        */
 
         initializeApp()
 
