@@ -460,6 +460,14 @@ async function init() { return new Promise(async (res, _rej)=> {
 		sheets = googleapis.sheets({version: 'v4', auth: google_auth});
 		*/
 
+		const googleauth = new googleapis.auth.GoogleAuth({
+			keyFile: INSTANCE.SHEETS_KEYJSONFILE,
+			//keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json', // Example path, using instance config instead
+			scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+		})
+		let google_auth:any = await googleauth.getClient();
+		sheets = googleapis.sheets({version: 'v4', auth: google_auth});
+
 		initializeApp({   credential: cert(INSTANCE.KEYJSONFILE)   })
     } 
 
