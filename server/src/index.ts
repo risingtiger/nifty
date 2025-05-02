@@ -9,7 +9,7 @@ import { initializeApp, cert }  from "firebase-admin/app";
 import { getFirestore }  from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import {GoogleGenAI} from '@google/genai';
-//import { google as googleapis } from "googleapis";
+import { google as googleapis } from "googleapis";
 //import { PubSub }     from "@google-cloud/pubsub";
 //import { authenticate } from "@google-cloud/local-auth";
 
