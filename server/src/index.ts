@@ -8,6 +8,7 @@ import cors from "cors";
 import { initializeApp, cert }  from "firebase-admin/app";
 import { getFirestore }  from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
+import {GoogleGenAI} from '@google/genai';
 //import { google as googleapis } from "googleapis";
 //import { PubSub }     from "@google-cloud/pubsub";
 //import { authenticate } from "@google-cloud/local-auth";
@@ -17,7 +18,7 @@ import zlib from 'node:zlib'
 import { Firestore } from "./firestore.js"
 import { InfluxDB } from "./influxdb.js"
 import SSE from "./sse.js"
-import Notifications from "./notifications.js"
+import Push_Subscriptions from "./push_subscriptions.js"
 import FileRequest from "./filerequest.js"
 import Entry from "./entry.js"
 import HTMLStr from "./htmlstr.js"
@@ -44,6 +45,7 @@ const app = express()
 let db:any = null;
 
 let sheets:any = {};
+let gemini:any = {};
 //let pubsub:any;
 //let pubsub_local:any;
 
@@ -124,8 +126,8 @@ app.get("/api/logger/get",   logger_get)
 
 
 
-app.get("/api/notifications_add_subscription", notifications_add_subscription)
-app.get("/api/notifications_remove_subscription", notifications_remove_subscription)
+app.get("/api/push_subscriptions/add",    push_subscriptions_add)
+app.get("/api/push_subscriptions/remove", push_subscriptions_remove)
 
 
 
@@ -359,7 +361,7 @@ async function logger_save(req:any, res:any) {
 		req.body.browser, 
 		req.body.logs)
 
-	res.status(200).send("")
+	res.status(200).send({ok:true})
 }
 
 
@@ -370,16 +372,14 @@ async function logger_get(req:any, res:any) {
 	const r = await Logger.Get(db, req.query.user_email)
 	if (!r) { res.status(204).send(null); return; }
 
-	// Convert to CSV format
 	res.setHeader('Content-Type', 'text/csv');
-	res.setHeader('Content-Disposition', 'attachment; filename="logs.csv"');
 	res.status(200).send(r)
 }
 
 
 
 
-async function notifications_add_subscription(req:any, res:any) {
+async function push_subscriptions_add(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
@@ -387,7 +387,7 @@ async function notifications_add_subscription(req:any, res:any) {
     const user_email:str = req.query.user_email as string
     const fcm_token:str = req.query.fcm_token as string
 
-    await Notifications.Add_Subscription(db, fcm_token, user_email)
+    await Push_Subscriptions.Add_Subscription(db, fcm_token, user_email)
 
     res.status(200).send(JSON.stringify({message:"saved"}))
 }
@@ -395,13 +395,13 @@ async function notifications_add_subscription(req:any, res:any) {
 
 
 
-async function notifications_remove_subscription(req:any, res:any) {
+async function push_subscriptions_remove(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
     const user_email:str = req.query.user_email as string
 
-    await Notifications.Remove_Subscription(db, user_email)
+    await Push_Subscriptions.Remove_Subscription(db, user_email)
 
     res.status(200).send(JSON.stringify({message:"saved"}))
 }
@@ -461,7 +461,6 @@ async function init() { return new Promise(async (res, _rej)=> {
 		*/
 
 		initializeApp({   credential: cert(INSTANCE.KEYJSONFILE)   })
-		db = getFirestore();
     } 
 
     else if (VAR_NODE_ENV === 'gcloud') { 
@@ -476,11 +475,13 @@ async function init() { return new Promise(async (res, _rej)=> {
         */
 
         initializeApp()
-        db = getFirestore();
 
     } else {
 		//
 	}
+
+	db     = getFirestore();
+	gemini = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
 
     res(1)
 })}
@@ -554,7 +555,8 @@ async function bootstrapit() {
 		db, 
 		appversion:APPVERSION, 
 		sheets, 
-		notifications:Notifications, 
+		gemini:gemini,
+		push_subscriptions:Push_Subscriptions, 
 		firestore:Firestore, 
 		influxdb:InfluxDB, 
 		emailing:Emailing,
