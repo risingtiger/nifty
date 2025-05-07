@@ -135,14 +135,12 @@ function boot_up() {
     evt = new EventSource(eventSourceUrl);
 	connect_ts = Date.now()
 
-	$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_added, ``)
-
     evt.onerror = (_e) => {
 		$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.sse_listener_error, ``)
     }
 
     evt.addEventListener("connected", (_e) => {
-		$N.Logger.Log(LoggerTypeE.debug, LoggerSubjectE.sse_listener_connected, ``)
+		//
     })
 
     evt.addEventListener("a_"+SSETriggersE.FIRESTORE_DOC_ADD, (e) => handle_firestore_docs(e, SSETriggersE.FIRESTORE_DOC_ADD)) 

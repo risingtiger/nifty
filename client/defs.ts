@@ -26,9 +26,13 @@ export type FetchLassieOptsT = {
 	retries?: num,
 	background?: boolean,
 	animate?: boolean,
-	exitdelay?: number
 }
-export type FetchResultT = number | string | boolean | object | Array<object|number|string|boolean> | null
+export type FetchResultT = {
+	status: number,
+	statusText: string,
+	ok: boolean,
+	data?: number | string | boolean | GenericRowT | Array<GenericRowT|number|string|boolean>
+}
 
 
 /*
@@ -89,6 +93,7 @@ export type CMechLoadedDataT = Map<string, GenericRowT[]>
 export const enum LoggerTypeE {
 	debug = 10,
     info = 20,
+	info_engagement = 25,
 	warning = 30,
 	error = 40
 }
@@ -96,18 +101,13 @@ export const enum LoggerTypeE {
 
 export const enum LoggerSubjectE {
 	switch_station_route_load_fail = "srf",
-	fetch_lassie_timeout = "flt",
-	fetch_lassie_error = "fle",
 	indexeddb_error = "ixe",
-	sse_listener_added = "ssa",
-	sse_listener_removed = "ssd",
-	sse_listener_connected = "ssc",
 	sse_listener_error = "sse",
-    sse_received_withfocus = "ssw",
-    sse_received_firestore = "ssf",
 	sw_fetch_not_authorized = "sw4",
 	sw_fetch_error = "swe",
-	app_exit = "ape",
+	app_update = "aup",
+	engagement_pageview = "epv",
+	engagement_overlayview = "eov",
 }
 
 
@@ -152,6 +152,7 @@ export type $NT = {
 		Init: () => void,
 		Add_Listener: (el:HTMLElement, name:string, type:EngagementListenerTypeT, priority:number|null, callback:()=>void) => void
 		Remove_Listener: (name:string, type:EngagementListenerTypeT) => void
+		LogEngagePoint: (logsubj:LoggerSubjectE, componentname:str) => void
 	}
 
 	LocalDBSync: {
@@ -184,7 +185,7 @@ export type $NT = {
 	}
 
 	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
-	Unrecoverable: (subj:str, msg: str, btnmsg:string, redirecto:string, logerrmsg:string) => void
+	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string) => void
 
 	SwitchStation: {
 		NavigateTo: (newPath: string) => void,

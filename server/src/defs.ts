@@ -1,6 +1,8 @@
 
 export type str = string; export type num = number; export type bool = boolean;
 
+export type GenericRowT = { [key:string]: any }
+
 export const enum SSETriggersE { FIRESTORE, FIRESTORE_DOC_ADD, FIRESTORE_DOC_PATCH, FIRESTORE_DOC_DELETE, FIRESTORE_COLLECTION, CUSTOM }
 
 export type ServerMainsT = {
@@ -8,7 +10,8 @@ export type ServerMainsT = {
 	db:any, 
 	appversion:number, 
 	sheets:any, 
-	notifications:any, 
+	gemini:any, 
+	push_subscriptions:any, 
 	firestore:any, 
 	influxdb:any, 
 	emailing:any,

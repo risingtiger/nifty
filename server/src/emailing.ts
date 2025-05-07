@@ -10,7 +10,7 @@ import { str } from './defs.js'
 
 
 
-const Send = (messages:any[]) => new Promise(async (res, _rej)=> {
+const Send = (messages:any[]) => new Promise<number|null>(async (res, _rej)=> {
 
     const url = 'https://api.mailjet.com/v3.1/send';
     const username = "2269ce42acdd34698b46f64ac7c66bde";
@@ -38,9 +38,8 @@ const Send = (messages:any[]) => new Promise(async (res, _rej)=> {
 				res(1)
 			}
 		})
-		.catch((err:any)=> {
-			console.log("Mailjet fetch catch: " + err)
-			res(0)
+		.catch((_err:any)=> {
+			res(null)
 		})
 })
 
@@ -49,7 +48,7 @@ const Send = (messages:any[]) => new Promise(async (res, _rej)=> {
 
 async function SendNotification(db:Firestore, title:str, body:str, tags:str[]) {
 
-	return new Promise<number>(async (promise_res, _rej)=> {
+	return new Promise<number|null>(async (promise_res, _rej)=> {
 
 		const all_user_docs = await db.collection("users").get()
 		const all_users = all_user_docs.docs.map((d:any)=> { return {...d.data(), id: d.id}; })
@@ -74,7 +73,8 @@ async function SendNotification(db:Firestore, title:str, body:str, tags:str[]) {
 				HTMLPart: ''
 			}
 
-			await Send([emailmsg])
+			const r = await Send([emailmsg])
+			if (!r) {   promise_res(null); return; }
 		}
 
 		promise_res(1)

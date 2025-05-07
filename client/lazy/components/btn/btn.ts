@@ -73,7 +73,7 @@ class CBtn extends HTMLElement {
 
 
 
-    public click_resolved()         {   this.to_stop_anime();            }
+    click_resolved()         {   this.to_stop_anime();            }
 
 
 

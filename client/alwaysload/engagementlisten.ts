@@ -1,8 +1,10 @@
 
 
-import { EngagementListenerTypeT, EngagementListenerT } from "../defs.js"
+import { bool, num, str, SSETriggersE } from '../defs_server_symlink.js'
+import { EngagementListenerTypeT, EngagementListenerT, LoggerTypeE, LoggerSubjectE, $NT } from "../defs.js"
 
 
+declare var $N: $NT;
 const elisteners:EngagementListenerT[] = []
 
 
@@ -76,7 +78,14 @@ function Init() {
 
 
 
+function LogEngagePoint(logsubj:LoggerSubjectE, componentname:str) {
+	$N.Logger.Log(LoggerTypeE.info_engagement, logsubj, componentname)
+}
+
+
+
+
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).EngagementListen = { Init, Add_Listener, Remove_Listener };
+((window as any).$N as any).EngagementListen = { Init, Add_Listener, Remove_Listener, LogEngagePoint };
 
 

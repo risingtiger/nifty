@@ -69,7 +69,7 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 		const nowsecs = Math.floor(Date.now() / 1000)
 		if (nowsecs - _a_millis > 28800) { // 8 hours
 			await ClearAllObjectStores()
-			$N.Unrecoverable("Data Needs Synced", "", "Sync Data", `/index.html`, "")
+			$N.Unrecoverable("Data Needs Synced", "", "Sync Data", LoggerSubjectE.indexeddb_error, "just regular 8 hour interval refresh")
 			return
 		}
 
@@ -175,13 +175,12 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 
 
-const Add = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
+const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {  
 	const p = parse_into_pathspec(path)
 	if (!db) db = await openindexeddb()
-	const r = await M_Add(db, p, data)
-	if (!r) { redirect_from_error("LocalDBSync Add Error"); res(null); return; }
+	await M_Add(db, p, data)
 
-	handle_firestore_doc_add_or_patch(path, r, false, false)
+	handle_firestore_doc_add_or_patch(path, data, false, false)
 	res(1)
 })
 
@@ -191,10 +190,9 @@ const Add = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_re
 const Patch = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
 	const p = parse_into_pathspec(path)
 	if (!db) db = await openindexeddb()
-	const r = await M_Patch(db, p, data)
-	if (!r) { redirect_from_error("LocalDBSync Patch Error"); res(null); return; }
+	await M_Patch(db, p, data)
 
-	handle_firestore_doc_add_or_patch(path, r, false, false)
+	handle_firestore_doc_add_or_patch(path, data, true, false)
 	res(1)
 })
 
@@ -204,10 +202,11 @@ const Patch = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_
 const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {  
 	const p = parse_into_pathspec(path)
 	if (!db) db = await openindexeddb()
-	const r = await M_Delete(db, p)
-	if (!r) { redirect_from_error("LocalDBSync Delete Error"); res(null); return; }
+	await M_Delete(db, p)
 
-	res(r)
+	// I don't yet have the code in place to handle delete across localdbsync and cmech
+
+	res(1)
 })
 
 
@@ -340,7 +339,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 	while (continue_calling) {
 		const r = await $N.FetchLassie('/api/firestore_get_batch', { method: "POST", body: JSON.stringify(body) }, { retries })
-		if (r === null || (r as any).ok === false ) { continue_calling = false; cleanup(); res(null); return; }
+		if (!r.ok) { cleanup(); res(null); return; }
 
 		for(let i = 0; i < paths.length; i++) {
 			if (r[i].docs.length === 0) continue
@@ -348,7 +347,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 			if (returnnewdata) pushtoreturns(paths[i], r[i].docs)
 		}
 
-		continue_calling = (r as any[]).every((rr:any) => rr.isdone) ? false : true
+		continue_calling = (r.data as any[]).every((rr:any) => rr.isdone) ? false : true
 	}
 
 	const newts = Math.floor(Date.now()/1000);
@@ -532,7 +531,7 @@ async function redirect_from_error(errmsg:str) {
 		"Error", 
 		"Error in LocalDBSync", 
 		"Reset App", 
-		`/index.html?error_subject=${LoggerSubjectE.indexeddb_error}`, 
+		LoggerSubjectE.indexeddb_error, 
 		errmsg
 	)
 }

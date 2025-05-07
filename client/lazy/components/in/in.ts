@@ -365,7 +365,7 @@ class CIn extends Lit_Element {
         this.els.view.id = "view"
         this.els.displayval = document.createElement("p")
         this.els.action = document.createElement("i")
-		this.els.action.innerHTML = "&#xf113;" 
+		this.els.action.innerHTML = "&#xf114;" 
 
 		if (this.m.type === TypeT.DSELECT) {
 			this.els.displayval.textContent = this.gettextofoptionsval()

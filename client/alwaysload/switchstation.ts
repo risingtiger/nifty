@@ -81,7 +81,7 @@ async function NavigateTo(newPath: string) {
 
     const r = await routeChanged(newPath, 'forward');
 	if (r === null) { 
-		$N.ToastShow("Network down. Couldnt navigate to page", 4, 5000000)
+		$N.ToastShow("Network down. Could not navigate to page", 4, 5000000)
 		return; 
 	}
 
@@ -154,7 +154,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
 		if (loadresult === 'failed') {
 			$N.LocalDBSync.ClearAllObjectStores()
-			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`, "")
+			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
 			res(null);
 			return;
 		}
@@ -162,6 +162,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		( viewsel.children[0] as HTMLElement ).style.display = "block";
 
 		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
+
+		$N.EngagementListen.LogEngagePoint(LoggerSubjectE.engagement_pageview, viewsel.children[0].tagName.toLowerCase())
     }
 
     else if (direction === "forward") {
@@ -170,7 +172,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
 		if (loadresult === 'failed') {
 			$N.LocalDBSync.ClearAllObjectStores()
-			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`, "")
+			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
 			res(null);
 			return;
 		}
@@ -193,6 +195,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
             activeview.removeEventListener("transitionend", activeTransitionEnd);
 
 			document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
+
+			$N.EngagementListen.LogEngagePoint(LoggerSubjectE.engagement_pageview, activeview.tagName.toLowerCase())
         });
     }
 
@@ -217,7 +221,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
             if (loadresult === "failed") {
 				$N.LocalDBSync.ClearAllObjectStores()
-				$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", `/index.html?error_subject=${LoggerSubjectE.switch_station_route_load_fail}`, "")
+				$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
 				res(null);
 				return;
             }
@@ -291,6 +295,10 @@ const routeload = (routeindex:num, _uri:str, urlmatches:str[], views_attach_poin
 		case "machinetelemetry":
 			loady_a = machinetelemetry_loady_a
 			loady_b = machinetelemetry_loady_b
+			break;
+		case "notifications":
+			loady_a = notifications_loady_a
+			loady_b = notifications_loady_b
 			break;
 		/* END PWT */
 
@@ -383,7 +391,7 @@ const addtr_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) 
 })
 
 const addtr_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
-	const objectstores = await indexeddb_graball(["areas","cats","sources","tags"])
+	const objectstores = await indexeddb_graball(["areas","cats","sources","tags","quick_notes"])
 	//TODO: I could be trying to get object stores that dont exist. A scenario is that a previous view could, by chance, have preloaded the object stores so in testing its all hunky dory and then shit itself in production. indexeddb_graball needs to be passed this views localdb_preload to check and make sure I don't shoot myself
 	if (objectstores === null) { res(null); return; }
 	res(objectstores)
@@ -416,10 +424,11 @@ const machine_loady_a = (pathparams:GenericRowT, _searchparams: URLSearchParams)
 	
 	const httpopts = { method: "POST", body: JSON.stringify({ paths, opts })}
 
-	const r        = await $N.FetchLassie('/api/firestore_retrieve', httpopts, {}) as Promise<Array<object[]>|null>
-	if (r === null) { a.set(paths[0], []); res(a); return; } 
+	const r        = await $N.FetchLassie('/api/firestore_retrieve', httpopts, {})
+	// need to implement a full reject here and modify the switchstation and cmech to accomidate so the view wont be loaded at all
+	if (!r.ok) { a.set(paths[0], []); res(a); return; } 
 
-	a.set(paths[0], r[0]) 
+	a.set(paths[0], r.data![0]) 
 	res(a)	
 })
 
@@ -447,6 +456,24 @@ const machinetelemetry_loady_b = (pathparams:GenericRowT, _old_searchparams: URL
 	const n = new Map()
 	n.set("machines", [machine])
 	res(n)
+})
+
+
+const notifications_loady_a = (_pathparams:GenericRowT, _searchparams: URLSearchParams) => new Promise<null|Map<str,GenericRowT[]>>(async (res, _rej) => {
+
+	const a = new Map<str, GenericRowT[]>()
+
+	const r        = await $N.FetchLassie('/api/pwt/notifications/get_users_schedules')
+	if (!r.ok) { res(null); return; } 
+
+	a.set('users_info_for_notifications', r.data as GenericRowT[]) 
+	res(a)	
+})
+
+const notifications_loady_b = (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej) => {
+	const a = new Map<str, GenericRowT[]>()
+	a.set("none", []) 
+	res(a)	
 })
 /* END PWT */
 

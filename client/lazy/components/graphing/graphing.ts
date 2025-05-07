@@ -96,22 +96,32 @@ class CGraphing extends HTMLElement {
 
 		//await new Promise<void>(async res=> setTimeout(()=> res(), 20) )
 
-		await this.setit()
-
-		this.sc()
-
-		this.dispatchEvent(new Event('hydrated'))
+		this.setit()
+			.then(()=> {
+				this.sc()
+				this.dispatchEvent(new Event('hydrated'))
+			})
+			.catch(()=> {
+				window.location.href ="/index.html"
+				// TODO: dont do this. fuck sakes. deal with the error
+			})
 	}
 
 
 
 
-    async attributeChangedCallback(name:str, oldValue:str|bool|num, newValue:str|bool|num) {
+    async attributeChangedCallback(name:str, oldValue:str|bool|num, _newValue:str|bool|num) {
 
         if ( name === "runupdate" && oldValue !== null) {
 
-			await this.setit()
-			this.sc()
+			this.setit()
+				.then(()=> {
+					this.sc()
+					this.dispatchEvent(new Event('hydrated'))
+				})
+				.catch(()=> {
+					window.location.href ="/index.html"
+				})
 
 			// lets take an example. Say, at 2:03am the machine records 10 gallons and then again at 2:46am records 20 gallons. 
 			//   The machine stores those records and then sums them at 3:00am. So now the telemetry's timestamp at 3:00am will show 30 gallons. 
@@ -150,7 +160,7 @@ class CGraphing extends HTMLElement {
 
 
 
-	setit = () => new Promise<void>(async (res, _rej) => {
+	setit = () => new Promise<void>(async (res, rej) => {
 		this.s.bucket = this.getAttribute("bucket") as str
 		this.s.msr = this.getAttribute("measurement") as str
 		this.s.fields = this.getAttribute("fields")!
@@ -167,9 +177,14 @@ class CGraphing extends HTMLElement {
 
 		const end = this.s.ismdn ? ( this.s.begin + 86400 ) : this.s.begin + (this.s.intrv * this.s.ppf)
 
-		const queries_list = await $N.InfluxDB.Retrieve_Series(this.s.bucket, [this.s.begin], [end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors])
+		const qr = await $N.InfluxDB.Retrieve_Series(this.s.bucket, [this.s.begin], [end], [this.s.msr], [this.s.fields], [this.s.tags], [this.s.intrv], [this.s.priors]).catch(()=> "")
+		if (qr === "") {
+			alert ("error in setting graph")
+			rej()
+			return
+		}
 
-		render_graph_frame(this.shadow.querySelector('.ct-chart')!, this.s.type, queries_list[0], this.s.lowhigh, this.s.unitterms)
+		render_graph_frame(this.shadow.querySelector('.ct-chart')!, this.s.type, qr[0], this.s.lowhigh, this.s.unitterms)
 
 		res()
 	})

@@ -1,35 +1,16 @@
 
 
-//import { num, str } from "../defs_server_symlink.js"
+import { str } from "../defs_server_symlink.js"
 import { FetchResultT, FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs.js"
 
 
-//declare var $N: $NT;
-
-
-//const enum RequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
-
-
-/*
-type RequestT = {
-    url: str,
-    ts: num,
-    http_opts: FetchLassieHttpOptsT,
-    opts: FetchLassieOptsT,
-    state: RequestStateE,
-    cb: (_:any)=>void,
-}
-*/
-
-const EXITDELAY = 4000
-
-
-let timeoutWaitingAnimateId:any = null
+let _timeoutWaitingAnimateId:any = null
+let _activeRequestCount = 0 // Track number of active requests
 
 
 
 
-function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined|null, opts:FetchLassieOptsT|undefined|null) { return new Promise<FetchResultT>(async (response_callback:(_:any)=>void)=> { 
+function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, opts:FetchLassieOptsT|undefined|null) { return new Promise<FetchResultT>(async (fetch_callback)=> { 
 
     const http_opts     = http_optsP || { method: "GET", headers: {}, body: null }
 
@@ -37,46 +18,75 @@ function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined|null,
     http_opts.headers   = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
     http_opts.body      = typeof http_opts.body !== "undefined" ? http_opts.body : null
 
-	if (!opts) { opts   = { retries: 0, background: true, animate: true, exitdelay: EXITDELAY }; }
+	if (!opts) { opts   = { retries: 0, background: true, animate: true }; }
 
 	opts.retries        = opts.retries || 0
 	opts.background     = opts.background || true
 	opts.animate        = opts.animate || true
-	opts.exitdelay      = opts.exitdelay || EXITDELAY
+
+    _activeRequestCount++;
 
 	if (opts.background) {   setBackgroundOverlay(true);   }
-	if (opts.background && opts.animate) { 
-		timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 1000);
+    
+    // Only start animation timer if it's not already running
+	if (opts.background && opts.animate && _timeoutWaitingAnimateId === null) { 
+		_timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 1000);
 	}
 
     if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
     if(!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
 
-	http_opts.headers["exitdelay"] = opts.exitdelay.toString()
-
 	http_opts.headers["sse_id"] = localStorage.getItem('sse_id') || null
+
+	if (opts.retries && opts.retries > 0) {
+		http_opts.headers["call_even_if_offline"] = "true"
+		http_opts.headers["exitdelay"] = 2.7
+	}
 
 	let result:any = null
 	for(let i = 0; i < opts.retries+1; i++) {
-		if (i > 1)   http_opts.headers["retry"] = "true"
 		result = await fetchit(url, http_opts)
 
 		if (result.status !== 503) break
 
-		await new Promise(r => setTimeout(r, 1000))
+		// will cycle to next retry if more retries specified
 	}
 
-	clearTimeout(timeoutWaitingAnimateId)
-	setBackgroundOverlay(false)
-	setWaitingAnimate(false)
+    _activeRequestCount--;
 
-	if (result.status !== 200) {
-		response_callback(null)
-		return
+    // Only clear animations if this is the last active request
+    if (_activeRequestCount === 0) {
+        if (_timeoutWaitingAnimateId !== null) {
+            clearTimeout(_timeoutWaitingAnimateId);
+            _timeoutWaitingAnimateId = null;
+        }
+        setBackgroundOverlay(false);
+        setWaitingAnimate(false);
+    }
+
+	if (result.status === 503) {
+		fetch_callback({ status: 503, statusText: "Network error", ok: false }); 
+		return;
 	}
 
-	const data = await (http_opts.headers["Accept"] === "application/json" ? result.json() : result.text()) as FetchResultT
-	response_callback(data)
+	const returnobj:FetchResultT = {
+		status: result.status,
+		statusText: result.statusText,
+		ok: result.status === 200,
+	}
+
+	try {
+		if (result.status === 200) {
+			if (http_opts.headers["Accept"] === "application/json") {
+				returnobj.data = await result.json() // call could fail
+			} else {
+				returnobj.data = await result.text() // call could fail
+			}
+		}
+	} catch (e) { /* do nothing. data is empty */ }
+
+
+	fetch_callback(returnobj)
 })}
 
 
@@ -85,16 +95,11 @@ function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined|null,
 const fetchit = (url:string, http_opts:FetchLassieHttpOptsT) => new Promise<Response>((response_callback,_rej)=> {
 	fetch( url, http_opts )
 		.then(async (server_response:Response)=> {
-            if (server_response && server_response.status === 200 && server_response.ok) {
-                response_callback(server_response)
-				// do nothing different, for now atleast
-            } else {
-				response_callback(server_response)
-			}
+			response_callback(server_response)
+			// just pass through basically. service worker handles hanging fertches etc, so handle
+			// status 200, 400 or any other at the instance code
 		})
-		.catch((err_response) => {
-			response_callback(err_response)
-		})
+		// no need to catch errors here, as we are already catching them in the service worker
 })
 
 
@@ -114,158 +119,6 @@ function setWaitingAnimate(ison:boolean) {
 }
 
 
-
-
-/*
-function error_out(errsubject:LoggerSubjectE, errmsg:string="") {
-
-	Looks like error_out is no longer being used. Maybe remove this function. Make sure to remove Logger fetchlassie subjects too
-
-	$N.Logger.Log(LoggerTypeE.error, errsubject, errmsg)
-	if (window.location.protocol === "https:") {
-		window.location.href = `/index.html?error_subject=${errsubject}`; 
-	} else {
-		throw new Error(errsubject + " -- " + errmsg)
-	}
-}
-*/
-
-
-
-/*
-enum QueRequestStateE { INACTIVE, ACTIVE, SUCCESS, FAILED }
-
-
-type QueRequestT = {
-    url: str,
-    ts: num,
-    http_opts: FetchLassieHttpOptsT,
-    opts: FetchLassieOptsT,
-    state: QueRequestStateE,
-    cb: (_:any)=>void,
-}
-
-
-const ques:QueRequestT[] = []
-
-
-
-function FetchLassie(url:string, http_optsP:FetchLassieHttpOptsT|undefined, opts:FetchLassieOptsT|null|undefined) { return new Promise(async (response_callback:(_:any)=>void)=> { 
-
-    //const i = que_i++
-
-    http_optsP = http_optsP || { method: "GET", headers: {}, body: null }
-    opts = opts || { isbackground: false, timeout: 9000 }
-
-    opts.isbackground = typeof opts.isbackground !== "undefined" ? opts.isbackground : false
-	opts.timeout = typeof opts.timeout !== "undefined" ? opts.timeout : 9000
-
-    let http_opts:FetchLassieHttpOptsT = {
-        method: typeof http_optsP.method !== "undefined" ? http_optsP.method : "GET",
-        headers: typeof http_optsP.headers !== "undefined" ? http_optsP.headers : {},
-        body: typeof http_optsP.body !== "undefined" ? http_optsP.body : null
-    }
-
-    http_opts.method  = typeof http_opts.method !== "undefined" ? http_opts.method : "GET"
-    http_opts.headers = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
-    http_opts.body    = typeof http_opts.body !== "undefined" ? http_opts.body : null
-
-    if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
-    if(!http_opts.headers["Accept"]) http_opts.headers["Accept"] = "application/json"
-
-    set_que(url, opts, http_opts, (r)=>response_callback(r))
-})}
-
-
-
-
-function execute(que:QueRequestT) {  
-
-    fetch(que.url, que.http_opts)
-        .then(async (server_response:Response|false)=> {
-            if (server_response && server_response.status === 200 && server_response.ok) {
-                const request_result = await (que.http_opts.headers["Accept"] === "application/json" ? server_response.json() : server_response.text())
-                que.state = QueRequestStateE.SUCCESS
-                que.cb(request_result)
-            } else {
-				// all requests are funneled through service worker, which handles errors
-			}
-        })
-}
-
-
-
-
-function error_out(errmsg:string, errmsg_long:string="") {
-
-	localStorage.setItem("errmsg", errmsg + " -- " + errmsg_long)
-	if (window.location.protocol === "https:") {
-		window.location.href = `/index.html?errmsg=${errmsg}`; 
-	} else {
-		throw new Error(errmsg + " -- " + errmsg_long)
-	}
-}
-
-
-
-
-function set_que(url:string, opts:FetchLassieOptsT, http_opts:FetchLassieHttpOptsT, cb:(_:any)=>void) {
-
-    ques.push({ url, ts: Date.now(), opts, http_opts, state:QueRequestStateE.INACTIVE, cb });
-
-    if (ques.length === 1)
-        fetch_lassie_ticktock()
-}
-
-
-
-
-
-
-
-function fetch_lassie_ticktock() {
-
-    for(let i = ques.length-1; i >= 0; i--) {
-        if (ques[i].state === QueRequestStateE.SUCCESS || ques[i].state === QueRequestStateE.FAILED) {
-            ques.splice(i, 1)
-        }
-    }
-
-    const now = Date.now()
-
-    const que_timedout = ques.find(x=> now - x.ts > x.opts.timeout!)
-
-    if (que_timedout) {
-        error_out("fetchlassie_timeout", "Fetch Lassie Timeout - " + que_timedout.url)
-        return
-    }
-
-    const xel = document.getElementById("fetchlassy_overlay")!
-
-    const activeque = ques.find(x=> x.state === QueRequestStateE.ACTIVE)
-    if (!activeque && ques.length) { ques[0].state = QueRequestStateE.ACTIVE; execute(ques[0]); }
-
-    if (ques.length && ques.some(q=> q.state === QueRequestStateE.ACTIVE && !q.opts.isbackground)) {
-        xel.classList.add("active")
-
-        const anyactive_taking_a_while = ques.some(q=> q.state === QueRequestStateE.ACTIVE && Date.now() - q.ts > 600)
-        if (anyactive_taking_a_while)
-            xel.querySelector(".waiting_animate")!.classList.add("active")
-
-    } else {
-        xel.classList.remove("active")
-        xel.querySelector(".waiting_animate")!.classList.remove("active")
-    }
-
-    if (ques.length) {
-        setTimeout(()=>fetch_lassie_ticktock(), 30)
-        return 
-    }
-
-
-}
-
-*/
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }

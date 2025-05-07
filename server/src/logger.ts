@@ -6,13 +6,11 @@ import { str } from './defs.js'
 
 const Save = (db:any, user_email:str, device:str, browser:str, logs_string:str) => new Promise(async (resolve, _reject) => { 
 
-	const logs = logs_string.split("-")
+	const logs = logs_string.split("--")
 
 	const collection = db.collection("logs")
 
 	let batch = db.batch()
-
-	let ts_ms = 1
 
 	for (let i = 0; i < logs.length; i++) {
 		const log = logs[i].split(",")
@@ -43,7 +41,9 @@ const Get = (db:any, user_email:str ) => new Promise(async (resolve, _reject) =>
 
 	const collection = db.collection("logs")
 
-	const items_snapshot = await collection.where("user_email", "==", user_email).limit(2000).get()
+	const items_snapshot = await collection.where("user_email", "==", user_email).limit(10000).get().catch(()=>null)
+	if (!items_snapshot) {   resolve(null); return; }
+
 
 	const items = items_snapshot.docs.map((m: any) => ({ id: m.id, ...m.data() })).sort((a:any, b:any) => b.ts - a.ts)
 

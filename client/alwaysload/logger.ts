@@ -1,6 +1,6 @@
 
 
-import { $NT, LoggerTypeE, LoggerSubjectE } from "../defs.js"
+import { $NT, LoggerTypeE, LoggerSubjectE, GenericRowT } from "../defs.js"
 
 
 declare var $N: $NT;
@@ -25,16 +25,21 @@ enum BrowserE {
 
 function Log(type:LoggerTypeE, subject:LoggerSubjectE, message:string) {
 
-	if ( window.location.hostname === "localhost" )
-		return
+	//if ( window.location.hostname === "localhost" )   return
 
 
 	const logs = localStorage.getItem("logs") || ""
 	const ts = Math.floor(Date.now() / 1000)
 
-	const newlog = `${type},${subject},${message},${ts}-`
+	const newlog = `${type},${subject},${message},${ts}`
 
-	localStorage.setItem("logs", logs + newlog)
+	const newstr = `${logs}${newlog}--`
+
+	localStorage.setItem("logs", newstr)
+
+	if (newstr.length > 2000) {
+		Save()
+	}
 }
 
 
@@ -42,8 +47,7 @@ function Log(type:LoggerTypeE, subject:LoggerSubjectE, message:string) {
 
 async function Save() {
 
-	if ( window.location.hostname === "localhost" )
-		return
+	//if ( window.location.hostname === "localhost" )   return
 
 
 	let logs = localStorage.getItem("logs")
@@ -56,26 +60,22 @@ async function Save() {
 	let device = get_device()
 	let browser = get_browser()
 
-	if (logs.length > 10) {
-
-		logs = logs.slice(0, -1)
+	if (logs.length > 5) {
+		logs = logs.slice(0, -2) // remove the last -- from the logs
 
 		const url = "/api/logger/save"
 
 		const fetchopts = {   
 			method: "POST",
-			headers: { 
-				"Content-Type": "application/json",
-			},
 			body: JSON.stringify({user_email, device, browser, logs}),
 		}
 
-		const fr = await fetch(url, (fetchopts as any))
-
-		if (fr.ok) {
+		const r = await $N.FetchLassie(url, fetchopts, null)
+		if (!r.ok) {
+			// if the save fails, we will just leave the logs in localstorage
+		} else {
 			localStorage.setItem("logs", "")
 		}
-		// if not ok then just leave the logs in localstorage to be sent next time
 	}
 }
 
@@ -86,17 +86,15 @@ async function Get() {
 
 	let user_email = localStorage.getItem("user_email")
 
-	if (!user_email) 
-		return
+	if (!user_email)   return
 
 
-	let is_localhost = window.location.hostname === "localhost"
-
-	const url = "/api/logger/get?user_email=" + user_email + "&is_localhost=" + is_localhost
+	const url = "/api/logger/get?user_email=" + user_email
 
     const csvstr = await $N.FetchLassie(url, { headers: { 'Content-Type': 'text/csv', 'Accept': 'text/csv' } }, {  } )
+	if (!csvstr.ok) {   alert ("unable to retrieve logs"); return;   }
 
-	$N.Utils.CSV_Download(csvstr, "logs")
+	$N.Utils.CSV_Download(csvstr.data as string, "logs")
 }
 
 
@@ -106,7 +104,7 @@ async function logger_ticktock() {
 	setTimeout(()=> {
 		Save()
 		logger_ticktock()
-	}, 1000 * 60 * 20)
+	}, 1000 * 60 * 60 * 24)
 }
 
 

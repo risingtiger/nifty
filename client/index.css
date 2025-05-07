@@ -225,7 +225,7 @@ body, td {
   to { -webkit-transform: rotate(360deg); }
 }
 
-.unrecoverable-modal {
+.alert-modal {
   display: none;
   position: fixed;
   top: 0;
@@ -236,13 +236,13 @@ body, td {
   z-index: 9999;
 }
 
-.unrecoverable-modal.active {
+.alert-modal.active {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.unrecoverable-content {
+.alert-content {
   background: white;
   width: 88%;
   max-width: 480px;
@@ -256,17 +256,17 @@ body, td {
   border-radius: 4px;
 }
 
-.unrecoverable-content h1 {
+.alert-content h1 {
   margin: 0;
   font-size: 24px;
 }
 
-.unrecoverable-content p {
+.alert-content p {
   flex: 1;
   margin: 20px 0;
 }
 
-.unrecoverable-content button {
+.alert-content button {
   padding: 10px 20px;
   font-size: 16px;
   cursor: pointer;

@@ -13,6 +13,7 @@
 */
 
 
+
 div,
 span,
 h1,
@@ -51,6 +52,7 @@ a:hover {
     cursor: pointer;
 }
 
+
 header.viewheader {
     display: flex;
     position: relative;
@@ -62,8 +64,6 @@ header.viewheader {
     box-sizing: border-box;
     background: white;
     justify-content: flex-start;
-    
-    
 
     & .left {
         display: block;
@@ -91,7 +91,16 @@ header.viewheader {
             transform: translateY(-2px);
         }
 
+
         white-space: nowrap;
+
+		& i.icon-arrowleft1 {
+			display: block;
+			font-size: 16px;
+			color: #9c9b9b;
+			padding: 1px 12px 8px 8px;
+			cursor: pointer;
+		}
     }
 
     & .middle {
@@ -164,8 +173,9 @@ ul.items {
 
         & > h5 {
             font-weight: 700;
-            padding: 17px 0 0 0;
+            padding: 18px 0 0 0;
         }
+
 
         & > h5:first-child {
             padding-left: 12px;
@@ -187,16 +197,34 @@ ul.items {
             padding-right: 11px;
         }
 
-        & > i.action {
+		& > .actions {
+            display: flex;
+
+			& > i.action {
+				display: block;
+				padding: 18px 8px 14px 13px;
+				color: #c1c1c1;
+				font-size: 18px;
+				width: 20px;
+				height: 20px;
+				color: #8b8b8b;
+			}
+			& > i.action:hover {
+				color: var(--actioncolor);
+			}
+		}
+
+
+        & > i.indication {
             display: block;
-            padding: 17px 8px 0 13px;
+            padding: 17px 8px 14px 13px;
             color: #c1c1c1;
             font-size: 18px;
             width: 20px;
             height: 20px;
         }
 
-        & > i.action.bolder {
+        & > i.indication.actioncolor {
             color: var(--actioncolor);
         }
 
@@ -259,6 +287,7 @@ ul.items {
             padding-top: 9px;
         }
     }
+
 
 	& li:hover {
 		background: var(--background-highlight);
@@ -404,75 +433,77 @@ i[class*=" icon-"]:before {
 }
 
 
-
-.icon-tripledot:before {
+.icon-trash:before {
     content: "\f101";
 }
-.icon-copy:before {
+.icon-tripledot:before {
     content: "\f102";
 }
-.icon-save:before {
+.icon-copy:before {
     content: "\f103";
 }
-.icon-burger:before {
+.icon-save:before {
     content: "\f104";
 }
-.icon-add:before {
+.icon-burger:before {
     content: "\f105";
 }
-.icon-list:before {
+.icon-add:before {
     content: "\f106";
 }
-.icon-piggy:before {
+.icon-list:before {
     content: "\f107";
 }
-.icon-bucket:before {
+.icon-piggy:before {
     content: "\f108";
 }
-.icon-stopwatch:before {
+.icon-bucket:before {
     content: "\f109";
 }
-.icon-pressure:before {
+.icon-stopwatch:before {
     content: "\f10a";
 }
-.icon-meter:before {
+.icon-pressure:before {
     content: "\f10b";
 }
-.icon-info:before {
+.icon-meter:before {
     content: "\f10c";
 }
-.icon-graph:before {
+.icon-info:before {
     content: "\f10d";
 }
-.icon-location:before {
+.icon-graph:before {
     content: "\f10e";
 }
-.icon-refresh:before {
+.icon-location:before {
     content: "\f10f";
 }
-.icon-search:before {
+.icon-refresh:before {
     content: "\f110";
 }
-.icon-tune:before {
+.icon-search:before {
     content: "\f111";
 }
-.icon-edit2:before {
+.icon-tune:before {
     content: "\f112";
 }
-.icon-edit1:before {
+.icon-edit2:before {
     content: "\f113";
 }
-.icon-checkcircle:before {
+.icon-edit1:before {
     content: "\f114";
 }
-.icon-arrowright2:before {
+.icon-checkcircle:before {
     content: "\f115";
 }
-.icon-arrowleft1:before {
+.icon-arrowright2:before {
     content: "\f116";
 }
-.icon-arrowright1:before {
+.icon-arrowleft1:before {
     content: "\f117";
+}
+.icon-arrowright1:before {
+    content: "\f118";
 }
 
 

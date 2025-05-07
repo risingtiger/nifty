@@ -4,16 +4,17 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
-const EXITDELAY = 4000
+const EXITDELAY = 12000 // just the default. can be overridden in the fetch request
 
 let cache_name = 'cacheV__0__';
-let cache_version = Number(cache_name.split("__")[1])
-let id_token = ""
-let token_expires_at = 0
+let _cache_version = Number(cache_name.split("__")[1])
+let _id_token = ""
+let _token_expires_at = 0
 let refresh_token = ""
 let user_email = ""
-let isoffline = false
-let is_checking_connectivity = false
+let _isoffline = false
+
+setInterval(()=> { check_connectivity(); }, 5000)
 
 
 
@@ -65,95 +66,12 @@ self.addEventListener('fetch', (e:any) => {
 
     let promise = new Promise(async (res, _rej) => {
 
-		const cache   = await caches.open(cache_name)
-		const match_r = await cache.match(e.request)
+		const accepth = e.request.headers.get('Accept') || ""
+		const calltype:"data"|"file" = accepth.includes('json') || accepth.includes('csv') ? "data" : "file"
 
-		if (match_r) { 
-			res(match_r) 
+		const response = (calltype === "data") ? await handle_data_call(e.request) : await handle_file_call(e.request)
 
-		} else if (isoffline && !e.request.headers.get('retry')) {
-			res(new Response(null, { status: 503, statusText: 'Network error' }))
-			return
-
-		} else if (e.request.url.includes("/api/")) {
-
-			await authrequest()
-
-			const new_headers = new Headers(e.request.headers);
-			new_headers.append('appversion', cache_version.toString())
-			new_headers.append('Authorization', `Bearer ${id_token}`)
-
-			const controller = new AbortController();
-			const { signal } = controller;
-			const exitdelay = e.request.headers.get("exitdelay") || EXITDELAY;
-			const timeoutControllerId     = setTimeout(() => { controller.abort(); }, Number(exitdelay));
-
-			const new_request = new Request(e.request, {
-				headers: new_headers,
-				cache: 'no-store',
-				signal
-			});
-
-			fetch(new_request)
-				.then(async (server_response:any)=> {
-					
-					isoffline = false;
-					clearTimeout(timeoutControllerId)
-
-					if (server_response.status === 401) { // unauthorized
-						error_out("sw4", "") // error_out has a setTimeout, so it will circumvent the respondWith
-						res(server_response)
-					}
-
-					else if (server_response.status === 410) {
-						(self as any).clients.matchAll().then((clients:any) => {
-							clients.forEach((client: any) => {
-								client.postMessage({
-									action: 'update_init'
-								})
-							})
-							res(server_response)
-						})
-
-					} else if (server_response.status === 200 && server_response.ok) {
-						res(server_response)
-
-					} else {
-						logit(40, 'swe', server_response.status + " - " + server_response.statusText)
-						res(new Response(null, { status: server_response.status, statusText: server_response.statusText }))
-					}
-				})
-				.catch(async (err:any)=> {
-					logit(40, 'swe', "fetch catch. url: " + new_request.url + '. errmsg: ' + err.message)
-					isoffline = true
-					check_connectivity()
-					res(new Response(null, { status: 503, statusText: 'Network error' }))
-				})
-
-		} else {
-			try {
-				const controller = new AbortController();
-				const { signal } = controller;
-				const exitdelay = e.request.headers.get("exitdelay") || EXITDELAY;
-				const timeoutId = setTimeout(() => controller.abort(), Number(exitdelay));
-				
-				const r = await fetch(e.request, { signal });
-				clearTimeout(timeoutId);
-				
-				if (r.ok && should_url_be_cached(e.request))    {
-					cache.put(e.request, r.clone());
-					isoffline = false;
-				}
-					
-				res(r);
-
-			} catch (error: any) {
-				logit(40, 'swe', "fetch catch. url: " + e.request.url + '. errmsg: ' + error.message)
-				isoffline = true
-				check_connectivity()
-				res(new Response(null, { status: 503, statusText: 'Network error' }));
-			}
-		}
+		res(response)
     })
 
     e.respondWith(promise)
@@ -170,8 +88,8 @@ self.addEventListener('message', async (e:any) => {
 	}
 
 	else if (e.data.action === "initial_pass_auth_info") {
-		id_token = e.data.id_token;
-		token_expires_at = Number(e.data.token_expires_at);
+		_id_token = e.data.id_token;
+		_token_expires_at = Number(e.data.token_expires_at);
 		refresh_token = e.data.refresh_token;
 		user_email = e.data.user_email;
 	}
@@ -265,6 +183,131 @@ async function check_update_polling() {
 
 
 
+const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
+
+	if (_isoffline && !r.headers.get('call_even_if_offline')) {
+		res(new Response(null, { status: 503, statusText: 'Network error' }))
+		return
+	}
+
+
+	const ar = await authrequest().catch(err=> err)
+	if (ar === "Network error") {
+		res(new Response(null, { status: 503, statusText: 'Network error' }))
+		return
+	}
+	else if (ar === "Refresh failed") {
+		res(new Response(null, { status: 401, statusText: 'Unauthorized' }))
+		return
+	}
+
+	// TODO: for cross origin CORS requests, I need to handle the preflight OPTIONS request and response status of 0
+	// currently no cors requests going on
+
+	const is_appapi   = r.url.includes("/api/") ? true : false
+	const new_headers = new Headers(r.headers);
+
+	if (is_appapi) {
+		new_headers.append('appversion', _cache_version.toString())
+		new_headers.append('Authorization', `Bearer ${_id_token}`)
+	}
+
+	const { signal, abortsignal_timeoutid } = set_abort_signal(r.headers)
+
+	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
+
+	fetch(new_request)
+		.then(async (server_response:any)=> {
+			
+			_isoffline = false;
+			clearTimeout(abortsignal_timeoutid)
+
+			if (is_appapi && server_response.status === 401) { // unauthorized
+				await error_out("sw4", "") 
+				res(server_response)
+			}
+
+			else if (is_appapi && server_response.status === 410) {
+				(self as any).clients.matchAll().then((clients:any) => {
+					clients.forEach((client: any) => {
+						client.postMessage({   action: 'update_init'   })
+					})
+					res(server_response)
+				})
+
+			} else  {
+				res(server_response)
+			} 
+
+			if (server_response.status !== 200)   logit( 40, "swe", `${ new_request.url } - ${ server_response.status } - ${ server_response.statusText }` )
+
+		})
+		.catch(async (err:any)=> {
+			logit(40, "swe", `${new_request.url} - fetch catch - ${err.message || 'Unknown error'}`)
+			_isoffline = true
+			res(new Response( null, { status: 503, statusText: 'Network error' } ))
+		})
+})
+
+
+
+
+const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
+
+	const cache   = await caches.open(cache_name)
+	const match_r = await cache.match(r)
+
+	if (match_r) { 
+		res(match_r) 
+
+	} else if (_isoffline && !r.headers.get('call_even_if_offline')) {
+		res(new Response('File not available offline', {                               
+			status: 503,                                                               
+			statusText: 'Offline Mode',                                                
+			headers: { 'Content-Type': 'text/plain' }                                  
+		}))                                                                            
+
+	} else {
+		const { signal, abortsignal_timeoutid } = set_abort_signal(r.headers)
+		
+		try {
+			const response = await fetch(r, { signal })
+			_isoffline = false;
+			clearTimeout(abortsignal_timeoutid)
+			
+			if (response.status === 200 && should_url_be_cached(r)) {
+				// cache is relatively small. will put in mechanism to clear it out if needed when I get time
+				cache.put(r, response.clone())
+			}
+			res(response)
+
+		} catch (err) {
+			logit(40, "swe", `${r.url} - fetch catch - ${err.message || 'Unknown error'}`)
+			_isoffline = true
+			res(new Response('Failed to fetch file', { 
+				status: 503, 
+				statusText: 'Network error',
+				headers: { 'Content-Type': 'text/plain' }
+			}))
+		}
+	}
+})
+
+
+
+
+function set_abort_signal(headers:Headers) {
+
+	let controller = new AbortController()
+	const { signal } = controller;
+	const exitdelay = headers.get("exitdelay") || EXITDELAY;
+	const abortsignal_timeoutid     = setTimeout(() => { controller.abort(); }, Number(exitdelay));
+
+	return { signal, abortsignal_timeoutid }
+}
+
+
+
 function should_url_be_cached(request:Request) {
     if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v/")) {
         return true;
@@ -278,75 +321,85 @@ function should_url_be_cached(request:Request) {
 
 function check_connectivity() {
 
-	if (is_checking_connectivity) return
+	if (!_isoffline) return
 
-	is_checking_connectivity = true;
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-	fetch('/api/ping', { cache: 'no-store' })
+	fetch('/api/ping', { 
+		cache: 'no-store',
+		signal: controller.signal 
+	})
 		.then(response => {
+			clearTimeout(timeoutId);
 			if (response.ok) {
-				isoffline = false;
-				is_checking_connectivity = false;
+				_isoffline = false;
 			}
 		})
 		.catch(_err => {
-			setTimeout(check_connectivity, 5000);
+			clearTimeout(timeoutId);
 		})
 }
 
 
 
 
-function authrequest() { return new Promise(async (res,_rej)=> { 
+function authrequest() { return new Promise(async (res,rej)=> { 
 
-    if (!id_token) {
-		error_out("swe", "authrequest no token in browser storage")
+	// keep in mind that when retries are set (case in point being the refocus of the app), its probably gonna be authrequest that is gonna be first initial call 
+	// right now the the exitdelay is overriden to be 2.7 seconds (check FetchLassie logic to ascertain current value). a little problematic because refresh token could take longer on slow connections
+
+    if (!_id_token) {
+		await error_out("swe", "authrequest no token in browser storage")
+		rej()
         return
     }
 
 
-    if (Date.now()/1000 > token_expires_at-30) {
+    if (Date.now()/1000 > _token_expires_at-30) {
 
         const body = { refresh_token }
 
-        fetch('/api/refresh_auth', {
+        const { signal, abortsignal_timeoutid } = set_abort_signal(new Headers()); // dumb header, not used
 
+        fetch('/api/refresh_auth', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
+            headers: {'Content-Type': 'application/json',},
+            body: JSON.stringify(body),
+            signal: signal
 
         }).then(async r=> {
+            clearTimeout(abortsignal_timeoutid);
 
             let data = await r.json() as any
 
             if (data.error) {
-				error_out("swe", "authrequest refresh failed - " + data.error.message)
+				await error_out("swe", "authrequest refresh failed - " + data.error.message)
+				rej("Refresh failed")
             }
 
             else {
-                id_token = data.id_token
+                _id_token = data.id_token
                 refresh_token = data.refresh_token
-                token_expires_at = Math.floor(Date.now()/1000) + Number(data.expires_in);
+                _token_expires_at = Math.floor(Date.now()/1000) + Number(data.expires_in);
 
 				(self as any).clients.matchAll().then((clients:any) => {
 					clients.forEach((client: any) => {
 						client.postMessage({
 							action: 'update_auth_info',
-							id_token,
+							id_token: _id_token,
 							refresh_token,
-							token_expires_at
+							token_expires_at: _token_expires_at
 						})
 					})
 				})
 
-
                 res(1)
             }
 
-        }).catch(err=> {
-			error_out("swe", "authrequest refresh network failed - " + err)
+        }).catch(async err=> {
+            clearTimeout(abortsignal_timeoutid);
+			rej("Network error") 
         })
     }
 
@@ -358,20 +411,21 @@ function authrequest() { return new Promise(async (res,_rej)=> {
 
 
 
-function error_out(subject:string, errmsg:string="") {
+const error_out = (subject:string, errmsg:string="") => new Promise((res, _rej) => {
 
 	(self as any).clients.matchAll().then((clients:any) => {
-		setTimeout(()=> {
-			clients.forEach((client: any) => {
-				client.postMessage({
-					action: 'error_out',
-					subject,
-					errmsg
-				})
+		clients.forEach((client: any) => {
+			client.postMessage({
+				action: 'error_out',
+				subject,
+				errmsg
 			})
-		},100)
+		})
 	})
-}
+
+	// by the time this settimeout hits, the main thread has been notified and should have already completely redirected the app to error page
+	setTimeout(()=> { res(1) }, 100)
+})
 
 
 

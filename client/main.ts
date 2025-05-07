@@ -34,8 +34,8 @@ const LAZYLOADS: LazyLoadT[] = [
 
 	{
 		type: "view",
-		urlmatch: "^notifications$",
-		name: "notifications",
+		urlmatch: "^setup_push_allowance$",
+		name: "setup_push_allowance",
 		is_instance: false,
 		dependencies: [
 			{ type: "component", name: "ol" },
@@ -210,7 +210,6 @@ function ToastShow(msg: string, level?: number | null, duration?: number | null)
 		return
 	}
 
-
 	const htmlstr = `<c-toast id="maintoast" msg="" level="" duration=""></c-toast>`
 	document.body.insertAdjacentHTML("beforeend", htmlstr)
 	let toast_el = document.getElementById("maintoast")! as any
@@ -226,6 +225,16 @@ function ToastShow(msg: string, level?: number | null, duration?: number | null)
 	})
 }
 $N.ToastShow = ToastShow
+
+
+
+
+function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
+	const redirect = `/index.html?logsubj=${logsubj}`;
+	setalertbox(subj, msg, btnmsg, redirect);
+	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
+}
+$N.Unrecoverable = Unrecoverable
 
 
 
@@ -253,12 +262,6 @@ function setalertbox(subj: string, msg: string, btnmsg: string, redirect: string
 	}
 }
 
-function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
-	const redirect = `/index.html?error_subject=${logsubj}`;
-	setalertbox(subj, msg, btnmsg, redirect);
-	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
-}
-$N.Unrecoverable = Unrecoverable
 
 
 
@@ -323,12 +326,11 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 				return;
 			}
 			$N.LocalDBSync.ClearAllObjectStores()
-			Unrecoverable("App Update", "app has been updated. needs restarted", "Restart App", LoggerSubjectE.app_update, "")
 
-
-			function showappupdate(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
-				const redirect = `/index.html?logsubj=${logsubj}`;
-				setalertbox(subj, msg, btnmsg, redirect);
+			 
+			{   // set alertbox and log it
+				const redirect = `/index.html?appupdate=done`;
+				setalertbox("App Update", "app has been updated. needs restarted", "Restart App", redirect);
 				$N.Logger.Log(LoggerTypeE.info, LoggerSubjectE.app_update, "");
 			}
 		}

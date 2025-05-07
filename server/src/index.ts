@@ -171,7 +171,8 @@ async function refresh_auth(req:any, res:any) {
         res.status(200).send(JSON.stringify(data))
     })
     .catch((err:any) => {
-        res.status(401).send(err)
+		res.statusMessage("unable to refresh auth: " + err);
+        res.status(401).send()
     })
 }
 
@@ -183,7 +184,7 @@ async function firestore_retrieve(req:any, res:any) {
     if (! await validate_request(res, req)) return 
 
     const r = await Firestore.Retrieve(db, req.body.paths, req.body.opts)
-	if (r === null) {  res.status(200).send({ok:false}); return }
+	if (r === null) { res.statusMessage("unable to retrieve firestore"); res.status(400).send(); return; }
 
 	
     const jsoned = JSON.stringify(r)
@@ -210,8 +211,9 @@ async function firestore_add(req:any, res:any) {
 	const id = req.body.id
 	const ts = req.body.ts
     const r = await Firestore.Add(db, SSE, req.body.path, req.body.data, id, ts, sse_id)
+	if (r === null) { res.statusMessage("unable to add firestore"); res.status(400).send(); return; }
 
-	res.status(200).send(JSON.stringify({ok: !r ? false : true}))
+	res.status(200).send()
 }
 
 
@@ -228,6 +230,7 @@ async function firestore_patch(req:any, res:any) {
 	const newts = req.body.newts
 
     const r = await Firestore.Patch(db, SSE, path, data, oldts, newts, sse_id)
+	if (r === null) { res.statusMessage("unable to patch firestore"); res.status(400).send(); return; }
 
 	res.status(200).send(JSON.stringify({ok: !r ? false : true}))
 }
@@ -241,6 +244,7 @@ async function firestore_delete(req:any, res:any) {
 
 	const sse_id = req.headers['sse_id'] || null
     const r = await Firestore.Delete(db, SSE, req.body.path, sse_id)
+	if (r === null) { res.statusMessage("unable to delete firestore"); res.status(400).send(); return; }
 
 	res.status(200).send(JSON.stringify({ok: !r ? false : true}))
 }
@@ -253,7 +257,7 @@ async function firestore_get_batch(req:any, res:any) {
     if (! await validate_request(res, req)) return 
 
     const r = await Firestore.GetBatch(db, req.body.paths, req.body.tses, req.body.runid)
-	if (!r) {  res.status(200).send({ok:false}); return }
+	if (!r) {  res.statusMessage("unable to get batch"); res.status(400).send(); return }
 
     const jsoned = JSON.stringify(r)
     zlib.brotliCompress(jsoned, {
@@ -279,6 +283,7 @@ async function influxdb_retrieve_series(req:any, res:any) {
     const rb = req.body
 
     const results = await InfluxDB.Retrieve_Series(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags, rb.intrv, rb.priors)
+	if (!results) { res.status(400).send(); return; }
 
     const jsoned = JSON.stringify(results)
     zlib.brotliCompress(jsoned, {
@@ -303,6 +308,7 @@ async function influxdb_retrieve_points(req:any, res:any) {
     const rb = req.body
 
     const results = await InfluxDB.Retrieve_Points(rb.bucket, rb.begins, rb.ends, rb.msrs, rb.fields, rb.tags)
+	if (!results) { res.status(400).send(); return; }
 
     const jsoned = JSON.stringify(results)
     zlib.brotliCompress(jsoned, {
@@ -327,6 +333,7 @@ async function influxdb_retrieve_medians(req:any, res:any) {
     const rb = req.body
 
     const results = await InfluxDB.Retrieve_Medians(rb.bucket, rb.begins, rb.ends, rb.dur_amounts, rb.dur_units, rb.msrs, rb.fields, rb.tags, rb.aggregate_fn)
+	if (!results) { res.status(400).send(); return; }
 
     const jsoned = JSON.stringify(results)
     zlib.brotliCompress(jsoned, {
@@ -361,7 +368,7 @@ async function logger_save(req:any, res:any) {
 		req.body.browser, 
 		req.body.logs)
 
-	res.status(200).send({ok:true})
+	res.status(200).send()
 }
 
 
@@ -370,7 +377,7 @@ async function logger_save(req:any, res:any) {
 async function logger_get(req:any, res:any) {
 
 	const r = await Logger.Get(db, req.query.user_email)
-	if (!r) { res.status(204).send(null); return; }
+	if (!r) { res.status(400).send(); return; }
 
 	res.setHeader('Content-Type', 'text/csv');
 	res.status(200).send(r)
@@ -383,11 +390,11 @@ async function push_subscriptions_add(req:any, res:any) {
 
     if (! await validate_request(res, req)) return 
 
-
     const user_email:str = req.query.user_email as string
     const fcm_token:str = req.query.fcm_token as string
 
-    await Push_Subscriptions.Add_Subscription(db, fcm_token, user_email)
+    const r = await Push_Subscriptions.Add_Subscription(db, fcm_token, user_email)
+	if (!r) { res.status(400).send(); return; }
 
     res.status(200).send(JSON.stringify({message:"saved"}))
 }
@@ -401,7 +408,8 @@ async function push_subscriptions_remove(req:any, res:any) {
 
     const user_email:str = req.query.user_email as string
 
-    await Push_Subscriptions.Remove_Subscription(db, user_email)
+    const r = await Push_Subscriptions.Remove_Subscription(db, user_email)
+	if (!r) { res.status(400).send(); return; }
 
     res.status(200).send(JSON.stringify({message:"saved"}))
 }
@@ -461,8 +469,7 @@ async function init() { return new Promise(async (res, _rej)=> {
 		*/
 
 		const googleauth = new googleapis.auth.GoogleAuth({
-			keyFile: INSTANCE.SHEETS_KEYJSONFILE,
-			//keyFile: '/Users/dave/.ssh/xenfinancesheets_key.json', // Example path, using instance config instead
+			keyFile: INSTANCE.KEYJSONFILE,
 			scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 		})
 		let google_auth:any = await googleauth.getClient();
@@ -474,7 +481,7 @@ async function init() { return new Promise(async (res, _rej)=> {
     else if (VAR_NODE_ENV === 'gcloud') { 
 
         const googleauth = new googleapis.auth.GoogleAuth({
-            keyFile: INSTANCE.SHEETS_KEYJSONFILE, // Using instance config for consistency
+            //keyFile: INSTANCE.SHEETS_KEYJSONFILE, // Using instance config for consistency
             // keyFile: process.cwd() + '/sheets_key.json', // Original path
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         })
@@ -526,7 +533,7 @@ function validate_request(res:any, req:any) {   return new Promise((promiseres)=
 		const appversion = Number(req.headers.appversion)
 		
 		if (appversion !== APPVERSION) {
-			res.status(410).send("appversion is not valid")
+			res.status(410).send()
 			promiseres(false)
 			return false
 		}
@@ -535,17 +542,16 @@ function validate_request(res:any, req:any) {   return new Promise((promiseres)=
 		const id_token = req.headers.authorization?.substring(7, req.headers.authorization?.length);
 
 		getAuth()
+			.verifyIdToken(id_token)
 
-		.verifyIdToken(id_token)
+			.then((_decodedToken) => {
+				promiseres(true)
+			})
 
-		.then((_decodedToken) => {
-			promiseres(true)
-		})
-
-		.catch((_error) => {
-			res.status(401).send("id_token is not valid")
-			promiseres(false)
-		})
+			.catch((_error) => {
+				res.status(401).send()
+				promiseres(false)
+			})
 	}
 
 })}

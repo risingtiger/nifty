@@ -1,4 +1,5 @@
 export type IconsId =
+  | "_24_trash"
   | "_23_tripledot"
   | "_22_copy"
   | "_21_save"
@@ -24,6 +25,7 @@ export type IconsId =
   | "_01_arrowright1";
 
 export type IconsKey =
+  | "i24Trash"
   | "i23Tripledot"
   | "i22Copy"
   | "i21Save"
@@ -49,6 +51,7 @@ export type IconsKey =
   | "i01Arrowright1";
 
 export enum Icons {
+  i24Trash = "_24_trash",
   i23Tripledot = "_23_tripledot",
   i22Copy = "_22_copy",
   i21Save = "_21_save",
@@ -75,27 +78,28 @@ export enum Icons {
 }
 
 export const ICONS_CODEPOINTS: { [key in Icons]: string } = {
-  [Icons.i23Tripledot]: "61697",
-  [Icons.i22Copy]: "61698",
-  [Icons.i21Save]: "61699",
-  [Icons.i20Burger]: "61700",
-  [Icons.i19Add]: "61701",
-  [Icons.i18List]: "61702",
-  [Icons.i17Piggy]: "61703",
-  [Icons.i16Bucket]: "61704",
-  [Icons.i15Stopwatch]: "61705",
-  [Icons.i14Pressure]: "61706",
-  [Icons.i13Meter]: "61707",
-  [Icons.i12Info]: "61708",
-  [Icons.i11Graph]: "61709",
-  [Icons.i10Location]: "61710",
-  [Icons.i09Refresh]: "61711",
-  [Icons.i08Search]: "61712",
-  [Icons.i07Tune]: "61713",
-  [Icons.i06Edit2]: "61714",
-  [Icons.i05Edit1]: "61715",
-  [Icons.i04Checkcircle]: "61716",
-  [Icons.i03Arrowright2]: "61717",
-  [Icons.i02Arrowleft1]: "61718",
-  [Icons.i01Arrowright1]: "61719",
+  [Icons.i24Trash]: "61697",
+  [Icons.i23Tripledot]: "61698",
+  [Icons.i22Copy]: "61699",
+  [Icons.i21Save]: "61700",
+  [Icons.i20Burger]: "61701",
+  [Icons.i19Add]: "61702",
+  [Icons.i18List]: "61703",
+  [Icons.i17Piggy]: "61704",
+  [Icons.i16Bucket]: "61705",
+  [Icons.i15Stopwatch]: "61706",
+  [Icons.i14Pressure]: "61707",
+  [Icons.i13Meter]: "61708",
+  [Icons.i12Info]: "61709",
+  [Icons.i11Graph]: "61710",
+  [Icons.i10Location]: "61711",
+  [Icons.i09Refresh]: "61712",
+  [Icons.i08Search]: "61713",
+  [Icons.i07Tune]: "61714",
+  [Icons.i06Edit2]: "61715",
+  [Icons.i05Edit1]: "61716",
+  [Icons.i04Checkcircle]: "61717",
+  [Icons.i03Arrowright2]: "61718",
+  [Icons.i02Arrowleft1]: "61719",
+  [Icons.i01Arrowright1]: "61720",
 };

@@ -61,7 +61,7 @@ const ATTRIBUTES:AttributesT = { propa: "" }
 
 
 
-class VNotifications extends HTMLElement {
+class VSetupPushAllowance extends HTMLElement {
 
 	m:ModelT = { propa: "" };
 	a:AttributesT = { ...ATTRIBUTES };
@@ -128,6 +128,11 @@ class VNotifications extends HTMLElement {
 
 
 
+	kd() {}
+
+
+
+
     sc() {
         render(this.template(this.s), this.shadow);
     }
@@ -135,50 +140,53 @@ class VNotifications extends HTMLElement {
 
 
 
-    async Subscribe(btnel:any) {
+    async Subscribe(e:CustomEvent) {
 
         navigator.serviceWorker.ready
+			.then(async (reg:ServiceWorkerRegistration) => {
 
-        .then(async (reg:ServiceWorkerRegistration) => {
+				const result = await Notification.requestPermission()
 
-            const result = await Notification.requestPermission()
+				if (result !== 'granted') {
+					throw new Error('Permission not granted for Notification')
+				}
 
-            if (result !== 'granted') {
-                throw new Error('Permission not granted for Notification')
-            }
+				else {
 
-            else {
+					await reg.pushManager.subscribe({
+						userVisibleOnly: true,
+						applicationServerKey: urlBase64ToUint8Array(vapidKey)
+					})
 
-                await reg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(vapidKey)
-                })
+					firebase_service.messaging = firebase_service.getMessaging()
 
-                firebase_service.messaging = firebase_service.getMessaging()
+					const fcm_token = await firebase_service.getToken(firebase_service.messaging, { 
+						serviceWorkerRegistration: reg,
+						vapidKey 
+					})
 
-                const fcm_token = await firebase_service.getToken(firebase_service.messaging, { 
-                    serviceWorkerRegistration: reg,
-                    vapidKey 
-                })
+					const user_email = localStorage.getItem('user_email')
+					const r = await $N.FetchLassie('/api/push_subscriptions/add?user_email=' + user_email + '&fcm_token='+fcm_token, {
+						method: 'GET',
+						headers: { 'Content-type': 'application/json' },
+					})
 
-                const user_email = localStorage.getItem('user_email')
-                await $N.FetchLassie('/api/notifications_add_subscription?user_email=' + user_email + '&fcm_token='+fcm_token, {
-                    method: 'GET',
-                    headers: {
-                        'Content-type': 'application/json'
-                    },
-                })
+					e.detail.resolved()
 
-                this.s.is_subscribed = true
-                this.sc()
+					if (!r.ok) {
+						alert ('Error trying to subscribe: ' + r.statusText)	
+						return
+					}	
 
-				btnel.setAttribute('resolved', true)
+					this.s.is_subscribed = true
+					this.sc()
 
-                await reg.showNotification('Notification with ServiceWorker', {
-                    body: 'Notification with ServiceWorker',
-                })
-            }
-        })
+
+					await reg.showNotification('Notification with ServiceWorker', {
+						body: 'Notification with ServiceWorker',
+					})
+				}
+			})
     }
 
 
@@ -196,7 +204,7 @@ class VNotifications extends HTMLElement {
                   .then(async (_successful) => {
 
                     const user_email = localStorage.getItem('user_email')
-                    await $N.FetchLassie('/api/notifications_remove_subscription?user_email=' + user_email, {
+                    await $N.FetchLassie('/api/push_subscriptions/remove?user_email=' + user_email, {
                         method: 'GET',
                         headers: {
                             'Content-type': 'application/json'
@@ -285,7 +293,7 @@ class VNotifications extends HTMLElement {
 
 
 
-customElements.define('v-notifications', VNotifications);
+customElements.define('v-setup-push-allowance', VSetupPushAllowance);
 
 
 
@@ -333,68 +341,3 @@ function urlBase64ToUint8Array(base64String:any) {
 export {  }
 
 
-/*
- *
-
-    async subscribe_user_to_push() {
-
-        navigator.serviceWorker.ready
-
-        .then(async registration => {
-
-            const vapid_public_key = 'BCj4QZByQuDUdWC5ai7S1m5sxAdyVwVu1z4ozyC0EPC_GOKdJkVDCouR4mmmxtReHL8txGHPFV4Z41cAMmgecSg'
-
-            await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: vapid_public_key
-            })
-
-            return new Promise((res, _rej) => {
-                setTimeout(()=> {   res(1);   }, 1000)
-            })
-
-        }).then(_subscription => {
-
-            return new Promise((res, rej) => {
-
-                app = initializeApp(firebaseConfig)
-                messaging = getMessaging(app)
-
-                getToken(messaging, { vapidKey: "BCj4QZByQuDUdWC5ai7S1m5sxAdyVwVu1z4ozyC0EPC_GOKdJkVDCouR4mmmxtReHL8txGHPFV4Z41cAMmgecSg" })
-
-                .then(async (currentToken:any) => {
-
-                    if (currentToken) {
-
-                        await FetchLassie('/api/fcm_add_token', {
-                            method: 'POST',
-                            headers: {
-                                'Content-type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                user_email: localStorage.getItem('user_email'),
-                                token: currentToken
-                            })
-                        })
-
-                        res(true)
-
-                    } else {
-                        rej(false)
-                    }
-
-                }).catch((err:any) => {
-                    rej(false)
-                })
-            })
-                    
-        }).then(_ => {
-
-            this.s.is_subscribed = true
-            this.sc()
-
-        }).catch(_err => {
-            //
-        })
-    }
-*/
